@@ -186,6 +186,15 @@ describe('SECRETARY — allowed daily operations', () => {
     expect((await asSec(request(app).delete(`/api/appointments/${created.body.id}`))).status)
       .toBe(204);
   });
+
+  it('can upload a file and receive a URL', async () => {
+    const buffer = Buffer.from('hello world');
+    const res = await asSec(request(app).post('/api/upload'))
+      .attach('file', buffer, 'test.txt');
+    expect(res.status).toBe(201);
+    expect(res.body.url).toMatch(/^\/uploads\//);
+    expect(res.body.thumb_url).toBeNull();
+  });
 });
 
 // =============================================================================

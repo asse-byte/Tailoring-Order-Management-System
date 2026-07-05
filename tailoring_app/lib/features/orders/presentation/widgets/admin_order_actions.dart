@@ -40,6 +40,7 @@ class _ActionsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final loc = context.loc;
     final isFr = loc.locale.languageCode == 'fr';
+    final auth = context.watch<AuthProvider>();
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -67,14 +68,14 @@ class _ActionsCard extends StatelessWidget {
             icon: Icons.edit_outlined,
             onPressed: () => _openPriceNotesSheet(context),
           ),
-          if (!order.isCancelled) ...<Widget>[
+          if (!auth.isSecretary) ...<Widget>[
             const SizedBox(height: 10),
             TextButton.icon(
-              icon: const Icon(Icons.cancel_outlined),
+              icon: const Icon(Icons.delete_outline_rounded),
               label:
-                  Text(isFr ? 'Annuler cette commande' : 'Cancel this order'),
+                  Text(isFr ? 'Supprimer cette commande' : 'Delete this order'),
               style: TextButton.styleFrom(foregroundColor: AppColors.error),
-              onPressed: () => _confirmCancel(context),
+              onPressed: () => _confirmDelete(context),
             ),
           ],
         ],
@@ -104,32 +105,27 @@ class _ActionsCard extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmCancel(BuildContext context) async {
+  Future<void> _confirmDelete(BuildContext context) async {
     final loc = context.loc;
     final isFr = loc.locale.languageCode == 'fr';
     final bool yes = await showConfirmDialog(
       context,
-      title: isFr ? 'Annuler cette commande ?' : 'Cancel this order?',
+      title: isFr ? 'Supprimer cette commande ?' : 'Delete this order?',
       message: isFr
-          ? 'Le client verra cette commande comme annulée et elle sera ajoutée à l\'historique des statuts.'
-          : 'The customer will see this order as cancelled and it will be added to the status history.',
-      confirmLabel: isFr ? 'Annuler la commande' : 'Cancel order',
+          ? 'Cette action est irréversible. La commande sera définitivement supprimée.'
+          : 'This action cannot be undone. The order will be permanently deleted.',
+      confirmLabel: isFr ? 'Supprimer la commande' : 'Delete order',
       destructive: true,
     );
     if (!yes || !context.mounted) return;
 
-    final auth = context.read<AuthProvider>();
     try {
-      await OrdersRepository().updateStatus(
-        orderId: order.id,
-        newStatus: AppConstants.statusCancelled,
-        adminUserId: auth.user!.id,
-        note: 'Cancelled by admin.',
-      );
+      await OrdersRepository().deleteOrder(order.id);
       if (!context.mounted) return;
+      Navigator.of(context).pop(); // Go back to orders list
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isFr ? 'Commande annulée.' : 'Order cancelled.'),
+          content: Text(isFr ? 'Commande supprimée.' : 'Order deleted.'),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ),
@@ -139,7 +135,7 @@ class _ActionsCard extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              isFr ? 'Impossible d\'annuler : $e' : 'Could not cancel: $e'),
+              isFr ? 'Impossible de supprimer : $e' : 'Could not delete: $e'),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -165,10 +161,9 @@ class _StatusUpdateSheetState extends State<_StatusUpdateSheet> {
 
   static const List<({String key, String label})> _options =
       <({String key, String label})>[
-    (key: AppConstants.statusPending, label: 'Pending'),
-    (key: AppConstants.statusInProgress, label: 'In Progress'),
-    (key: AppConstants.statusCompleted, label: 'Completed'),
-    (key: AppConstants.statusCancelled, label: 'Cancelled'),
+    (key: AppConstants.statusPending, label: 'En cours'),
+    (key: AppConstants.statusInProgress, label: 'Prêt'),
+    (key: AppConstants.statusCompleted, label: 'Livré (Archiver)'),
   ];
 
   @override

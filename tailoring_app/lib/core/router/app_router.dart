@@ -8,8 +8,11 @@ import '../../features/auth/presentation/screens/change_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/onboarding_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
-import '../../features/customers/presentation/screens/admin_customer_detail_screen.dart';
-import '../../features/customers/presentation/screens/admin_customers_screen.dart';
+import '../../features/clients/domain/client.dart';
+import '../../features/clients/presentation/screens/client_detail_screen.dart';
+import '../../features/clients/presentation/screens/client_form_screen.dart';
+import '../../features/clients/presentation/screens/clients_list_screen.dart';
+import '../../features/clients/presentation/screens/measurements_screen.dart';
 import '../../features/notifications/presentation/screens/admin_broadcast_screen.dart';
 import '../../features/orders/presentation/screens/admin_order_detail_screen.dart';
 import '../../features/orders/presentation/screens/admin_orders_list_screen.dart';
@@ -65,9 +68,27 @@ class AppRouter {
               builder: (_, __) => const WalkInOrderScreen(),
             ),
             GoRoute(
-              path: 'customer/:id',
-              builder: (_, state) => AdminCustomerDetailScreen(
-                customerId: state.pathParameters['id']!,
+              path: 'clients/new',
+              builder: (_, __) => const ClientFormScreen(),
+            ),
+            GoRoute(
+              path: 'clients/:id/edit',
+              builder: (_, state) =>
+                  ClientFormScreen(client: state.extra as Client?),
+            ),
+            GoRoute(
+              path: 'clients/:id/measurements/:type',
+              builder: (_, state) => MeasurementsScreen(
+                clientId: state.pathParameters['id']!,
+                garmentType:
+                    Uri.decodeComponent(state.pathParameters['type']!),
+                initial: state.extra as Map<String, num>?,
+              ),
+            ),
+            GoRoute(
+              path: 'clients/:id',
+              builder: (_, state) => ClientDetailScreen(
+                clientId: state.pathParameters['id']!,
               ),
             ),
             GoRoute(
@@ -84,7 +105,7 @@ class AppRouter {
             ),
             GoRoute(
               path: 'customers',
-              builder: (_, __) => const AdminCustomersScreen(),
+              builder: (_, __) => const ClientsListScreen(),
             ),
             GoRoute(
               path: 'orders',

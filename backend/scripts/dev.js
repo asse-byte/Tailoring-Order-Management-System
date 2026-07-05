@@ -23,6 +23,7 @@ async function main() {
     password: 'postgres',
     port: PG_PORT,
     persistent: true,
+    initdbFlags: ['--encoding=UTF8', '--locale=C'],
   });
   if (fresh) await pg.initialise();
   await pg.start();

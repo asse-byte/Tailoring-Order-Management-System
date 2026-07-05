@@ -51,3 +51,38 @@ Pre-seeded accounts are available to immediately test the application roles:
 
 > 💡 **ملاحظة / Note**: إذا واجهتك أي مشكلة في تسجيل الدخول لأول مرة، يمكنك الضغط على زر **"Configuration Administrateur"** (تهيئة المدير) أسفل شاشة تسجيل الدخول لتهيئة وتفعيل الحساب تلقائياً بضغطة زر.
 > If you have any login issues, simply click **"Configuration Administrateur"** at the bottom of the login screen to seed and login instantly.
+
+---
+
+## 🐳 Déploiement et Production / Deployment & Production
+
+### 1. Déploiement avec Docker Compose
+Pour déployer l'application et la base de données PostgreSQL en production :
+
+1. Copiez le fichier d'exemple des variables d'environnement à la racine du projet :
+   ```bash
+   cp .env.example .env
+   ```
+2. Modifiez le fichier `.env` avec des valeurs sécurisées (mot de passe de base de données et clé secrète JWT).
+3. Lancez les services Docker en arrière-plan :
+   ```bash
+   docker compose up -d --build
+   ```
+4. Initialisez la base de données avec les comptes opérationnels par défaut (uniquement lors de la première installation) :
+   ```bash
+   docker compose exec api node scripts/seed.js
+   ```
+
+### 2. Sauvegarde et Restauration de la Base de Données
+
+#### Sauvegarde (Backup)
+Pour exporter l'ensemble des données de la base de données dans un fichier de sauvegarde SQL :
+```bash
+docker compose exec db pg_dump -U couture -d couture_mali > backup.sql
+```
+
+#### Restauration (Restore)
+Pour restaurer la base de données à partir d'un fichier de sauvegarde SQL :
+```bash
+docker compose exec -T db psql -U couture -d couture_mali < backup.sql
+```

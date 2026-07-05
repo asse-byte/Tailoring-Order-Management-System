@@ -13,6 +13,8 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/connectivity_helper.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
+import 'features/clients/presentation/providers/clients_provider.dart';
+import 'features/products/presentation/providers/products_provider.dart';
 import 'features/notifications/data/fcm_service.dart';
 import 'features/orders/data/orders_sync_service.dart';
 import 'features/orders/presentation/providers/admin_orders_provider.dart';
@@ -59,6 +61,10 @@ class TailoringApp extends StatelessWidget {
             create: (_) => LanguageProvider()),
         ChangeNotifierProvider<AdminOrdersProvider>(
             create: (_) => AdminOrdersProvider()),
+        ChangeNotifierProvider<ClientsProvider>(
+            create: (_) => ClientsProvider()),
+        ChangeNotifierProvider<ProductsProvider>(
+            create: (_) => ProductsProvider()),
       ],
       child: Builder(
         builder: (context) {

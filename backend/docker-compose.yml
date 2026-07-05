@@ -37,6 +37,9 @@ services:
       SEED_SECRETARY_NAME: ${SEED_SECRETARY_NAME:-}
     ports:
       - "127.0.0.1:3000:3000"   # exposed only to nginx on the host
+    volumes:
+      - uploads_data:/app/uploads
 
 volumes:
   pgdata:
+  uploads_data:

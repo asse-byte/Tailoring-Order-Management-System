@@ -65,19 +65,20 @@ class DashboardScreen extends StatelessWidget {
         color: const Color(0xFF3F37C9),
         route: '/admin/history',
       ),
-      _DashboardItem(
-        title: context.loc.settings,
-        icon: Icons.settings_rounded,
-        color: const Color(0xFF4895EF),
-        route: '/admin/settings',
-      ),
+      if (!isSec)
+        _DashboardItem(
+          title: context.loc.settings,
+          icon: Icons.settings_rounded,
+          color: const Color(0xFF4895EF),
+          route: '/admin/settings',
+        ),
     ];
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text(
-          'Couture Mali',
+          'RAYAN COUTURE',
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
         actions: [

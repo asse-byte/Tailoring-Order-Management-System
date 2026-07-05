@@ -15,6 +15,25 @@ class AdminSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    if (auth.isSecretary) {
+      return Scaffold(
+        appBar: AppBar(title: Text(context.loc.settings)),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24.0),
+            child: Text(
+              'Accès refusé. Cette page est réservée aux administrateurs.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.error,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(title: Text(context.loc.settings)),
       body: ListView(

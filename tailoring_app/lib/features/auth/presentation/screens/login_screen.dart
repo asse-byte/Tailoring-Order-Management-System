@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/localization/app_localizations.dart';
@@ -96,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Couture Mali',
+                            'RAYAN COUTURE',
                             style: TextStyle(
                               fontSize: 38,
                               fontWeight: FontWeight.w900,

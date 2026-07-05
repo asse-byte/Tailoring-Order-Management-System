@@ -1,11 +1,8 @@
 import 'dart:io';
-
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:uuid/uuid.dart';
-
-import '../../../core/constants/app_constants.dart';
-import '../../../core/data/mock_database.dart';
+import '../../../core/network/api_client.dart';
 import '../domain/entities/order.dart';
 
 class OrderFailure implements Exception {
@@ -15,106 +12,93 @@ class OrderFailure implements Exception {
   String toString() => message;
 }
 
-/// Repository for order CRUD + image uploads.
 class OrdersRepository {
-  OrdersRepository({
-    FirebaseFirestore? firestore,
-    FirebaseStorage? storage,
-  })  : _firestore = firestore,
-        _storage = storage;
+  OrdersRepository({ApiClient? client}) : _api = client ?? ApiClient.instance;
 
-  final FirebaseFirestore? _firestore;
-  final FirebaseStorage? _storage;
-  final Uuid _uuid = const Uuid();
+  final ApiClient _api;
 
-  FirebaseFirestore get firestore => _firestore ?? FirebaseFirestore.instance;
-  FirebaseStorage get storage => _storage ?? FirebaseStorage.instance;
-
-  CollectionReference<Map<String, dynamic>> get _orders =>
-      firestore.collection(AppConstants.ordersCollection);
-
-  // -------- Streams --------
-
-  /// Stream of orders for a single customer, newest first.
+  // Streams are replaced by periodic/on-demand futures in REST architecture,
+  // but we can expose them as Streams for compatibility with StreamProvider if needed,
+  // or return futures. For maximum compatibility with existing providers, we can return streams that periodically poll
+  // or simply return a static stream of the loaded data.
+  
   Stream<List<TailoringOrder>> watchCustomerOrders(String customerId) {
-    if (MockDatabase.useMock) {
-      return Stream.value(MockDatabase.instance.getCustomerOrders(customerId));
-    }
-    return _orders
-        .where('customerId', isEqualTo: customerId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => TailoringOrder.fromMap(d.id, d.data()))
-            .toList(growable: false));
+    return Stream.fromFuture(listOrders(clientId: customerId));
   }
 
-  /// Stream of all orders (admin), newest first.
-  Stream<List<TailoringOrder>> watchAllOrders() {
-    if (MockDatabase.useMock) {
-      return Stream.value(MockDatabase.instance.getAllOrders());
-    }
-    return _orders.orderBy('createdAt', descending: true).snapshots().map(
-        (snap) => snap.docs
-            .map((d) => TailoringOrder.fromMap(d.id, d.data()))
-            .toList(growable: false));
+  Stream<List<TailoringOrder>> watchAllOrders() async* {
+    yield await listOrders();
+    yield* Stream.periodic(const Duration(seconds: 15))
+        .asyncMap((_) => listOrders());
   }
 
-  Stream<TailoringOrder?> watchOrder(String orderId) {
-    if (MockDatabase.useMock) {
-      return Stream.value(MockDatabase.instance.getOrder(orderId));
-    }
-    return _orders
-        .doc(orderId)
-        .snapshots()
-        .map((d) => d.exists ? TailoringOrder.fromMap(d.id, d.data()!) : null);
+  Stream<TailoringOrder?> watchOrder(String orderId) async* {
+    yield await getOrder(orderId);
+    yield* Stream.periodic(const Duration(seconds: 15))
+        .asyncMap((_) => getOrder(orderId));
   }
 
   // -------- One-off reads --------
 
+  Future<List<TailoringOrder>> listOrders({
+    String? status,
+    String? clientId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final Map<String, String> query = {
+      'limit': '$limit',
+      'offset': '$offset',
+      if (status != null) 'status': status,
+      if (clientId != null) 'client_id': clientId,
+    };
+    final dynamic res = await _api.get('/api/orders', query: query);
+    return (res['items'] as List)
+        .map((e) => TailoringOrder.fromMap(e['id'] as String, _mapRowToMap(e as Map<String, dynamic>)))
+        .toList();
+  }
+
   Future<TailoringOrder?> getOrder(String orderId) async {
-    if (MockDatabase.useMock) {
-      return MockDatabase.instance.getOrder(orderId);
+    try {
+      final dynamic res = await _api.get('/api/orders/$orderId');
+      return TailoringOrder.fromMap(orderId, _mapRowToMap(res as Map<String, dynamic>));
+    } catch (_) {
+      return null;
     }
-    final doc = await _orders.doc(orderId).get();
-    if (!doc.exists) return null;
-    return TailoringOrder.fromMap(doc.id, doc.data()!);
   }
 
   // -------- Create / Update --------
 
-  /// Creates a new order. The provided [order] should have an empty `id`
-  /// or a fresh UUID — the Firestore doc id will be set to that value.
   Future<TailoringOrder> createOrder(TailoringOrder order) async {
-    if (MockDatabase.useMock) {
-      return await MockDatabase.instance.createOrder(order);
-    }
     try {
-      final String id = order.id.isEmpty ? _uuid.v4() : order.id;
-      final TailoringOrder withId = TailoringOrder(
-        id: id,
-        customerId: order.customerId,
-        customerName: order.customerName,
-        garmentType: order.garmentType,
-        fabricDescription: order.fabricDescription,
-        fabricPhotoUrl: order.fabricPhotoUrl,
-        styleReferencePhotoUrl: order.styleReferencePhotoUrl,
-        specialInstructions: order.specialInstructions,
-        deliveryDate: order.deliveryDate,
-        price: order.price,
-        status: order.status,
-        statusHistory: order.statusHistory,
-        adminNotes: order.adminNotes,
-        measurementsSnapshot: order.measurementsSnapshot,
-      );
-      await _orders.doc(id).set(withId.toMap(forCreate: true));
-      return withId;
+      // Map statuses: pending/in_progress -> en_cours, completed -> livre
+      String backendStatus = 'en_cours';
+      if (order.status == 'completed' || order.status == 'livre') {
+        backendStatus = 'livre';
+      } else if (order.status == 'pret') {
+        backendStatus = 'pret';
+      }
+
+      final dateStr = '${order.deliveryDate.year}-${order.deliveryDate.month.toString().padLeft(2, '0')}-${order.deliveryDate.day.toString().padLeft(2, '0')}';
+      
+      final dynamic res = await _api.post('/api/orders', body: {
+        'client_id': order.customerId,
+        'garment_type': order.garmentType,
+        'fabric': order.fabricDescription,
+        'price': order.price?.toInt() ?? 0,
+        'advance': 0, // Default advance
+        'expected_date': dateStr,
+        'notes': order.specialInstructions,
+        'status': backendStatus,
+        'measurements_snapshot': order.measurementsSnapshot,
+      });
+
+      return TailoringOrder.fromMap(res['id'] as String, _mapRowToMap(res as Map<String, dynamic>));
     } catch (e) {
-      throw OrderFailure('Could not create order: $e');
+      throw OrderFailure('Impossible de créer la commande: $e');
     }
   }
 
-  /// Admin: update status (appends a StatusEvent) and optionally price/notes.
   Future<void> updateStatus({
     required String orderId,
     required String newStatus,
@@ -123,32 +107,21 @@ class OrdersRepository {
     double? price,
     String? adminNotes,
   }) async {
-    if (MockDatabase.useMock) {
-      await MockDatabase.instance.updateOrderStatus(
-        orderId: orderId,
-        newStatus: newStatus,
-        adminUserId: adminUserId,
-        note: note,
-        price: price,
-        adminNotes: adminNotes,
-      );
-      return;
+    // Map status to backend enum: 'en_cours', 'pret', 'livre'
+    String backendStatus = 'en_cours';
+    if (newStatus == 'completed' || newStatus == 'livre') {
+      backendStatus = 'livre';
+    } else if (newStatus == 'pret' || newStatus == 'in_progress') {
+      backendStatus = 'pret'; // Ready or in_progress can map to pret
     }
-    final StatusEvent event = StatusEvent(
-      status: newStatus,
-      changedAt: DateTime.now(),
-      changedBy: adminUserId,
-      note: note,
-    );
-    final Map<String, dynamic> updates = <String, dynamic>{
-      'status': newStatus,
-      'statusHistory':
-          FieldValue.arrayUnion(<Map<String, dynamic>>[event.toMap()]),
-      'updatedAt': FieldValue.serverTimestamp(),
+
+    final Map<String, dynamic> body = {
+      'status': backendStatus,
     };
-    if (price != null) updates['price'] = price;
-    if (adminNotes != null) updates['adminNotes'] = adminNotes;
-    await _orders.doc(orderId).update(updates);
+    if (price != null) body['price'] = price.toInt();
+    if (adminNotes != null) body['notes'] = adminNotes;
+
+    await _api.put('/api/orders/$orderId', body: body);
   }
 
   Future<void> updatePriceAndNotes({
@@ -156,52 +129,25 @@ class OrdersRepository {
     double? price,
     String? adminNotes,
   }) async {
-    if (MockDatabase.useMock) {
-      await MockDatabase.instance.updateOrderPriceAndNotes(
-        orderId: orderId,
-        price: price,
-        adminNotes: adminNotes,
-      );
-      return;
-    }
-    final Map<String, dynamic> updates = <String, dynamic>{
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    if (price != null) updates['price'] = price;
-    if (adminNotes != null) updates['adminNotes'] = adminNotes;
-    if (updates.length == 1) return;
-    await _orders.doc(orderId).update(updates);
+    final Map<String, dynamic> body = {};
+    if (price != null) body['price'] = price.toInt();
+    if (adminNotes != null) body['notes'] = adminNotes;
+    if (body.isEmpty) return;
+
+    await _api.put('/api/orders/$orderId', body: body);
   }
 
-  /// Patches just the image URL fields on an order (used after async uploads).
   Future<void> updateImageUrls({
     required String orderId,
     String? fabricUrl,
     String? styleUrl,
   }) async {
-    if (MockDatabase.useMock) {
-      await MockDatabase.instance.updateOrderImageUrls(
-        orderId: orderId,
-        fabricUrl: fabricUrl,
-        styleUrl: styleUrl,
-      );
-      return;
-    }
-    final Map<String, dynamic> updates = <String, dynamic>{
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    if (fabricUrl != null) updates['fabricPhotoUrl'] = fabricUrl;
-    if (styleUrl != null) updates['styleReferencePhotoUrl'] = styleUrl;
-    if (updates.length == 1) return;
-    await _orders.doc(orderId).update(updates);
+    // No dedicated columns in postgres for fabricPhotoUrl or styleReferencePhotoUrl
+    // We can ignore or log
   }
 
   Future<void> deleteOrder(String orderId) async {
-    if (MockDatabase.useMock) {
-      await MockDatabase.instance.deleteOrder(orderId);
-      return;
-    }
-    await _orders.doc(orderId).delete();
+    await _api.delete('/api/orders/$orderId');
   }
 
   // -------- Image upload --------
@@ -211,12 +157,62 @@ class OrdersRepository {
     required String storageFolder,
     required String orderId,
   }) async {
-    if (MockDatabase.useMock) {
-      return 'https://via.placeholder.com/300';
+    final String path = '/api/upload';
+    final Uri uri = Uri.parse('${ApiClient.baseUrl}$path');
+    final String? jwt = await _api.token;
+    
+    final request = http.MultipartRequest('POST', uri);
+    if (jwt != null) {
+      request.headers['Authorization'] = 'Bearer $jwt';
     }
-    final String name = '${_uuid.v4()}_${file.path.split('/').last}';
-    final Reference ref = storage.ref().child('$storageFolder/$orderId/$name');
-    final TaskSnapshot snap = await ref.putFile(file);
-    return snap.ref.getDownloadURL();
+    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+    
+    final response = await request.send();
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, 'Échec du téléversement.');
+    }
+    
+    final responseBody = await response.stream.bytesToString();
+    final Map<String, dynamic> decoded = jsonDecode(responseBody) as Map<String, dynamic>;
+    return decoded['url'] as String;
+  }
+
+  // Mappers
+  Map<String, dynamic> _mapRowToMap(Map<String, dynamic> row) {
+    // Convert backend schema to matching Map structure expected by TailoringOrder.fromMap
+    // expected_date -> deliveryDate
+    // notes -> specialInstructions
+    // fabric -> fabricDescription
+    // status: en_cours -> pending, pret -> in_progress, livre -> completed
+    String mappedStatus = 'pending';
+    if (row['status'] == 'livre') {
+      mappedStatus = 'completed';
+    } else if (row['status'] == 'pret') {
+      mappedStatus = 'in_progress';
+    }
+
+    return {
+      'customerId': row['client_id'],
+      'customerName': row['client_name'] ?? '',
+      'garmentType': row['garment_type'],
+      'fabricDescription': row['fabric'] ?? '',
+      'specialInstructions': row['notes'] ?? '',
+      // Map dates as Timestamp strings or Mock compatible format
+      'deliveryDate': row['expected_date'] != null 
+          ? Timestamp.fromDate(DateTime.parse(row['expected_date'] as String)) 
+          : Timestamp.fromDate(DateTime.now()),
+      'price': (row['price'] as num?)?.toDouble() ?? 0.0,
+      'status': mappedStatus,
+      'statusHistory': [],
+      'measurementsSnapshot': row['measurements_snapshot'] is String
+          ? jsonDecode(row['measurements_snapshot'] as String)
+          : row['measurements_snapshot'] ?? {},
+      'createdAt': row['created_at'] != null 
+          ? Timestamp.fromDate(DateTime.parse(row['created_at'] as String)) 
+          : null,
+      'updatedAt': row['updated_at'] != null 
+          ? Timestamp.fromDate(DateTime.parse(row['updated_at'] as String)) 
+          : null,
+    };
   }
 }

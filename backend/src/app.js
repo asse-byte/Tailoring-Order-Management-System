@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const { authenticate, managerOnly, staffOnly } = require('./middleware/auth');
 
 const authRouter = require('./routes/auth');
@@ -15,11 +16,15 @@ const appointmentsRouter = require('./routes/appointments');
 const pretAPorterRouter = require('./routes/pretAPorter');
 const settings = require('./routes/settings');
 const usersRouter = require('./routes/users');
+const uploadRouter = require('./routes/upload');
 
 function createApp() {
   const app = express();
   app.set('trust proxy', 1); // behind nginx on the VPS
   app.use(express.json({ limit: '1mb' }));
+  
+  // Serve uploads statically
+  app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
   // CORS: auth is a Bearer header (no cookies), so a permissive policy is
   // safe and lets Flutter Web (different dev origin) reach the API.
@@ -54,6 +59,7 @@ function createApp() {
   app.use('/api/pret-a-porter', staffOnly, pretAPorterRouter); // writes: manager (in router)
   app.use('/api/sales', staffOnly, salesRouter);              // GET: manager (in router)
   app.use('/api/staff', staffOnly, staffRouter);              // writes: manager (in router)
+  app.use('/api/upload', staffOnly, uploadRouter);
 
   // -- [FINANCE] manager-only: the secretary gets 403 on every route ---------
   app.use('/api/staff-pay', managerOnly, staffPayRouter);

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../../core/data/mock_database.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../clients/data/clients_repository.dart';
+import '../../../clients/domain/client.dart';
+import '../../data/appointments_repository.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({super.key});
@@ -10,8 +12,12 @@ class AppointmentsScreen extends StatefulWidget {
 }
 
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
-  List<Map<String, dynamic>> _appointments = [];
+  final AppointmentsRepository _repo = AppointmentsRepository();
+  final ClientsRepository _clientsRepo = ClientsRepository();
+
+  List<Appointment> _appointments = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -20,51 +26,109 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   }
 
   Future<void> _loadAppointments() async {
-    setState(() => _loading = true);
-    final a = await MockDatabase.instance.getAppointments();
-    // Sort appointments by date
-    a.sort((x, y) => DateTime.parse(x['dateTime']).compareTo(DateTime.parse(y['dateTime'])));
     setState(() {
-      _appointments = a;
-      _loading = false;
+      _loading = true;
+      _error = null;
     });
+    try {
+      final list = await _repo.list();
+      // Sort appointments by date chronological
+      list.sort((a, b) => DateTime.parse(a.scheduledAt).compareTo(DateTime.parse(b.scheduledAt)));
+      setState(() {
+        _appointments = list;
+      });
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      setState(() => _loading = false);
+    }
   }
 
-  Future<void> _addOrEditAppointment([Map<String, dynamic>? existing]) async {
+  Future<void> _addAppointment() async {
     final formKey = GlobalKey<FormState>();
-    String clientName = existing?['clientName'] ?? '';
-    String type = existing?['type'] ?? 'Fitting (قياس)';
-    String notes = existing?['notes'] ?? '';
-    DateTime selectedDate = existing != null ? DateTime.parse(existing['dateTime']) : DateTime.now().add(const Duration(days: 1));
-    TimeOfDay selectedTime = existing != null ? TimeOfDay.fromDateTime(DateTime.parse(existing['dateTime'])) : const TimeOfDay(hour: 10, minute: 0);
+    Client? selectedClient;
+    String reason = 'Essayage';
+    DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
+    TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 0);
+
+    // Pick client helper
+    Future<void> showClientPicker(StateSetter setDlgState) async {
+      try {
+        final List<Client> clients = await _clientsRepo.list(limit: 100);
+        if (!mounted) return;
+        final Client? chosen = await showModalBottomSheet<Client>(
+          context: context,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          builder: (ctx) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Sélectionner un client', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: clients.length,
+                      itemBuilder: (context, index) {
+                        final c = clients[index];
+                        return ListTile(
+                          title: Text(c.fullName),
+                          subtitle: Text(c.phone),
+                          onTap: () => Navigator.pop(ctx, c),
+                        );
+                      },
+                    ),
+                  )
+                ],
+              ),
+            ),
+          ),
+        );
+        if (chosen != null) {
+          setDlgState(() {
+            selectedClient = chosen;
+          });
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      }
+    }
 
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(existing == null ? 'Nouveau Rendez-vous / New Appt' : 'Modifier Rendez-vous'),
+          title: const Text('Nouveau Rendez-vous'),
           content: SingleChildScrollView(
             child: Form(
               key: formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextFormField(
-                    initialValue: clientName,
-                    decoration: const InputDecoration(labelText: 'Nom du client / Client Name'),
-                    validator: (v) => v == null || v.isEmpty ? 'Requis' : null,
-                    onSaved: (v) => clientName = v ?? '',
+                  // Client Picker Row
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Client', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(selectedClient == null ? 'Choisir un client...' : '${selectedClient!.fullName} (${selectedClient!.phone})'),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                    onTap: () => showClientPicker(setDlgState),
                   ),
-                  const SizedBox(height: 12),
+                  const Divider(),
+                  const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: type,
-                    decoration: const InputDecoration(labelText: 'Type'),
+                    value: reason,
+                    decoration: const InputDecoration(labelText: 'Motif'),
                     items: const [
-                      DropdownMenuItem(value: 'Fitting (قياس)', child: Text('Séance d\'essayage / Fitting (قياس)')),
-                      DropdownMenuItem(value: 'Consultation (استشارة)', child: Text('Consultation / Consultation (استشارة)')),
+                      DropdownMenuItem(value: 'Essayage', child: Text('Séance d\'essayage')),
+                      DropdownMenuItem(value: 'Consultation', child: Text('Consultation / Mesures')),
+                      DropdownMenuItem(value: 'Livraison', child: Text('Livraison')),
                     ],
-                    onChanged: (v) => setDlgState(() => type = v ?? 'Fitting (قياس)'),
+                    onChanged: (v) => setDlgState(() => reason = v ?? 'Essayage'),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -78,7 +142,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                           final picked = await showDatePicker(
                             context: context,
                             initialDate: selectedDate,
-                            firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                            firstDate: DateTime.now(),
                             lastDate: DateTime.now().add(const Duration(days: 365)),
                           );
                           if (picked != null) {
@@ -91,7 +155,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Heure / Time:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text('Heure:', style: TextStyle(fontWeight: FontWeight.bold)),
                       TextButton.icon(
                         icon: const Icon(Icons.access_time_rounded),
                         label: Text(selectedTime.format(context)),
@@ -107,12 +171,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    initialValue: notes,
-                    decoration: const InputDecoration(labelText: 'Notes / Remarques'),
-                    onSaved: (v) => notes = v ?? '',
-                  ),
                 ],
               ),
             ),
@@ -124,6 +182,13 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
+                if (selectedClient == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Veuillez sélectionner un client.'), backgroundColor: Colors.orange),
+                  );
+                  return;
+                }
+
                 if (formKey.currentState!.validate()) {
                   formKey.currentState!.save();
                   final DateTime finalDateTime = DateTime(
@@ -133,16 +198,20 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                     selectedTime.hour,
                     selectedTime.minute,
                   );
-                  final appt = {
-                    'id': existing?['id'] ?? 'apt_${DateTime.now().millisecondsSinceEpoch}',
-                    'clientName': clientName,
-                    'type': type,
-                    'notes': notes,
-                    'dateTime': finalDateTime.toIso8601String(),
-                  };
-                  await MockDatabase.instance.saveAppointment(appt);
-                  Navigator.pop(ctx);
-                  _loadAppointments();
+
+                  try {
+                    await _repo.create(
+                      clientId: selectedClient!.id,
+                      scheduledAt: finalDateTime.toUtc().toIso8601String(),
+                      reason: reason,
+                    );
+                    Navigator.pop(ctx);
+                    _loadAppointments();
+                  } catch (e) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+                    );
+                  }
                 }
               },
               child: const Text('Enregistrer'),
@@ -157,7 +226,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rendez-vous / Appointments'),
+        title: const Text('RAYAN COUTURE - Calendrier'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -167,54 +236,66 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _appointments.isEmpty
-              ? const Center(child: Text('Aucun rendez-vous planifié / No appointments'))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _appointments.length,
-                  itemBuilder: (context, index) {
-                    final a = _appointments[index];
-                    final DateTime dt = DateTime.parse(a['dateTime']);
-                    final String formattedDate = '${dt.day}/${dt.month}/${dt.year} à ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
-                    final bool isOverdue = dt.isBefore(DateTime.now());
+          : _error != null
+              ? Center(child: Text('Erreur: $_error'))
+              : _appointments.isEmpty
+                  ? const Center(child: Text('Aucun rendez-vous planifié.'))
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _appointments.length,
+                      itemBuilder: (context, index) {
+                        final a = _appointments[index];
+                        final DateTime dt = DateTime.parse(a.scheduledAt).toLocal();
+                        final String formattedDate = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} à ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+                        final bool isOverdue = dt.isBefore(DateTime.now());
 
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isOverdue ? Colors.grey[200] : AppColors.primary.withOpacity(0.1),
-                          child: Icon(
-                            Icons.calendar_today_rounded,
-                            color: isOverdue ? Colors.grey : AppColors.primary,
-                          ),
-                        ),
-                        title: Text(a['clientName'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('${a['type']}\n$formattedDate\nNote: ${a['notes']}'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit_rounded, color: Colors.blue, size: 20),
-                              onPressed: () => _addOrEditAppointment(a),
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: isOverdue ? Colors.grey[200] : AppColors.primary.withOpacity(0.1),
+                              child: Icon(
+                                Icons.calendar_today_rounded,
+                                color: isOverdue ? Colors.grey : AppColors.primary,
+                              ),
                             ),
-                            IconButton(
+                            title: Text(a.clientName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text('Motif: ${a.reason}\nPlanifié le: $formattedDate\nTél: ${a.clientPhone}'),
+                            trailing: IconButton(
                               icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+                              tooltip: 'Annuler RDV',
                               onPressed: () async {
-                                await MockDatabase.instance.deleteAppointment(a['id']);
-                                _loadAppointments();
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Supprimer rendez-vous ?'),
+                                    content: Text('Voulez-vous supprimer le rendez-vous de ${a.clientName} ?'),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                        onPressed: () => Navigator.pop(ctx, true),
+                                        child: const Text('Supprimer'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true) {
+                                  await _repo.delete(a.id);
+                                  _loadAppointments();
+                                }
                               },
                             ),
-                          ],
-                        ),
-                        isThreeLine: true,
-                      ),
-                    );
-                  },
-                ),
+                            isThreeLine: true,
+                          ),
+                        );
+                      },
+                    ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _addOrEditAppointment(),
-        child: const Icon(Icons.add_rounded),
+        onPressed: _addAppointment,
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add_rounded, color: Colors.white),
       ),
     );
   }

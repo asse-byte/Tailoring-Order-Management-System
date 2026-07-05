@@ -3,7 +3,7 @@ class AppStrings {
   AppStrings._();
 
   // App
-  static const String appName = 'Tailoring Studio';
+  static const String appName = 'RAYAN COUTURE';
   static const String tagline = 'Order. Track. Tailored.';
 
   // Auth

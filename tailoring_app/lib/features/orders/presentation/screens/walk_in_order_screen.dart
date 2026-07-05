@@ -15,10 +15,9 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/primary_button.dart';
-import '../../../auth/domain/entities/app_user.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../customers/data/customers_repository.dart';
-import '../../../customers/domain/entities/measurements.dart';
+import '../../../clients/data/clients_repository.dart';
+import '../../../clients/domain/client.dart';
 import '../../data/orders_repository.dart';
 import '../../data/orders_sync_service.dart';
 import '../../domain/entities/order.dart';
@@ -36,7 +35,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
 
   // Customer selection
   bool _useExisting = false;
-  AppUser? _selectedCustomer;
+  Client? _selectedCustomer;
   final TextEditingController _walkInName = TextEditingController();
   final TextEditingController _walkInPhone = TextEditingController();
 
@@ -62,7 +61,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
 
   final ImagePicker _picker = ImagePicker();
   final OrdersRepository _ordersRepo = OrdersRepository();
-  final CustomersRepository _customersRepo = CustomersRepository();
+  final ClientsRepository _clientsRepo = ClientsRepository();
 
   @override
   void dispose() {
@@ -163,19 +162,19 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
   }
 
   Future<void> _showCustomerPicker() async {
-    final List<AppUser> customers = await _customersRepo.watchCustomers().first;
+    final List<Client> clients = await _clientsRepo.list(limit: 100);
     if (!mounted) return;
-    final AppUser? chosen = await showModalBottomSheet<AppUser>(
+    final Client? chosen = await showModalBottomSheet<Client>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => _CustomerPickerSheet(customers: customers),
+      builder: (_) => _CustomerPickerSheet(customers: clients),
     );
     if (chosen != null) {
       setState(() {
         _selectedCustomer = chosen;
-        _walkInName.text = chosen.name;
+        _walkInName.text = chosen.fullName;
         _walkInPhone.text = chosen.phone;
       });
     }
@@ -276,17 +275,16 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
         final bool hasAny = measurementsSnapshot.entries
             .any((e) => e.key != 'notes' && e.value != null);
         if (hasAny) {
-          await _customersRepo.saveMeasurements(
-            Measurements(
-              userId: _selectedCustomer!.id,
-              chest: measurementsSnapshot['chest'] as double?,
-              waist: measurementsSnapshot['waist'] as double?,
-              hips: measurementsSnapshot['hips'] as double?,
-              shoulder: measurementsSnapshot['shoulder'] as double?,
-              sleeveLength: measurementsSnapshot['sleeveLength'] as double?,
-              height: measurementsSnapshot['height'] as double?,
-              notes: (measurementsSnapshot['notes'] as String?) ?? '',
-            ),
+          final Map<String, num> measures = {};
+          measurementsSnapshot.forEach((k, v) {
+            if (k != 'notes' && v is num) {
+              measures[k] = v;
+            }
+          });
+          await _clientsRepo.saveMeasurements(
+            _selectedCustomer!.id,
+            _garment,
+            measures,
           );
         }
       }
@@ -352,7 +350,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                           child: Text(
                             _selectedCustomer == null
                                 ? context.loc.selectRecipient
-                                : '${_selectedCustomer!.name} · ${_selectedCustomer!.phone}',
+                                : '${_selectedCustomer!.fullName} · ${_selectedCustomer!.phone}',
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ),
@@ -587,7 +585,7 @@ class _PhotoTile extends StatelessWidget {
 
 class _CustomerPickerSheet extends StatefulWidget {
   const _CustomerPickerSheet({required this.customers});
-  final List<AppUser> customers;
+  final List<Client> customers;
 
   @override
   State<_CustomerPickerSheet> createState() => _CustomerPickerSheetState();
@@ -598,11 +596,11 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final List<AppUser> list = _q.isEmpty
+    final List<Client> list = _q.isEmpty
         ? widget.customers
         : widget.customers
             .where((u) =>
-                u.name.toLowerCase().contains(_q) ||
+                u.fullName.toLowerCase().contains(_q) ||
                 u.phone.toLowerCase().contains(_q))
             .toList(growable: false);
 
@@ -649,13 +647,13 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                               backgroundColor:
                                   AppColors.primary.withValues(alpha: 0.12),
                               child: Text(
-                                u.name.isEmpty ? '?' : u.name[0].toUpperCase(),
+                                u.fullName.isEmpty ? '?' : u.fullName[0].toUpperCase(),
                                 style: const TextStyle(
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.w700),
                               ),
                             ),
-                            title: Text(u.name),
+                            title: Text(u.fullName),
                             subtitle: Text(u.phone.isEmpty ? '—' : u.phone),
                             onTap: () => Navigator.pop(context, u),
                           );

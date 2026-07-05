@@ -18,6 +18,7 @@ module.exports = async () => {
     password: 'postgres',
     port: PORT,
     persistent: false,
+    initdbFlags: ['--encoding=UTF8', '--locale=C'],
   });
   await pg.initialise();
   await pg.start();
