@@ -1,14 +1,16 @@
 // =============================================================================
-// Tailoring Studio — Cloud Storage security rules
+// Couture Mali — Cloud Storage security rules
 // =============================================================================
 // Deploy with:    firebase deploy --only storage
 //
-//  • profile_photos/{uid}.{ext}      ← customer or admin owner
-//  • fabric_photos/{orderId}/{file}  ← read by owner+admin, write by anyone
-//                                      who can write the order
-//  • style_photos/{orderId}/{file}   ← same as fabric_photos
+//  • logo/{file}            ← shop logo, public read (login screen), admin write
+//  • products/{id}/{file}   ← product images, staff read, admin write
+//  • pret_a_porter/{id}/…   ← model images/videos, staff read, admin write
+//  • orders/{orderId}/…     ← fabric/style photos attached to an order,
+//                              staff read+write (secretary registers orders)
 //
-// We piggy-back on Firestore for auth role-checks where possible.
+// Role checks piggy-back on the Firestore /users doc — same source of truth
+// as firestore.rules.
 // =============================================================================
 
 rules_version = '2';
@@ -19,38 +21,50 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    function userRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid))
+        .data.role;
+    }
+
     function isAdmin() {
-      return isSignedIn() &&
-        firestore.get(/databases/(default)/documents/users/$(request.auth.uid))
-          .data.role == 'admin';
+      return isSignedIn() && userRole() == 'admin';
     }
 
-    function ownsOrder(orderId) {
-      return isSignedIn() &&
-        firestore.get(/databases/(default)/documents/orders/$(orderId))
-          .data.customerId == request.auth.uid;
+    function isStaff() {
+      return isSignedIn() && userRole() in ['admin', 'secretary'];
     }
 
-    // ---- Profile photos ----------------------------------------------------
-    match /profile_photos/{file=**} {
-      // Read: any signed-in user (so admins can preview a customer's avatar).
-      allow read: if isSignedIn();
-      // Write: only the user themselves (filename starts with their uid)
-      // or an admin.
-      allow write: if isAdmin() ||
-                      (isSignedIn() && file.matches(request.auth.uid + '.*'));
+    // Keep uploads sane: images/videos only, max 10 MB.
+    function isReasonableMedia() {
+      return request.resource.size < 10 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+            || request.resource.contentType.matches('video/.*'));
     }
 
-    // ---- Fabric & style photos --------------------------------------------
-    match /fabric_photos/{orderId}/{file=**} {
-      allow read:  if isAdmin() || ownsOrder(orderId);
-      allow write: if isAdmin() || ownsOrder(orderId);
-    }
-    match /style_photos/{orderId}/{file=**} {
-      allow read:  if isAdmin() || ownsOrder(orderId);
-      allow write: if isAdmin() || ownsOrder(orderId);
+    // ---- Shop logo (shown pre-auth on the login screen) ---------------------
+    match /logo/{file=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isReasonableMedia();
     }
 
-    // Deny everything else by default.
+    // ---- Product images ------------------------------------------------------
+    match /products/{productId}/{file=**} {
+      allow read: if isStaff();
+      allow write: if isAdmin() && isReasonableMedia();
+    }
+
+    // ---- Prêt-à-porter media (images + optional video) -----------------------
+    match /pret_a_porter/{modelId}/{file=**} {
+      allow read: if isStaff();
+      allow write: if isAdmin() && isReasonableMedia();
+    }
+
+    // ---- Order photos (fabric, style references) ------------------------------
+    match /orders/{orderId}/{file=**} {
+      allow read: if isStaff();
+      allow write: if isStaff() && isReasonableMedia();
+    }
+
+    // Everything else: denied by default.
   }
 }

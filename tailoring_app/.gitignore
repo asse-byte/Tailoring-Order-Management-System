@@ -24,3 +24,5 @@ firebase_app_id_file.json
 
 # Coverage
 coverage/
+firestore-debug.log
+ui-debug.log
