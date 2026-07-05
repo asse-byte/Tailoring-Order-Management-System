@@ -55,16 +55,11 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
   `lib/firebase_options.dart` still has `REPLACE_WITH_*` placeholder keys,
   so `MockDatabase.useMock` is true and the app runs on a **local mock DB**
   (SharedPreferences). Data is device-local only right now.
-- Roles defined in `core/constants/app_constants.dart`: `customer`,
-  `admin`, `secretary`. A legacy customer-facing flow exists (register,
-  place order, customer shell) that predates the two-user spec.
-- `tailoring_app/firestore.rules` covers admin/customer only — **no
-  secretary restrictions and no finance collections yet**. Biggest
-  security gap.
+- Roles in `core/constants/app_constants.dart`: `admin` (= Gérant) and
+  `secretary`; `customer` remains only as a transitional constant until
+  the customers feature is refactored into the `/clients` collection.
 - Seeded demo accounts (see README.md): `admin@tailor.app` / `Admin@1234`,
   `secretary@tailor.app` / `Secretary@1234`.
-- `backend/` (FastAPI + Mongo boilerplate) and `frontend/` (React) are
-  unused leftovers from the Emergent scaffold — not part of the product.
 
 ## Architecture decisions (made 2026-07-05)
 
@@ -81,7 +76,16 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
   - `settings/public` (shop name/logo, readable pre-auth for the login
     screen) is split from `settings/private` (default piece rate, manager
     only).
-- `backend/` and `frontend/` legacy dirs are to be deleted.
+- Legacy Emergent scaffold (`backend/`, `frontend/`, old test harness)
+  was deleted; the Flutter app is the whole product.
+- Security rules + 29 emulator tests landed 2026-07-05
+  (`tailoring_app/firestore.rules`, `tailoring_app/rules_tests/` —
+  run with `npm test`). Customer role/screens removed the same day.
+- Still to do, module by module: point each feature at the new
+  collections (clients, staff + staff_pay, sales, expenses,
+  pret_a_porter, settings) with real Firestore repositories replacing
+  screen-local mock state; then activate a real Firebase project
+  (firebase_options.dart still has REPLACE_WITH_* placeholders).
 
 ## Working conventions
 
