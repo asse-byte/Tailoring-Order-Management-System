@@ -1,192 +1,228 @@
-# Couture Mali — Firestore Data Model
+# Couture Mali — PostgreSQL Data Model
 
-Status: **proposed — awaiting owner review** (2026-07-05).
-Roles: `admin` (= le Gérant / MANAGER, keeping the existing constant) and
-`secretary`. Every rule below is enforced server-side in `firestore.rules`.
+Status: **approved 2026-07-05** (supersedes the earlier Firestore draft).
+Backend: Node.js + Express + PostgreSQL (`backend/`). Roles: `MANAGER`
+(le Gérant) and `SECRETARY` (la Secrétaire). Money is FCFA/XOF stored as
+**integers** — no decimals, ever.
 
-Legend: 🔒 = manager-only collection (secretary requests are rejected by
-security rules, regardless of UI).
+🔒 = financial: every route touching it is MANAGER-only (403 for the
+secretary), verified by `backend/tests/security.test.js`.
 
----
-
-## users/{uid}
-| field | type | notes |
-|---|---|---|
-| name | string | |
-| email | string | |
-| phone | string | |
-| role | `admin` \| `secretary` | no `customer` anymore |
-| fcmToken | string? | notifications |
-| createdAt | timestamp | |
-
-Rules: user reads own doc; admin reads/writes all. **No self-create** —
-accounts are seeded by the admin setup flow only.
-
-## clients/{clientId}
-| field | type | notes |
-|---|---|---|
-| fullName | string | |
-| nameLower | string | lowercase copy for prefix search |
-| phone | string | |
-| phoneDigits | string | digits-only copy for phone search |
-| address | string? | |
-| createdAt | timestamp | |
-
-Rules: admin + secretary full CRUD.
-Index: `nameLower` asc, `phoneDigits` asc (prefix queries with debounce).
-
-### clients/{clientId}/measurements/{measurementId}
-| field | type | notes |
-|---|---|---|
-| garmentType | string | e.g. `boubou`, `chemise`, `pantalon`, custom |
-| values | map<string, number> | flexible key-value (épaule, poitrine, manche…) |
-| updatedAt | timestamp | |
-
-Rules: admin + secretary full CRUD.
-
-## products/{productId}
-| field | type | notes |
-|---|---|---|
-| category | `parfum` \| `chaussure` \| `tissu` | |
-| name | string | |
-| price | number | XOF, integer — sale price is visible to secretary |
-| quantity | number | stock |
-| lowStockThreshold | number | default 3, alert for admin |
-| imageUrls | string[] | Storage URLs |
-| thumbUrl | string? | compressed thumbnail shown in lists |
-| createdAt | timestamp | |
-
-Rules: admin + secretary read; admin + secretary can decrement `quantity`
-via sale transaction; only admin creates/edits/deletes products.
-
-## 🔒 sales/{saleId} — write-only for secretary
-| field | type | notes |
-|---|---|---|
-| kind | `produit` \| `pret_a_porter` | |
-| itemId | string | product or model id |
-| itemName | string | snapshot at sale time |
-| qty | number | |
-| unitPrice | number | snapshot |
-| total | number | qty × unitPrice |
-| date | timestamp | |
-| createdBy | uid | |
-
-Rules: **secretary may `create` but never `read`/`list`** (Firestore allows
-this split) — she can register a sale at the counter, but revenue history
-and totals are admin-only. Stock decrement happens in the same batched
-write as the sale doc.
-
-## staff/{staffId} — contact info only (safe for secretary)
-| field | type | notes |
-|---|---|---|
-| fullName | string | |
-| phone | string | |
-| type | `couturier` \| `autre` | |
-| joinedAt | timestamp | |
-| active | bool | |
-
-Rules: admin full CRUD; secretary read-only (names/contacts for daily work).
-
-## 🔒 staff_pay/{staffId}
-| field | type | notes |
-|---|---|---|
-| pieceRate | number? | couturiers: XOF per piece (falls back to default) |
-| monthlySalary | number? | non-couturiers: fixed salary |
-| salaryDueDay | number? | day of month |
-
-Rules: admin only, read + write. Same document id as `staff/{staffId}`.
-
-## 🔒 tailor_daily_entries/{entryId}
-| field | type | notes |
-|---|---|---|
-| tailorId | string | FK → staff |
-| date | string `YYYY-MM-DD` | one entry per tailor per day (id = `tailorId_date`) |
-| piecesCount | number | |
-| pieceRate | number | snapshot of rate that day |
-| amount | number | piecesCount × pieceRate |
-| weekId | string `YYYY-Www` | for weekly totals |
-| createdAt | timestamp | |
-
-Rules: admin only. **Never deleted** after week close (audit history);
-rules forbid `delete` entirely, allow `update` only same-day.
-Index: (`tailorId`, `weekId`), (`weekId`).
-
-## 🔒 expenses/{expenseId}
-| field | type | notes |
-|---|---|---|
-| reason | string | loyer, électricité, matière première… |
-| amount | number | |
-| date | timestamp | |
-| createdBy | uid | |
-
-Rules: admin only.
-
-## pret_a_porter/{modelId}
-| field | type | notes |
-|---|---|---|
-| name | string | |
-| fabricType | string | |
-| price | number | sale price, visible to secretary |
-| imageUrls | string[] | |
-| thumbUrl | string? | |
-| videoUrl | string? | |
-| createdAt | timestamp | |
-
-Rules: admin + secretary read; admin writes.
-
-## orders/{orderId}
-| field | type | notes |
-|---|---|---|
-| clientId | string | FK → clients |
-| clientName | string | snapshot for fast lists |
-| garmentType | string | |
-| fabric | string | |
-| measurementsSnapshot | map | copied from client file at order time |
-| price | number | what the client pays (secretary needs it to invoice) |
-| advance | number | acompte received |
-| startDate | timestamp | |
-| expectedDate | timestamp | |
-| deliveredDate | timestamp? | set when status → `livre` |
-| status | `en_cours` \| `pret` \| `livre` | `livre` = appears in Historique |
-| notes | string? | |
-| createdAt | timestamp | |
-
-Historique = query `status == 'livre'` — a status change *moves* the order,
-nothing is copied, no detail is lost.
-Rules: admin + secretary full CRUD (secretary registers orders daily).
-Indexes: (`status`, `expectedDate`), (`clientId`, `createdAt` desc),
-(`status`, `deliveredDate` desc).
-
-## appointments/{appointmentId}
-| field | type | notes |
-|---|---|---|
-| clientId | string | |
-| clientName | string | snapshot |
-| datetime | timestamp | |
-| reason | `mesure` \| `essayage` \| `livraison` \| `autre` | |
-| notes | string? | |
-
-Rules: admin + secretary full CRUD. Index: (`datetime`).
-
-## settings/public
-`shopName`, `logoUrl` — readable **without auth** (login screen shows them);
-writable by admin only.
-
-## settings/private 🔒
-`defaultPieceRate` — admin only.
+The authoritative DDL lives in `backend/migrations/`; this document is the
+readable map.
 
 ---
 
-## Finance screen (no collection — computed)
+## Tables
 
-All manager-only aggregates are computed client-side from 🔒 collections
-(sales + orders revenue − tailor entries − salaries − expenses), filtered
-by period. Firestore rules make these queries impossible for the secretary,
-so the screen (and its data) simply cannot exist for her.
+### users
+| column | type | notes |
+|---|---|---|
+| id | uuid PK | `gen_random_uuid()` |
+| username | text UNIQUE | login identifier (may be an email) |
+| password_hash | text | bcryptjs |
+| name | text | display name |
+| role | text CHECK (`MANAGER`,`SECRETARY`) | |
+| created_at | timestamptz | |
 
-## Security-rules test plan (non-negotiable)
+No self-registration: accounts come from the seed script or the
+manager-only `POST /api/users`. Role is read from this table on **every**
+request — a tampered JWT cannot elevate privileges.
 
-Automated tests with the Firestore emulator (`@firebase/rules-unit-testing`)
-asserting, as the secretary: read/list on `sales`, `expenses`, `staff_pay`,
-`tailor_daily_entries`, `settings/private` → **denied**; create on `sales`
-→ allowed; everything else per table above.
+### clients
+| column | type | notes |
+|---|---|---|
+| id | uuid PK | |
+| full_name | text | |
+| phone | text | |
+| address | text NULL | |
+| created_at | timestamptz | |
+
+Indexes: `lower(full_name) text_pattern_ops` (prefix search),
+`phone`. List endpoints are paginated (default 20, max 100).
+
+### client_measurements
+| column | type | notes |
+|---|---|---|
+| id | uuid PK | |
+| client_id | uuid FK → clients ON DELETE CASCADE | |
+| garment_type | text | boubou, chemise, pantalon, custom… |
+| "values" | jsonb | flexible key→number map (épaule, poitrine…) |
+| updated_at | timestamptz | |
+| UNIQUE (client_id, garment_type) | | one sheet per garment type |
+
+### products
+| column | type | notes |
+|---|---|---|
+| id | uuid PK | |
+| category | text CHECK (`parfum`,`chaussure`,`tissu`) | |
+| name | text | |
+| price | integer CHECK ≥ 0 | sale price — visible to secretary |
+| quantity | integer CHECK ≥ 0 | stock; DB constraint prevents negatives |
+| low_stock_threshold | integer default 3 | manager alert |
+| created_at | timestamptz | |
+
+Writes are manager-only. The secretary never touches quantity directly —
+stock only moves inside the sale transaction.
+
+### product_images / model_media
+`(id, product_id|model_id FK, url, thumb_url)` — media stored on the VPS
+disk (served by nginx), thumbnails generated at upload for fast lists.
+
+### 🔒 sales
+| column | type | notes |
+|---|---|---|
+| id | uuid PK | |
+| kind | text CHECK (`produit`,`pret_a_porter`) | |
+| item_id | uuid | product or model |
+| item_name | text | snapshot at sale time |
+| qty | integer CHECK > 0 | |
+| unit_price | integer | **read from DB by the server** — never from the client |
+| total | integer | computed server-side = qty × unit_price |
+| sold_at | timestamptz | |
+| created_by | uuid FK → users | |
+
+`POST /api/sales` (both roles): single transaction —
+`SELECT price … FOR UPDATE` → `UPDATE products SET quantity = quantity - qty
+WHERE quantity >= qty` (409 if insufficient) → `INSERT sale`. Atomic: stock
+and revenue can never disagree. `GET /api/sales` is manager-only.
+
+### staff — contact info only (secretary may read)
+| column | type | notes |
+|---|---|---|
+| id | uuid PK | |
+| full_name | text | |
+| phone | text | |
+| type | text CHECK (`couturier`,`autre`) | |
+| joined_at | date | |
+| active | boolean default true | |
+
+### 🔒 staff_pay
+| column | type | notes |
+|---|---|---|
+| staff_id | uuid PK, FK → staff | same id as staff row |
+| piece_rate | integer NULL | couturiers: FCFA per piece (falls back to settings default) |
+| monthly_salary | integer NULL | non-couturiers |
+| salary_due_day | integer NULL | day of month |
+
+### 🔒 tailor_daily_entries — APPEND-ONLY
+| column | type | notes |
+|---|---|---|
+| id | uuid PK | |
+| tailor_id | uuid FK → staff | |
+| entry_date | date | |
+| pieces_count | integer CHECK ≥ 0 | |
+| piece_rate | integer | snapshot of the rate that day |
+| amount | integer GENERATED ALWAYS AS (pieces_count × piece_rate) STORED | DB computes it — cannot be forged |
+| week_id | text | ISO `YYYY-Www`, computed by the API |
+| created_by | uuid FK → users | |
+| created_at | timestamptz | |
+| UNIQUE (tailor_id, entry_date) | | one entry per tailor per day |
+
+**A `BEFORE UPDATE OR DELETE` trigger raises an exception** — even a
+direct SQL session cannot alter history. Mistakes are fixed via
+corrections:
+
+### 🔒 entry_corrections — APPEND-ONLY (the audit trail)
+| column | type | notes |
+|---|---|---|
+| id | uuid PK | |
+| entry_id | uuid FK → tailor_daily_entries | |
+| old_pieces | integer | snapshot at correction time |
+| new_pieces | integer CHECK ≥ 0 | |
+| reason | text NOT NULL, CHECK non-empty | **mandatory** — the "why" |
+| corrected_by | uuid FK → users | |
+| corrected_at | timestamptz | |
+
+Also trigger-protected against UPDATE/DELETE. The **effective** value is
+the latest correction if any, else the original — via view
+`tailor_entries_effective` (used by all weekly totals and finance sums).
+The manager UI shows the current number + an openable history:
+who, when, from → to, and why.
+
+### 🔒 expenses — APPEND-ONLY, same pattern
+`(id, reason text, amount integer ≥ 0, spent_at date, created_by,
+created_at)` + trigger. Corrections in **expense_corrections**
+`(id, expense_id FK, new_amount NULL, new_reason NULL, voided boolean
+default false, reason NOT NULL, corrected_by, corrected_at)` — a wrong
+expense is *voided* with a reason, never deleted. Effective view:
+`expenses_effective` (latest correction wins; voided rows excluded from
+sums but still visible in history).
+
+### pret_a_porter_models
+`(id, name, fabric_type, price integer, created_at)` — reads for both
+roles (secretary sells at the counter), writes manager-only.
+
+### orders
+| column | type | notes |
+|---|---|---|
+| id | uuid PK | |
+| client_id | uuid FK → clients | |
+| garment_type | text | |
+| fabric | text | |
+| measurements_snapshot | jsonb | copied from the client file at order time |
+| price | integer | what the client pays — secretary invoices at the counter |
+| advance | integer default 0 | acompte |
+| start_date | date | |
+| expected_date | date | |
+| delivered_date | date NULL | set when status → `livre` |
+| status | text CHECK (`en_cours`,`pret`,`livre`) | |
+| notes | text NULL | |
+| created_at | timestamptz | |
+
+Historique = `WHERE status = 'livre'` — a status change *moves* the
+order; nothing is copied, no detail is lost. Both roles CRUD;
+DELETE is manager-only. Indexes: `(status, expected_date)`,
+`(client_id, created_at DESC)`, `(status, delivered_date DESC)`.
+
+### appointments
+`(id, client_id FK, scheduled_at timestamptz, reason CHECK
+(mesure, essayage, livraison, autre), notes NULL)` — both roles CRUD.
+Index on `scheduled_at`.
+
+### settings
+Key-value: `(key text PK, value jsonb, is_public boolean)`.
+Public rows (`shop_name`, `logo_url`) are served by
+`GET /api/settings/public` **without auth** (login screen).
+Private rows (🔒 `default_piece_rate`) are manager-only.
+
+---
+
+## API role matrix (deny-by-default)
+
+Every route mount declares its allowed roles explicitly; anything not
+mounted is 404, anything unauthenticated is 401.
+
+| Route | SECRETARY | MANAGER |
+|---|---|---|
+| `POST /api/auth/login`, `GET /api/settings/public` | public | public |
+| `/api/clients*`, `/api/orders*`, `/api/appointments*` | full CRUD (order DELETE: no) | full |
+| `GET /api/products`, `GET /api/pret-a-porter` | ✅ read | full |
+| `POST /api/products`, PUT/DELETE | ❌ 403 | ✅ |
+| `POST /api/sales` | ✅ (server-priced, atomic) | ✅ |
+| `GET /api/sales` 🔒 | ❌ 403 | ✅ |
+| `GET /api/staff` | ✅ contacts only | ✅ |
+| staff writes, `/api/staff-pay*` 🔒 | ❌ 403 | ✅ |
+| `/api/tailor-entries*` 🔒 (+corrections) | ❌ 403 | ✅ (no UPDATE/DELETE anywhere) |
+| `/api/expenses*` 🔒 (+corrections) | ❌ 403 | ✅ (append-only) |
+| `/api/finance/summary` 🔒 | ❌ 403 | ✅ |
+| `/api/settings/private` 🔒 | ❌ 403 | ✅ |
+| `/api/users*` | ❌ 403 | ✅ |
+
+## Test plan (non-negotiable, ports the 29 Firestore-rules tests)
+
+`backend/tests/security.test.js` — Jest + Supertest against a real
+PostgreSQL (embedded-postgres locally, the compose DB in CI/VPS):
+
+- every 🔒 route returns **403** with a valid secretary token;
+- secretary daily operations succeed (clients, measurements, orders,
+  appointments, product reads, sale creation);
+- sale with forged price/total in the body is ignored (server prices);
+  sale with qty > stock → 409 and stock unchanged;
+- tailor entry `amount` is DB-computed; UPDATE/DELETE on entries,
+  corrections and expenses raise even in direct SQL (trigger tests);
+- corrections require a non-empty reason; effective views return the
+  corrected value while originals stay intact;
+- unauthenticated: only `settings/public` and login reachable;
+- JWT signed with the wrong secret, or for a deleted user → 401;
+  role in the token payload is ignored (DB is the source of truth).

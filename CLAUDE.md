@@ -9,9 +9,10 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
 1. **Two operating users only**: `MANAGER` (le Gérant — full access to everything)
    and `SECRETARY` (la Secrétaire — must NEVER see any financial data: profits,
    revenues, expenses, tailor piece-rates/wages, staff salaries).
-2. **Financial isolation must be enforced server-side** (API role check or
-   Firestore security rules), never only by hiding UI. Any finance
-   endpoint/collection must reject secretary access outright.
+2. **Financial isolation must be enforced server-side** (API role checks
+   backed by DB constraints), never only by hiding UI. Any finance
+   endpoint must return 403 to the secretary, and the test suite in
+   `backend/tests/` proving this must always pass.
 3. **Speed is the #1 priority**: pagination on every long list, image
    compression + thumbnails, lazy loading, local caching, indexed queries.
 4. No self-registration. The two accounts are seeded/managed by the manager.
@@ -61,31 +62,44 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
 - Seeded demo accounts (see README.md): `admin@tailor.app` / `Admin@1234`,
   `secretary@tailor.app` / `Secretary@1234`.
 
-## Architecture decisions (made 2026-07-05)
+## Architecture decisions (FINAL — closed 2026-07-05, do not reopen)
 
-- **Backend: Firebase** (Auth + Firestore + Storage). No Node/Postgres
-  server. Financial isolation is enforced by Firestore security rules.
-- **Customer role removed**: no self-registration, no customer-facing
-  screens. Clients are plain records managed by manager/secretary.
-- Data model lives in `docs/DATA_MODEL.md`. Key patterns:
-  - Staff contact info (`staff`) is split from pay data (`staff_pay`,
-    `tailor_daily_entries`) because Firestore read rules are per-document,
-    not per-field — secretary can read the former, never the latter.
-  - Historique is not a separate collection: an order whose status becomes
-    `livre` simply shows up in the Historique query (move, not copy).
-  - `settings/public` (shop name/logo, readable pre-auth for the login
-    screen) is split from `settings/private` (default piece rate, manager
-    only).
-- Legacy Emergent scaffold (`backend/`, `frontend/`, old test harness)
-  was deleted; the Flutter app is the whole product.
-- Security rules + 29 emulator tests landed 2026-07-05
-  (`tailoring_app/firestore.rules`, `tailoring_app/rules_tests/` —
-  run with `npm test`). Customer role/screens removed the same day.
-- Still to do, module by module: point each feature at the new
-  collections (clients, staff + staff_pay, sales, expenses,
-  pret_a_porter, settings) with real Firestore repositories replacing
-  screen-local mock state; then activate a real Firebase project
-  (firebase_options.dart still has REPLACE_WITH_* placeholders).
+- **Backend: Node.js + Express + PostgreSQL** in `backend/`. JWT auth
+  (bcryptjs) with RBAC middleware; the role is ALWAYS read from the
+  `users` table on each request — never trusted from the token payload.
+  A brief Firebase detour on 2026-07-05 was reverted the same day: the
+  user's spec always said SQL. Do not propose Firebase again.
+- **Hosting: DigitalOcean VPS with Docker Compose** — same pattern the
+  user already runs for their EduGete project (same droplet if resources
+  allow, else a small dedicated one). No managed PaaS. Local dev machine
+  has no Docker: tests run on `embedded-postgres` (real PostgreSQL
+  downloaded as an npm dev dependency).
+- **Financial audit trail: append-only + correction log.** Manually
+  entered financial rows (`tailor_daily_entries`, `expenses`) can never
+  be UPDATEd or DELETEd — enforced by DB triggers, not just missing API
+  routes. A correction is a NEW row in `entry_corrections` /
+  `expense_corrections` with a mandatory `reason`, linked to the
+  original; effective values come from SQL views (latest correction
+  wins). The manager UI shows the current value plus an openable
+  correction history (who, when, from→to, why).
+- **Sales are atomic and server-priced**: `POST /api/sales` reads the
+  price from the DB, computes the total server-side, and decrements
+  stock in the same transaction (`quantity >= qty` guard). The client
+  never sends prices. Secretary can create sales but `GET /api/sales`
+  is manager-only (write-only pattern).
+- **Customer role removed** from the Flutter app: no self-registration,
+  no customer-facing screens. Clients are plain DB records.
+- The 29 Firestore-rules guarantees were ported 1:1 to API integration
+  tests in `backend/tests/` (Jest + Supertest against real PostgreSQL);
+  the Firebase rules/config artifacts were then deleted.
+- Data model: `docs/DATA_MODEL.md` (PostgreSQL schema). Key points:
+  staff contacts (`staff`) split from pay (`staff_pay`); Historique is
+  `orders.status = 'livre'` (a status change, not a copy);
+  `settings` split into public rows (shop name/logo, readable without
+  auth for the login screen) and private rows (manager-only).
+- Flutter app data layer migrates from the local mock to the REST API
+  module by module (Clients first). `tailoring_app/` still contains
+  Firebase SDK deps and MockDatabase until that migration completes.
 
 ## Working conventions
 
