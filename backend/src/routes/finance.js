@@ -18,9 +18,11 @@ router.get('/summary', asyncH(async (req, res) => {
   const to = dateStr(req.query.to) || today;
 
   const [sales, ordersRevenue, wages, expenses, salaries] = await Promise.all([
+    // Effective view: corrected quantities, voided sales excluded.
     db.query(
-      `SELECT COALESCE(SUM(total), 0)::bigint AS v FROM sales
-       WHERE sold_at >= $1::date AND sold_at < $2::date + 1`, [from, to]),
+      `SELECT COALESCE(SUM(total), 0)::bigint AS v FROM sales_effective
+       WHERE NOT voided AND sold_at >= $1::date AND sold_at < $2::date + 1`,
+      [from, to]),
     // Tailoring revenue counts when the order is delivered.
     db.query(
       `SELECT COALESCE(SUM(price), 0)::bigint AS v FROM orders

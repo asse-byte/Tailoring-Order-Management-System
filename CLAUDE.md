@@ -74,19 +74,26 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
   allow, else a small dedicated one). No managed PaaS. Local dev machine
   has no Docker: tests run on `embedded-postgres` (real PostgreSQL
   downloaded as an npm dev dependency).
-- **Financial audit trail: append-only + correction log.** Manually
-  entered financial rows (`tailor_daily_entries`, `expenses`) can never
-  be UPDATEd or DELETEd — enforced by DB triggers, not just missing API
-  routes. A correction is a NEW row in `entry_corrections` /
-  `expense_corrections` with a mandatory `reason`, linked to the
-  original; effective values come from SQL views (latest correction
-  wins). The manager UI shows the current value plus an openable
-  correction history (who, when, from→to, why).
+- **PROJECT PRINCIPLE — every financial table is append-only +
+  correction log, no exceptions.** This applies to ALL of them:
+  `tailor_daily_entries`, `expenses`, `sales`, and pay-rate changes
+  (`staff_pay_history`) — and to any financial table added later.
+  UPDATE/DELETE are blocked by DB triggers (not just missing API
+  routes); a change is a NEW row in the matching `*_corrections` /
+  history table with a mandatory `reason`, linked to the original.
+  Effective values come from SQL views (`*_effective`, latest
+  correction wins) and every revenue/cost sum reads those views.
+  The manager UI shows the current value plus an openable correction
+  history (who, when, from→to, why). When adding a new financial
+  table, add its triggers, correction table, effective view and
+  append-only tests in the same commit.
 - **Sales are atomic and server-priced**: `POST /api/sales` reads the
   price from the DB, computes the total server-side, and decrements
   stock in the same transaction (`quantity >= qty` guard). The client
   never sends prices. Secretary can create sales but `GET /api/sales`
-  is manager-only (write-only pattern).
+  is manager-only (write-only pattern). Sale corrections (qty fix or
+  void, manager-only) adjust product stock by the delta in the same
+  transaction.
 - **Customer role removed** from the Flutter app: no self-registration,
   no customer-facing screens. Clients are plain DB records.
 - The 29 Firestore-rules guarantees were ported 1:1 to API integration

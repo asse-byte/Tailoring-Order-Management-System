@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { managerOnly } = require('../middleware/auth');
-const { asyncH, pagination, intOrNull } = require('../util');
+const { asyncH, pagination, intOrNull, str } = require('../util');
 
 const router = express.Router();
 
@@ -55,11 +55,12 @@ router.post('/', asyncH(async (req, res) => {
 }));
 
 // Revenue history is MANAGER-ONLY (write-only pattern for the secretary).
+// Reads the EFFECTIVE view: latest correction wins, voided sales flagged.
 router.get('/', managerOnly, asyncH(async (req, res) => {
   const { limit, offset } = pagination(req, 50, 200);
   const { from, to, kind } = req.query;
   const { rows } = await db.query(
-    `SELECT s.*, u.name AS seller_name FROM sales s
+    `SELECT s.*, u.name AS seller_name FROM sales_effective s
      JOIN users u ON u.id = s.created_by
      WHERE ($1::date IS NULL OR s.sold_at >= $1)
        AND ($2::date IS NULL OR s.sold_at < $2::date + 1)
@@ -68,6 +69,56 @@ router.get('/', managerOnly, asyncH(async (req, res) => {
     [from || null, to || null,
       ['produit', 'pret_a_porter'].includes(kind) ? kind : null, limit, offset]);
   res.json({ items: rows, limit, offset });
+}));
+
+// ---- correction log (manager-only) — the ONLY way to change a sale ----
+// Correcting the qty or voiding a product sale puts the stock difference
+// back on the shelf (or takes it) in the same transaction.
+
+router.post('/:id/corrections', managerOnly, asyncH(async (req, res) => {
+  const reason = str(req.body.reason);
+  if (!reason) {
+    return res.status(400).json({ error: 'Le motif de la correction est obligatoire.' });
+  }
+  const result = await db.withTransaction(async (tx) => {
+    const { rows: cur } = await tx.query(
+      'SELECT kind, item_id, qty, voided FROM sales_effective WHERE id = $1',
+      [req.params.id]);
+    if (!cur[0]) return { status: 404, error: 'Vente introuvable.' };
+
+    const newQty = req.body.new_qty === undefined
+      ? cur[0].qty : intOrNull(req.body.new_qty);
+    if (newQty == null || newQty < 1) {
+      return { status: 400, error: 'new_qty invalide (entier ≥ 1); pour annuler, utilisez voided.' };
+    }
+    const voided = typeof req.body.voided === 'boolean' ? req.body.voided : cur[0].voided;
+
+    // Units that actually left the shop, before vs after this correction.
+    const outBefore = cur[0].voided ? 0 : cur[0].qty;
+    const outAfter = voided ? 0 : newQty;
+    const delta = outAfter - outBefore;
+    if (cur[0].kind === 'produit' && delta !== 0) {
+      // quantity CHECK (>= 0) turns an impossible re-out into a 400/409.
+      await tx.query(
+        'UPDATE products SET quantity = quantity - $1 WHERE id = $2',
+        [delta, cur[0].item_id]);
+    }
+    const { rows } = await tx.query(
+      `INSERT INTO sale_corrections (sale_id, old_qty, new_qty, voided, reason, corrected_by)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [req.params.id, cur[0].qty, newQty, voided, reason, req.user.id]);
+    return { status: 201, body: rows[0] };
+  });
+  if (result.error) return res.status(result.status).json({ error: result.error });
+  return res.status(result.status).json(result.body);
+}));
+
+router.get('/:id/corrections', managerOnly, asyncH(async (req, res) => {
+  const { rows } = await db.query(
+    `SELECT c.*, u.name AS corrected_by_name
+     FROM sale_corrections c JOIN users u ON u.id = c.corrected_by
+     WHERE c.sale_id = $1 ORDER BY c.corrected_at DESC`, [req.params.id]);
+  res.json({ items: rows });
 }));
 
 module.exports = router;

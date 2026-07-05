@@ -8,6 +8,12 @@ Backend: Node.js + Express + PostgreSQL (`backend/`). Roles: `MANAGER`
 🔒 = financial: every route touching it is MANAGER-only (403 for the
 secretary), verified by `backend/tests/security.test.js`.
 
+**Project principle — no exceptions:** every financial table
+(`tailor_daily_entries`, `expenses`, `sales`, `staff_pay_history`, and any
+added later) is **append-only + correction log**: DB triggers block
+UPDATE/DELETE outright; changes are new rows with a mandatory reason;
+effective values come from `*_effective` views (latest correction wins).
+
 The authoritative DDL lives in `backend/migrations/`; this document is the
 readable map.
 
@@ -69,7 +75,7 @@ stock only moves inside the sale transaction.
 `(id, product_id|model_id FK, url, thumb_url)` — media stored on the VPS
 disk (served by nginx), thumbnails generated at upload for fast lists.
 
-### 🔒 sales
+### 🔒 sales — APPEND-ONLY
 | column | type | notes |
 |---|---|---|
 | id | uuid PK | |
@@ -86,6 +92,23 @@ disk (served by nginx), thumbnails generated at upload for fast lists.
 `SELECT price … FOR UPDATE` → `UPDATE products SET quantity = quantity - qty
 WHERE quantity >= qty` (409 if insufficient) → `INSERT sale`. Atomic: stock
 and revenue can never disagree. `GET /api/sales` is manager-only.
+
+Trigger-protected like every financial table. Fixing a sale goes through:
+
+### 🔒 sale_corrections — APPEND-ONLY
+`(id, sale_id FK, old_qty, new_qty ≥ 1, voided boolean, reason NOT NULL,
+corrected_by, corrected_at)` — manager-only. A qty fix or a void
+(return/cancellation) **adjusts product stock by the delta in the same
+transaction**. Effective view `sales_effective` (latest correction wins,
+recomputed total, `voided` flag); all revenue sums read it and exclude
+voided sales.
+
+### 🔒 staff_pay_history — APPEND-ONLY
+`(id, staff_id FK, old_piece_rate, new_piece_rate, old_monthly_salary,
+new_monthly_salary, changed_by, changed_at)` — journaled by the API in the
+same transaction as every `staff_pay` upsert. `GET
+/api/staff-pay/:id/history` (manager) shows who changed which rate, when,
+from → to.
 
 ### staff — contact info only (secretary may read)
 | column | type | notes |

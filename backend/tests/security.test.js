@@ -66,10 +66,13 @@ afterAll(async () => {
 // =============================================================================
 
 describe('SECRETARY — financial routes are completely blocked (403)', () => {
+  const NIL = '00000000-0000-0000-0000-000000000000';
   const financialReads = [
     ['GET', '/api/sales'],
+    ['GET', `/api/sales/${NIL}/corrections`],
     ['GET', '/api/expenses'],
     ['GET', '/api/staff-pay'],
+    ['GET', `/api/staff-pay/${NIL}/history`],
     ['GET', '/api/tailor-entries'],
     ['GET', '/api/tailor-entries/weekly?week_id=2026-W27'],
     ['GET', '/api/finance/summary'],
@@ -99,6 +102,13 @@ describe('SECRETARY — financial routes are completely blocked (403)', () => {
   it('cannot set piece rates or salaries', async () => {
     const res = await asSec(request(app).put(`/api/staff-pay/${tailorId}`))
       .send({ piece_rate: 1 });
+    expect(res.status).toBe(403);
+  });
+
+  it('cannot correct a sale (corrections are manager-only)', async () => {
+    const res = await asSec(
+      request(app).post(`/api/sales/${NIL}/corrections`))
+      .send({ new_qty: 1, reason: 'tentative' });
     expect(res.status).toBe(403);
   });
 
@@ -228,6 +238,104 @@ describe('Sales — server-side pricing and atomic stock', () => {
 });
 
 // =============================================================================
+// 3b. SALES follow the same append-only + correction-log principle.
+// =============================================================================
+
+describe('Sales — append-only with correction log (project principle)', () => {
+  let corrProductId;
+  let corrSaleId;
+
+  beforeAll(async () => {
+    corrProductId = (await asManager(request(app).post('/api/products'))
+      .send({ category: 'parfum', name: 'Oud Royal', price: 10000, quantity: 10 })).body.id;
+    await asSec(request(app).post('/api/sales'))
+      .send({ kind: 'produit', item_id: corrProductId, qty: 5 });
+    const { rows } = await db.query(
+      'SELECT id FROM sales WHERE item_id = $1', [corrProductId]);
+    corrSaleId = rows[0].id;
+  });
+
+  const stockOf = async (id) => (await db.query(
+    'SELECT quantity FROM products WHERE id = $1', [id])).rows[0].quantity;
+
+  it('there is NO update/delete route for sales', async () => {
+    expect((await asManager(request(app).put(`/api/sales/${corrSaleId}`))
+      .send({ qty: 1 })).status).toBe(404);
+    expect((await asManager(request(app).delete(`/api/sales/${corrSaleId}`))).status)
+      .toBe(404);
+  });
+
+  it('correction requires a reason', async () => {
+    const res = await asManager(
+      request(app).post(`/api/sales/${corrSaleId}/corrections`))
+      .send({ new_qty: 2 });
+    expect(res.status).toBe(400);
+  });
+
+  it('qty correction updates effective total, restores stock, keeps the original', async () => {
+    expect(await stockOf(corrProductId)).toBe(5); // 10 - 5 sold
+
+    const ok = await asManager(
+      request(app).post(`/api/sales/${corrSaleId}/corrections`))
+      .send({ new_qty: 2, reason: 'Erreur de saisie: 2 flacons vendus, pas 5' });
+    expect(ok.status).toBe(201);
+    expect(ok.body.old_qty).toBe(5);
+
+    // 3 units back on the shelf, effective total recomputed.
+    expect(await stockOf(corrProductId)).toBe(8);
+    const { rows: eff } = await db.query(
+      'SELECT qty, total, corrected FROM sales_effective WHERE id = $1', [corrSaleId]);
+    expect(eff[0].qty).toBe(2);
+    expect(eff[0].total).toBe(2 * 10000);
+    expect(eff[0].corrected).toBe(true);
+
+    // Original row untouched — full audit trail.
+    const { rows: orig } = await db.query(
+      'SELECT qty, total FROM sales WHERE id = $1', [corrSaleId]);
+    expect(orig[0].qty).toBe(5);
+    expect(orig[0].total).toBe(5 * 10000);
+  });
+
+  it('voiding a sale returns remaining units and excludes it from revenue', async () => {
+    const ok = await asManager(
+      request(app).post(`/api/sales/${corrSaleId}/corrections`))
+      .send({ voided: true, reason: 'Vente annulée: client remboursé' });
+    expect(ok.status).toBe(201);
+
+    expect(await stockOf(corrProductId)).toBe(10); // everything back
+    const { rows: eff } = await db.query(
+      'SELECT voided FROM sales_effective WHERE id = $1', [corrSaleId]);
+    expect(eff[0].voided).toBe(true);
+
+    // Voided sales contribute nothing to the finance summary.
+    const today = new Date().toISOString().slice(0, 10);
+    const sum = await asManager(request(app)
+      .get(`/api/finance/summary?from=${today}&to=${today}`));
+    const { rows: contrib } = await db.query(
+      `SELECT COALESCE(SUM(total), 0)::int AS v FROM sales_effective
+       WHERE NOT voided AND item_id = $1`, [corrProductId]);
+    expect(contrib[0].v).toBe(0);
+    expect(sum.status).toBe(200);
+
+    const history = await asManager(
+      request(app).get(`/api/sales/${corrSaleId}/corrections`));
+    expect(history.body.items).toHaveLength(2);
+    history.body.items.forEach((c) => expect(c.reason.length).toBeGreaterThan(0));
+  });
+
+  it('pay-rate changes are journaled in staff_pay_history (who/when/from→to)', async () => {
+    await asManager(request(app).put(`/api/staff-pay/${tailorId}`))
+      .send({ piece_rate: 2200 });
+    const res = await asManager(
+      request(app).get(`/api/staff-pay/${tailorId}/history`));
+    expect(res.status).toBe(200);
+    expect(res.body.items.length).toBeGreaterThanOrEqual(2); // seed + this change
+    expect(res.body.items[0].new_piece_rate).toBe(2200);
+    expect(res.body.items[0].changed_by_name).toBeTruthy();
+  });
+});
+
+// =============================================================================
 // 4. MANAGER — full access + append-only audit trail with correction log.
 // =============================================================================
 
@@ -333,8 +441,11 @@ describe('Append-only triggers (direct SQL, bypassing the API)', () => {
   const appendOnlyTables = [
     ['tailor_daily_entries', 'pieces_count = 999'],
     ['expenses', 'amount = 1'],
+    ['sales', 'qty = 999'],
     ['entry_corrections', 'new_pieces = 999'],
     ['expense_corrections', 'new_amount = 1'],
+    ['sale_corrections', 'new_qty = 999'],
+    ['staff_pay_history', 'new_piece_rate = 1'],
   ];
 
   it.each(appendOnlyTables)('UPDATE %s raises', async (table, setClause) => {
