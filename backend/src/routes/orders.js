@@ -7,19 +7,25 @@ const router = express.Router();
 const STATUSES = ['en_cours', 'pret', 'livre'];
 
 // Historique is simply ?status=livre — the same row, moved by status.
+// from/to filter on the delivery date for delivered rows (Historique spec:
+// search by client or date), on the creation date for active ones.
 router.get('/', asyncH(async (req, res) => {
   const { limit, offset } = pagination(req);
   const status = STATUSES.includes(req.query.status) ? req.query.status : null;
   const clientId = str(req.query.client_id);
+  const from = dateStr(req.query.from);
+  const to = dateStr(req.query.to);
   const { rows } = await db.query(
     `SELECT o.*, c.full_name AS client_name, c.phone AS client_phone
      FROM orders o JOIN clients c ON c.id = o.client_id
      WHERE ($1::text IS NULL OR o.status = $1)
        AND ($2::uuid IS NULL OR o.client_id = $2)
+       AND ($3::date IS NULL OR COALESCE(o.delivered_date, o.created_at::date) >= $3)
+       AND ($4::date IS NULL OR COALESCE(o.delivered_date, o.created_at::date) <= $4)
      ORDER BY CASE WHEN o.status = 'livre' THEN o.delivered_date END DESC,
               o.created_at DESC
-     LIMIT $3 OFFSET $4`,
-    [status, clientId, limit, offset]);
+     LIMIT $5 OFFSET $6`,
+    [status, clientId, from, to, limit, offset]);
   res.json({ items: rows, limit, offset });
 }));
 
