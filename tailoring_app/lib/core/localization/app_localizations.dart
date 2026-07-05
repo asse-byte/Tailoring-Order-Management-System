@@ -56,6 +56,7 @@ class AppLocalizations {
       'login': 'Sign in',
       'register': 'Create account',
       'email': 'Email',
+      'username': 'Username',
       'password': 'Password',
       'confirmPassword': 'Confirm password',
       'forgotPassword': 'Forgot password?',
@@ -328,6 +329,7 @@ class AppLocalizations {
       'login': 'Se connecter',
       'register': 'Créer un compte',
       'email': 'E-mail',
+      'username': 'Nom d’utilisateur',
       'password': 'Mot de passe',
       'confirmPassword': 'Confirmer le mot de passe',
       'forgotPassword': 'Mot de passe oublié ?',
@@ -607,6 +609,7 @@ class AppLocalizations {
   String get login => translate('login');
   String get register => translate('register');
   String get email => translate('email');
+  String get username => translate('username');
   String get password => translate('password');
   String get confirmPassword => translate('confirmPassword');
   String get forgotPassword => translate('forgotPassword');

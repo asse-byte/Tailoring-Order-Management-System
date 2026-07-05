@@ -1,22 +1,23 @@
-import 'dart:async';
-
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/network/api_client.dart';
 import '../../data/auth_repository.dart';
 import '../../domain/entities/app_user.dart';
 
 enum AuthStatus { uninitialized, authenticated, unauthenticated }
 
-/// Centralised auth state for the whole app.
+/// Centralised auth state: restores the JWT session on boot, exposes the
+/// role (read from the server, never from local guesses) to the router
+/// and the home grid (Finances is absent for the secretary).
 class AuthProvider extends ChangeNotifier {
   AuthProvider({AuthRepository? repository})
       : _repo = repository ?? AuthRepository() {
-    _sub = _repo.authStateChanges().listen(_onAuthChanged);
+    // A 401 anywhere in the app drops the session → router goes to /login.
+    ApiClient.instance.onSessionExpired = _onSessionExpired;
+    _restore();
   }
 
   final AuthRepository _repo;
-  StreamSubscription<User?>? _sub;
 
   AuthStatus _status = AuthStatus.uninitialized;
   AppUser? _user;
@@ -31,60 +32,33 @@ class AuthProvider extends ChangeNotifier {
   bool get isAdmin => _user?.isAdmin ?? false;
   bool get isSecretary => _user?.isSecretary ?? false;
 
-  Future<void> _onAuthChanged(User? fbUser) async {
-    if (fbUser == null) {
-      _user = null;
-      _status = AuthStatus.unauthenticated;
-      notifyListeners();
-      return;
-    }
+  Future<void> _restore() async {
     try {
-      final AppUser? profile = await _repo.fetchUser(fbUser.uid);
-      _user = profile;
-      _status = profile != null
-          ? AuthStatus.authenticated
-          : AuthStatus.unauthenticated;
+      _user = await _repo.restoreSession();
+      _status =
+          _user != null ? AuthStatus.authenticated : AuthStatus.unauthenticated;
     } catch (_) {
-      _status = AuthStatus.unauthenticated;
+      // Server unreachable at boot: fall back to login (it will show the
+      // connection error on submit).
       _user = null;
+      _status = AuthStatus.unauthenticated;
     }
     notifyListeners();
   }
 
-  Future<bool> signIn(String email, String password) async {
-    _setBusy(true);
-    try {
-      _user = await _repo.signIn(email: email, password: password);
-      _status = AuthStatus.authenticated;
-      _error = null;
-      return true;
-    } on AuthFailure catch (e) {
-      _error = e.message;
-      return false;
-    } finally {
-      _setBusy(false);
+  void _onSessionExpired() {
+    if (_status == AuthStatus.authenticated) {
+      _user = null;
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
     }
   }
 
-  Future<bool> seedAdmin() async {
+  Future<bool> signIn(String username, String password) async {
     _setBusy(true);
     try {
-      _user = await _repo.seedAdmin();
+      _user = await _repo.signIn(username: username, password: password);
       _status = AuthStatus.authenticated;
-      _error = null;
-      return true;
-    } on AuthFailure catch (e) {
-      _error = e.message;
-      return false;
-    } finally {
-      _setBusy(false);
-    }
-  }
-
-  Future<bool> sendPasswordReset(String email) async {
-    _setBusy(true);
-    try {
-      await _repo.sendPasswordReset(email);
       _error = null;
       return true;
     } on AuthFailure catch (e) {
@@ -112,11 +86,5 @@ class AuthProvider extends ChangeNotifier {
   void _setBusy(bool value) {
     _busy = value;
     notifyListeners();
-  }
-
-  @override
-  void dispose() {
-    _sub?.cancel();
-    super.dispose();
   }
 }

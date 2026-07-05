@@ -4,9 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/app_constants.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
-import '../../features/auth/presentation/screens/admin_setup_screen.dart';
 import '../../features/auth/presentation/screens/change_password_screen.dart';
-import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/onboarding_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
@@ -52,14 +50,6 @@ class AppRouter {
         GoRoute(
           path: '/login',
           builder: (_, __) => const LoginScreen(),
-        ),
-        GoRoute(
-          path: '/forgot-password',
-          builder: (_, __) => const ForgotPasswordScreen(),
-        ),
-        GoRoute(
-          path: '/admin-setup',
-          builder: (_, __) => const AdminSetupScreen(),
         ),
         GoRoute(
           path: '/admin',
@@ -142,10 +132,7 @@ class AppRouter {
             prefs.getBool(AppConstants.prefsKeyOnboardingDone) ?? false;
 
         final String loc = state.matchedLocation;
-        final bool isAuthRoute = loc == '/login' ||
-            loc == '/forgot-password' ||
-            loc == '/admin-setup' ||
-            loc == '/onboarding';
+        final bool isAuthRoute = loc == '/login' || loc == '/onboarding';
 
         // Unauthenticated flow ----------------------------------------------
         if (auth.status == AuthStatus.unauthenticated) {

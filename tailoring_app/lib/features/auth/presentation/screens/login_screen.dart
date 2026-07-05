@@ -132,12 +132,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 36),
                 AppTextField(
                   controller: _emailCtrl,
-                  label: context.loc.email,
-                  hint: 'you@example.com',
-                  prefixIcon: Icons.alternate_email_rounded,
-                  keyboardType: TextInputType.emailAddress,
+                  label: context.loc.username,
+                  hint: 'gerant',
+                  prefixIcon: Icons.person_outline_rounded,
+                  keyboardType: TextInputType.text,
                   textInputAction: TextInputAction.next,
-                  validator: (v) => Validators.email(v, context),
+                  validator: (v) => Validators.required(v, context),
                 ),
                 const SizedBox(height: 18),
                 AppTextField(
@@ -158,26 +158,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
                 ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => context.push('/forgot-password'),
-                    child: Text(context.loc.forgotPassword),
-                  ),
-                ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 20),
                 PrimaryButton(
                   label: context.loc.login,
                   loading: auth.busy,
                   onPressed: _submit,
-                ),
-                const Divider(height: 32),
-                Center(
-                  child: TextButton.icon(
-                    icon: const Icon(Icons.shield_moon_outlined, size: 18),
-                    label: Text(context.loc.adminSetup),
-                    onPressed: () => context.push('/admin-setup'),
-                  ),
                 ),
               ],
             ),

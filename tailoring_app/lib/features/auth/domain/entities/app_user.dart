@@ -59,6 +59,21 @@ class AppUser {
             : FieldValue.serverTimestamp(),
       };
 
+  /// From the REST API (`/api/auth/login`, `/api/auth/me`). Maps the
+  /// server roles (MANAGER/SECRETARY) onto the app's constants.
+  factory AppUser.fromApi(Map<String, dynamic> map) {
+    final String apiRole = (map['role'] as String?) ?? '';
+    return AppUser(
+      id: map['id'] as String,
+      name: (map['name'] as String?) ?? '',
+      email: (map['username'] as String?) ?? '',
+      phone: '',
+      role: apiRole == 'MANAGER'
+          ? AppConstants.roleAdmin
+          : AppConstants.roleSecretary, // least privilege for anything else
+    );
+  }
+
   factory AppUser.fromMap(String id, Map<String, dynamic> map) {
     final dynamic ts = map['createdAt'];
     DateTime? created;

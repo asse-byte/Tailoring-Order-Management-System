@@ -40,6 +40,10 @@ dependencies:
   cached_network_image: ^3.4.1
   fl_chart: ^0.69.0
 
+  # REST API
+  http: ^1.2.2
+  flutter_secure_storage: ^9.2.2
+
   # Utilities
   image_picker: ^1.1.2
   intl: ^0.20.2
