@@ -66,31 +66,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> registerCustomer({
-    required String name,
-    required String email,
-    required String phone,
-    required String password,
-  }) async {
-    _setBusy(true);
-    try {
-      _user = await _repo.registerCustomer(
-        name: name,
-        email: email,
-        phone: phone,
-        password: password,
-      );
-      _status = AuthStatus.authenticated;
-      _error = null;
-      return true;
-    } on AuthFailure catch (e) {
-      _error = e.message;
-      return false;
-    } finally {
-      _setBusy(false);
-    }
-  }
-
   Future<bool> seedAdmin() async {
     _setBusy(true);
     try {

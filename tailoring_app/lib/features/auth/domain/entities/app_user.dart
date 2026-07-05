@@ -19,13 +19,12 @@ class AppUser {
   final String name;
   final String email;
   final String phone;
-  final String role; // 'customer' | 'admin'
+  final String role; // 'admin' (le Gérant) | 'secretary' (la Secrétaire)
   final String? profilePhotoUrl;
   final DateTime? createdAt;
   final String? fcmToken;
 
   bool get isAdmin => role == AppConstants.roleAdmin;
-  bool get isCustomer => role == AppConstants.roleCustomer;
   bool get isSecretary => role == AppConstants.roleSecretary;
 
   AppUser copyWith({
@@ -70,7 +69,8 @@ class AppUser {
       name: (map['name'] as String?) ?? '',
       email: (map['email'] as String?) ?? '',
       phone: (map['phone'] as String?) ?? '',
-      role: (map['role'] as String?) ?? AppConstants.roleCustomer,
+      // Least-privilege default: an unknown role never becomes admin.
+      role: (map['role'] as String?) ?? AppConstants.roleSecretary,
       profilePhotoUrl: map['profilePhotoUrl'] as String?,
       createdAt: created,
       fcmToken: map['fcmToken'] as String?,

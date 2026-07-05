@@ -90,48 +90,6 @@ class AuthRepository {
     }
   }
 
-  // ---- Register customer ----
-
-  Future<AppUser> registerCustomer({
-    required String name,
-    required String email,
-    required String phone,
-    required String password,
-  }) async {
-    if (MockDatabase.useMock) {
-      try {
-        return await MockDatabase.instance.registerCustomer(
-          name: name,
-          email: email,
-          phone: phone,
-          password: password,
-        );
-      } catch (e) {
-        throw AuthFailure(e.toString().replaceAll('Exception: ', ''));
-      }
-    }
-    try {
-      final UserCredential cred = await auth.createUserWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
-      final String uid = cred.user!.uid;
-      await cred.user!.updateDisplayName(name);
-
-      final AppUser user = AppUser(
-        id: uid,
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        role: AppConstants.roleCustomer,
-      );
-      await _usersRef.doc(uid).set(user.toMap());
-      return user;
-    } on FirebaseAuthException catch (e) {
-      throw AuthFailure(_mapAuthError(e));
-    }
-  }
-
   // ---- One-time admin seed ----
 
   /// Creates the seed admin user. Idempotent: if the email already exists

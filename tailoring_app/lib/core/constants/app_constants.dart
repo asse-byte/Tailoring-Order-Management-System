@@ -17,10 +17,12 @@ class AppConstants {
   static const String localDbName = 'tailoring_app.db';
   static const int localDbVersion = 1;
 
-  // Roles
+  // Roles — the shop has exactly two operating users.
+  static const String roleAdmin = 'admin'; // le Gérant
+  static const String roleSecretary = 'secretary'; // la Secrétaire
+  // Transitional: legacy value still referenced by the customers feature
+  // until it is refactored into the standalone /clients collection.
   static const String roleCustomer = 'customer';
-  static const String roleAdmin = 'admin';
-  static const String roleSecretary = 'secretary';
 
   // Order status keys (Firestore-stored values)
   static const String statusPending = 'pending';

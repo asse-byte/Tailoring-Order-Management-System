@@ -9,7 +9,6 @@ import '../../features/auth/presentation/screens/change_password_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/onboarding_screen.dart';
-import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/customers/presentation/screens/admin_customer_detail_screen.dart';
 import '../../features/customers/presentation/screens/admin_customers_screen.dart';
@@ -18,8 +17,6 @@ import '../../features/orders/presentation/screens/admin_order_detail_screen.dar
 import '../../features/orders/presentation/screens/admin_orders_list_screen.dart';
 import '../../features/orders/presentation/screens/admin_settings_screen.dart';
 import '../../features/orders/presentation/screens/admin_shell.dart';
-import '../../features/orders/presentation/screens/customer_shell.dart';
-import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/walk_in_order_screen.dart';
 import '../../features/reports/presentation/screens/admin_reports_screen.dart';
 import '../../features/products/presentation/screens/products_screen.dart';
@@ -57,31 +54,12 @@ class AppRouter {
           builder: (_, __) => const LoginScreen(),
         ),
         GoRoute(
-          path: '/register',
-          builder: (_, __) => const RegisterScreen(),
-        ),
-        GoRoute(
           path: '/forgot-password',
           builder: (_, __) => const ForgotPasswordScreen(),
         ),
         GoRoute(
           path: '/admin-setup',
           builder: (_, __) => const AdminSetupScreen(),
-        ),
-        GoRoute(
-          path: '/customer',
-          builder: (_, __) => const CustomerShell(),
-          routes: <RouteBase>[
-            GoRoute(
-              path: 'order/:id',
-              builder: (_, state) =>
-                  OrderDetailScreen(orderId: state.pathParameters['id']!),
-            ),
-            GoRoute(
-              path: 'change-password',
-              builder: (_, __) => const ChangePasswordScreen(),
-            ),
-          ],
         ),
         GoRoute(
           path: '/admin',
@@ -165,7 +143,6 @@ class AppRouter {
 
         final String loc = state.matchedLocation;
         final bool isAuthRoute = loc == '/login' ||
-            loc == '/register' ||
             loc == '/forgot-password' ||
             loc == '/admin-setup' ||
             loc == '/onboarding';
@@ -173,21 +150,20 @@ class AppRouter {
         // Unauthenticated flow ----------------------------------------------
         if (auth.status == AuthStatus.unauthenticated) {
           if (!onboardingDone && loc != '/onboarding') return '/onboarding';
-          if (loc == '/' || loc == '/customer' || loc == '/admin') {
-            return '/login';
-          }
+          if (loc == '/' || loc == '/admin') return '/login';
           // Allow auth screens.
           return isAuthRoute ? null : '/login';
         }
 
         // Authenticated flow ------------------------------------------------
+        // The shop has exactly two operating roles (admin + secretary); any
+        // other account (e.g. a stale legacy one) is signed out immediately.
         final bool isStaff = auth.isAdmin || auth.isSecretary;
-        if (isAuthRoute || loc == '/') {
-          return isStaff ? '/admin' : '/customer';
+        if (!isStaff) {
+          auth.signOut();
+          return '/login';
         }
-        // Prevent role bleed.
-        if (loc.startsWith('/admin') && !isStaff) return '/customer';
-        if (loc.startsWith('/customer') && isStaff) return '/admin';
+        if (isAuthRoute || loc == '/') return '/admin';
 
         return null;
       },

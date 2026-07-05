@@ -101,13 +101,11 @@ class MockDatabase {
       } catch (_) {}
     }
 
-    // Ensure we always have the default Admin, Demo Customer, and Demo Secretary if they don't exist
+    // Ensure the two operating accounts (Admin + Secretary) always exist.
     bool hasAdmin = false;
-    bool hasCustomer = false;
     bool hasSecretary = false;
     for (final u in _users) {
       if (u.role == 'admin') hasAdmin = true;
-      if (u.role == 'customer') hasCustomer = true;
       if (u.role == 'secretary') hasSecretary = true;
     }
 
@@ -120,18 +118,6 @@ class MockDatabase {
         role: 'admin',
       ));
       _userPasswords['admin@tailor.app'] = 'Admin@1234';
-      await _saveUsers();
-    }
-
-    if (!hasCustomer) {
-      _users.add(const AppUser(
-        id: 'customer_uid',
-        name: 'Jane Doe',
-        email: 'customer@tailor.app',
-        phone: '987654321',
-        role: 'customer',
-      ));
-      _userPasswords['customer@tailor.app'] = '123456';
       await _saveUsers();
     }
 
@@ -156,7 +142,6 @@ class MockDatabase {
       } catch (_) {}
     } else {
       _userPasswords['admin@tailor.app'] = 'Admin@1234';
-      _userPasswords['customer@tailor.app'] = '123456';
       _userPasswords['secretary@tailor.app'] = 'Secretary@1234';
       await _savePasswords();
     }
@@ -430,36 +415,6 @@ class MockDatabase {
     }
     currentUser = foundUser;
     return foundUser;
-  }
-
-  Future<AppUser> registerCustomer({
-    required String name,
-    required String email,
-    required String phone,
-    required String password,
-  }) async {
-    await init();
-    final cleanEmail = email.trim().toLowerCase();
-    for (final u in _users) {
-      if (u.email.toLowerCase() == cleanEmail) {
-        throw Exception('Email already in use');
-      }
-    }
-    final String uid = 'user_${DateTime.now().millisecondsSinceEpoch}';
-    final AppUser user = AppUser(
-      id: uid,
-      name: name,
-      email: email,
-      phone: phone,
-      role: 'customer',
-      createdAt: DateTime.now(),
-    );
-    _users.add(user);
-    _userPasswords[cleanEmail] = password;
-    await _saveUsers();
-    await _savePasswords();
-    currentUser = user;
-    return user;
   }
 
   Future<AppUser> seedAdmin() async {

@@ -171,20 +171,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   loading: auth.busy,
                   onPressed: _submit,
                 ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Text(
-                      context.loc.dontHaveAccount,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    TextButton(
-                      onPressed: () => context.push('/register'),
-                      child: Text(context.loc.register),
-                    ),
-                  ],
-                ),
                 const Divider(height: 32),
                 Center(
                   child: TextButton.icon(
