@@ -187,13 +187,40 @@ describe('SECRETARY — allowed daily operations', () => {
       .toBe(204);
   });
 
-  it('can upload a file and receive a URL', async () => {
-    const buffer = Buffer.from('hello world');
+  it('can upload an image — compressed copy + thumbnail are produced', async () => {
+    const { Jimp } = require('jimp');
+    const png = await new Jimp({ width: 900, height: 600, color: 0x336699ff })
+      .getBuffer('image/png');
     const res = await asSec(request(app).post('/api/upload'))
-      .attach('file', buffer, 'test.txt');
+      .attach('file', png, 'photo.png');
     expect(res.status).toBe(201);
-    expect(res.body.url).toMatch(/^\/uploads\//);
-    expect(res.body.thumb_url).toBeNull();
+    expect(res.body.url).toMatch(/^\/uploads\/.+\.png$/);
+    expect(res.body.thumb_url).toMatch(/^\/uploads\/thumb_.+\.png$/);
+
+    const fs = require('fs');
+    const path = require('path');
+    const uploadsDir = path.join(__dirname, '../uploads');
+    const mainPath = path.join(uploadsDir, path.basename(res.body.url));
+    const thumbPath = path.join(uploadsDir, path.basename(res.body.thumb_url));
+    expect(fs.existsSync(mainPath)).toBe(true);
+    expect(fs.existsSync(thumbPath)).toBe(true);
+
+    // Speed rule: the stored image is resized down, the thumbnail further.
+    const main = await Jimp.fromBuffer(fs.readFileSync(mainPath));
+    const thumb = await Jimp.fromBuffer(fs.readFileSync(thumbPath));
+    expect(main.width).toBeLessThanOrEqual(800);
+    expect(thumb.width).toBeLessThanOrEqual(150);
+
+    fs.unlinkSync(mainPath);
+    fs.unlinkSync(thumbPath);
+  });
+
+  it('non-media uploads are rejected (public /uploads must never host scripts)', async () => {
+    for (const name of ['note.txt', 'page.html', 'tool.exe']) {
+      const res = await asSec(request(app).post('/api/upload'))
+        .attach('file', Buffer.from('hello world'), name);
+      expect(res.status).toBe(400);
+    }
   });
 });
 
