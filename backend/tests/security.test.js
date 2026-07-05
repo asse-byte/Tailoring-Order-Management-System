@@ -179,6 +179,23 @@ describe('SECRETARY — allowed daily operations', () => {
       .toBe(403);
   });
 
+  it('Historique: delivered orders filter by client and by date', async () => {
+    const created = await asSec(request(app).post('/api/orders'))
+      .send({ client_id: clientId, garment_type: 'veste', price: 25000 });
+    await asSec(request(app).put(`/api/orders/${created.body.id}`))
+      .send({ status: 'livre' });
+
+    const today = new Date().toISOString().slice(0, 10);
+    const inRange = await asSec(request(app)
+      .get(`/api/orders?status=livre&client_id=${clientId}&from=${today}&to=${today}`));
+    expect(inRange.status).toBe(200);
+    expect(inRange.body.items.some((o) => o.id === created.body.id)).toBe(true);
+
+    const outOfRange = await asSec(request(app)
+      .get('/api/orders?status=livre&from=2020-01-01&to=2020-12-31'));
+    expect(outOfRange.body.items).toHaveLength(0);
+  });
+
   it('can manage appointments', async () => {
     const created = await asSec(request(app).post('/api/appointments'))
       .send({ client_id: clientId, scheduled_at: '2026-07-10T10:00:00Z', reason: 'essayage' });
@@ -255,6 +272,41 @@ describe('Sales — server-side pricing and atomic stock', () => {
     const after = (await db.query(
       'SELECT quantity FROM products WHERE id = $1', [productId])).rows[0].quantity;
     expect(after).toBe(before);
+  });
+
+  it('prêt-à-porter models keep description, images and optional video', async () => {
+    const created = await asManager(request(app).post('/api/pret-a-porter'))
+      .send({
+        name: 'Ensemble Wax',
+        fabric_type: 'wax',
+        price: 60000,
+        description: 'Deux pièces, broderie col',
+        media: [
+          { url: '/uploads/wax1.jpg', kind: 'image', thumb_url: '/uploads/thumb_wax1.jpg' },
+          { url: '/uploads/wax-demo.mp4', kind: 'video' },
+        ],
+      });
+    expect(created.status).toBe(201);
+    expect(created.body.description).toBe('Deux pièces, broderie col');
+    expect(created.body.media).toHaveLength(2);
+
+    const list = await asSec(request(app).get('/api/pret-a-porter'));
+    const model = list.body.items.find((m) => m.id === created.body.id);
+    expect(model.media.map((m) => m.kind).sort()).toEqual(['image', 'video']);
+
+    // PUT replaces the media list atomically.
+    const updated = await asManager(
+      request(app).put(`/api/pret-a-porter/${created.body.id}`))
+      .send({
+        name: 'Ensemble Wax',
+        fabric_type: 'wax',
+        price: 60000,
+        description: 'Deux pièces',
+        media: [{ url: '/uploads/wax2.jpg', kind: 'image' }],
+      });
+    expect(updated.status).toBe(200);
+    expect(updated.body.media).toHaveLength(1);
+    expect(updated.body.media[0].url).toBe('/uploads/wax2.jpg');
   });
 
   it('prêt-à-porter sales work and are priced from the model', async () => {

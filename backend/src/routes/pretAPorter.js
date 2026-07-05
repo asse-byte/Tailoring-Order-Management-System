@@ -19,29 +19,59 @@ router.get('/', asyncH(async (req, res) => {
   res.json({ items: rows, limit, offset });
 }));
 
+/** Insert the request's media list (images + optional video) for a model. */
+async function insertMedia(tx, modelId, media) {
+  const inserted = [];
+  if (!Array.isArray(media)) return inserted;
+  for (const item of media) {
+    const url = str(item && item.url);
+    if (!url) continue;
+    const kind = item.kind === 'video' ? 'video' : 'image';
+    const { rows } = await tx.query(
+      `INSERT INTO model_media (model_id, url, kind, thumb_url)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [modelId, url, kind, str(item.thumb_url)]);
+    inserted.push(rows[0]);
+  }
+  return inserted;
+}
+
 router.post('/', managerOnly, asyncH(async (req, res) => {
   const name = str(req.body.name);
   const price = intOrNull(req.body.price);
   if (!name || price == null) {
     return res.status(400).json({ error: 'Nom et prix (entier ≥ 0) requis.' });
   }
-  const { rows } = await db.query(
-    `INSERT INTO pret_a_porter_models (name, fabric_type, price)
-     VALUES ($1, $2, $3) RETURNING *`,
-    [name, str(req.body.fabric_type) || '', price]);
-  res.status(201).json(rows[0]);
+  const model = await db.withTransaction(async (tx) => {
+    const { rows } = await tx.query(
+      `INSERT INTO pret_a_porter_models (name, fabric_type, price, description)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [name, str(req.body.fabric_type) || '', price, str(req.body.description) || '']);
+    rows[0].media = await insertMedia(tx, rows[0].id, req.body.media);
+    return rows[0];
+  });
+  res.status(201).json(model);
 }));
 
 router.put('/:id', managerOnly, asyncH(async (req, res) => {
   const name = str(req.body.name);
   const price = intOrNull(req.body.price);
   if (!name || price == null) return res.status(400).json({ error: 'Champs invalides.' });
-  const { rows } = await db.query(
-    `UPDATE pret_a_porter_models SET name = $1, fabric_type = $2, price = $3
-     WHERE id = $4 RETURNING *`,
-    [name, str(req.body.fabric_type) || '', price, req.params.id]);
-  if (!rows[0]) return res.status(404).json({ error: 'Modèle introuvable.' });
-  res.json(rows[0]);
+  const model = await db.withTransaction(async (tx) => {
+    const { rows } = await tx.query(
+      `UPDATE pret_a_porter_models
+       SET name = $1, fabric_type = $2, price = $3, description = $4
+       WHERE id = $5 RETURNING *`,
+      [name, str(req.body.fabric_type) || '', price,
+        str(req.body.description) || '', req.params.id]);
+    if (!rows[0]) return null;
+    // The media list is authoritative: same replace pattern as products.
+    await tx.query('DELETE FROM model_media WHERE model_id = $1', [req.params.id]);
+    rows[0].media = await insertMedia(tx, rows[0].id, req.body.media);
+    return rows[0];
+  });
+  if (!model) return res.status(404).json({ error: 'Modèle introuvable.' });
+  res.json(model);
 }));
 
 router.delete('/:id', managerOnly, asyncH(async (req, res) => {
