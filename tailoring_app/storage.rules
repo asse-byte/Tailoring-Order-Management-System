@@ -1,0 +1,56 @@
+// =============================================================================
+// Tailoring Studio — Cloud Storage security rules
+// =============================================================================
+// Deploy with:    firebase deploy --only storage
+//
+//  • profile_photos/{uid}.{ext}      ← customer or admin owner
+//  • fabric_photos/{orderId}/{file}  ← read by owner+admin, write by anyone
+//                                      who can write the order
+//  • style_photos/{orderId}/{file}   ← same as fabric_photos
+//
+// We piggy-back on Firestore for auth role-checks where possible.
+// =============================================================================
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid))
+          .data.role == 'admin';
+    }
+
+    function ownsOrder(orderId) {
+      return isSignedIn() &&
+        firestore.get(/databases/(default)/documents/orders/$(orderId))
+          .data.customerId == request.auth.uid;
+    }
+
+    // ---- Profile photos ----------------------------------------------------
+    match /profile_photos/{file=**} {
+      // Read: any signed-in user (so admins can preview a customer's avatar).
+      allow read: if isSignedIn();
+      // Write: only the user themselves (filename starts with their uid)
+      // or an admin.
+      allow write: if isAdmin() ||
+                      (isSignedIn() && file.matches(request.auth.uid + '.*'));
+    }
+
+    // ---- Fabric & style photos --------------------------------------------
+    match /fabric_photos/{orderId}/{file=**} {
+      allow read:  if isAdmin() || ownsOrder(orderId);
+      allow write: if isAdmin() || ownsOrder(orderId);
+    }
+    match /style_photos/{orderId}/{file=**} {
+      allow read:  if isAdmin() || ownsOrder(orderId);
+      allow write: if isAdmin() || ownsOrder(orderId);
+    }
+
+    // Deny everything else by default.
+  }
+}

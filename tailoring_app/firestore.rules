@@ -1,0 +1,116 @@
+// =============================================================================
+// Tailoring Studio — Firestore security rules
+// =============================================================================
+// Drop this file into your Firebase project root (next to firebase.json) and
+// deploy with:    firebase deploy --only firestore:rules
+//
+// Mirrors the access policy from the project spec:
+//
+//  • Customers can read/write only their own user doc, measurements & orders.
+//  • Customers can read only their own notifications.
+//  • Admins have full read/write on all collections.
+//  • The order `status`, `price` and `adminNotes` fields can only be written
+//    by an admin (customers cannot tamper with them).
+//
+// Firestore rules: every helper function below is evaluated *server-side*
+// against the request, which means the Flutter app cannot bypass them.
+// =============================================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers -------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && userDoc().role == 'admin';
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // The set of fields a non-admin must NOT touch on an order.
+    function adminOnlyOrderFields() {
+      return ['status', 'price', 'adminNotes', 'statusHistory'];
+    }
+
+    function noAdminFieldsChanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(adminOnlyOrderFields());
+    }
+
+    // ---------- /users/{uid} --------------------------------------------------
+
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+      // Customer registration writes its own doc with role='customer'.
+      // Admin can update any user (e.g. to change role).
+      allow create: if isSelf(uid) &&
+                       request.resource.data.role in ['customer'];
+      allow update: if isAdmin() ||
+                       (isSelf(uid) &&
+                        // Customers cannot self-promote.
+                        request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
+    }
+
+    // ---------- /measurements/{uid} ------------------------------------------
+
+    match /measurements/{uid} {
+      allow read, write: if isSelf(uid) || isAdmin();
+    }
+
+    // ---------- /orders/{orderId} --------------------------------------------
+
+    match /orders/{orderId} {
+      // Customers see only their own orders. Admins see all.
+      allow read: if isAdmin() ||
+                     (isSignedIn() && resource.data.customerId == request.auth.uid);
+
+      // Customers can create an order for themselves; admins can create any.
+      allow create: if isAdmin() ||
+                       (isSignedIn() &&
+                        request.resource.data.customerId == request.auth.uid &&
+                        request.resource.data.status == 'pending' &&
+                        // Customers cannot pre-set price or admin notes.
+                        !('price' in request.resource.data) ||
+                        request.resource.data.price == null);
+
+      // Updates: admins can change anything. Customers can only patch their
+      // own non-admin fields (e.g. updating images post-creation).
+      allow update: if isAdmin() ||
+                       (isSignedIn() &&
+                        resource.data.customerId == request.auth.uid &&
+                        noAdminFieldsChanged());
+
+      allow delete: if isAdmin();
+    }
+
+    // ---------- /notifications/{id} ------------------------------------------
+
+    match /notifications/{id} {
+      // Recipients can read their own; admins can read all.
+      allow read: if isAdmin() ||
+                     (isSignedIn() && resource.data.recipientId == request.auth.uid);
+
+      // Only admins create or delete notifications (broadcast / per-customer).
+      allow create, delete: if isAdmin();
+
+      // The recipient may flip isRead → true; admins may update anything.
+      allow update: if isAdmin() ||
+                       (isSignedIn() &&
+                        resource.data.recipientId == request.auth.uid &&
+                        request.resource.data.diff(resource.data)
+                          .affectedKeys().hasOnly(['isRead']));
+    }
+  }
+}
