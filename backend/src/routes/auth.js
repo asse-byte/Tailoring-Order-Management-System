@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+const { authenticate } = require('../middleware/auth');
 const { asyncH, str } = require('../util');
 
 const router = express.Router();
@@ -44,6 +45,30 @@ router.post('/login', rateLimit, asyncH(async (req, res) => {
     token,
     user: { id: user.id, username: user.username, name: user.name, role: user.role },
   });
+}));
+
+// Session restore for the app: token in, fresh user (with DB role) out.
+router.get('/me', authenticate, (req, res) => {
+  res.json({ user: req.user });
+});
+
+// Self-service password change, both roles (requires the current password).
+router.post('/change-password', authenticate, asyncH(async (req, res) => {
+  const current = typeof req.body.current_password === 'string'
+    ? req.body.current_password : '';
+  const next = typeof req.body.new_password === 'string'
+    ? req.body.new_password : '';
+  if (next.length < 8) {
+    return res.status(400).json({ error: 'Nouveau mot de passe: 8 caractères minimum.' });
+  }
+  const { rows } = await db.query(
+    'SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+  if (!bcrypt.compareSync(current, rows[0].password_hash)) {
+    return res.status(401).json({ error: 'Mot de passe actuel incorrect.' });
+  }
+  await db.query('UPDATE users SET password_hash = $1 WHERE id = $2',
+    [bcrypt.hashSync(next, 10), req.user.id]);
+  return res.json({ ok: true });
 }));
 
 module.exports = router;

@@ -21,6 +21,16 @@ function createApp() {
   app.set('trust proxy', 1); // behind nginx on the VPS
   app.use(express.json({ limit: '1mb' }));
 
+  // CORS: auth is a Bearer header (no cookies), so a permissive policy is
+  // safe and lets Flutter Web (different dev origin) reach the API.
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    return next();
+  });
+
   // ==========================================================================
   // SECURITY MAP — deny by default.
   // Every mount below declares its access level explicitly. Anything not

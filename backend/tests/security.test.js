@@ -510,4 +510,27 @@ describe('Authentication and token integrity', () => {
       .send({ username: MANAGER.username, password: 'wrong' });
     expect(res.status).toBe(401);
   });
+
+  it('GET /me restores the session with the DB role', async () => {
+    const me = await asSec(request(app).get('/api/auth/me'));
+    expect(me.status).toBe(200);
+    expect(me.body.user.role).toBe('SECRETARY');
+    expect((await request(app).get('/api/auth/me')).status).toBe(401);
+  });
+
+  it('self change-password requires the current password', async () => {
+    const wrong = await asSec(request(app).post('/api/auth/change-password'))
+      .send({ current_password: 'nope', new_password: 'NewPass#1234' });
+    expect(wrong.status).toBe(401);
+
+    const ok = await asSec(request(app).post('/api/auth/change-password'))
+      .send({ current_password: SECRETARY.password, new_password: 'NewPass#1234' });
+    expect(ok.status).toBe(200);
+    expect((await request(app).post('/api/auth/login')
+      .send({ username: SECRETARY.username, password: 'NewPass#1234' })).status).toBe(200);
+
+    // Restore for any later run against the same DB.
+    await asSec(request(app).post('/api/auth/change-password'))
+      .send({ current_password: 'NewPass#1234', new_password: SECRETARY.password });
+  });
 });
