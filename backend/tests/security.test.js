@@ -1,0 +1,402 @@
+// =============================================================================
+// Couture Mali — API security tests
+// =============================================================================
+// Ports the 29 Firestore-rules guarantees 1:1 to the SQL backend, plus
+// SQL-only guarantees (append-only triggers, server-side pricing).
+// The single non-negotiable requirement: the SECRETARY must never be able
+// to read any financial data — verified here against the real API + a real
+// PostgreSQL, bypassing the Flutter UI entirely.
+// =============================================================================
+
+const request = require('supertest');
+const jwt = require('jsonwebtoken');
+const { createApp } = require('../src/app');
+const db = require('../src/db');
+const { MANAGER, SECRETARY, seedUsers, login } = require('./helpers');
+
+let app;
+let ids;               // { MANAGER: uuid, SECRETARY: uuid }
+let managerToken;
+let secToken;
+
+// Seeded fixtures shared across tests.
+let clientId;
+let productId;
+let modelId;
+let tailorId;
+let entryId;
+let expenseId;
+let orderId;
+
+const asManager = (r) => r.set('Authorization', `Bearer ${managerToken}`);
+const asSec = (r) => r.set('Authorization', `Bearer ${secToken}`);
+
+beforeAll(async () => {
+  app = createApp();
+  ids = await seedUsers();
+  managerToken = await login(app, MANAGER);
+  secToken = await login(app, SECRETARY);
+
+  // Fixtures created as the manager (the happy path is asserted implicitly).
+  clientId = (await asManager(request(app).post('/api/clients'))
+    .send({ full_name: 'Amadou Traoré', phone: '70000000' })).body.id;
+  productId = (await asManager(request(app).post('/api/products'))
+    .send({ category: 'tissu', name: 'Bazin riche', price: 15000, quantity: 10 })).body.id;
+  modelId = (await asManager(request(app).post('/api/pret-a-porter'))
+    .send({ name: 'Boubou brodé', fabric_type: 'bazin', price: 45000 })).body.id;
+  tailorId = (await asManager(request(app).post('/api/staff'))
+    .send({ full_name: 'Moussa Keïta', phone: '76000000', type: 'couturier' })).body.id;
+  await asManager(request(app).put(`/api/staff-pay/${tailorId}`))
+    .send({ piece_rate: 2000 });
+  entryId = (await asManager(request(app).post('/api/tailor-entries'))
+    .send({ tailor_id: tailorId, entry_date: '2026-07-01', pieces_count: 4 })).body.id;
+  expenseId = (await asManager(request(app).post('/api/expenses'))
+    .send({ reason: 'Loyer', amount: 100000, spent_at: '2026-07-01' })).body.id;
+  orderId = (await asManager(request(app).post('/api/orders'))
+    .send({ client_id: clientId, garment_type: 'boubou', fabric: 'bazin',
+      price: 30000, advance: 10000 })).body.id;
+});
+
+afterAll(async () => {
+  await db.closePool();
+});
+
+// =============================================================================
+// 1. FINANCIAL ISOLATION — the secretary must get 403, always.
+// =============================================================================
+
+describe('SECRETARY — financial routes are completely blocked (403)', () => {
+  const financialReads = [
+    ['GET', '/api/sales'],
+    ['GET', '/api/expenses'],
+    ['GET', '/api/staff-pay'],
+    ['GET', '/api/tailor-entries'],
+    ['GET', '/api/tailor-entries/weekly?week_id=2026-W27'],
+    ['GET', '/api/finance/summary'],
+    ['GET', '/api/settings/private'],
+    ['GET', '/api/users'],
+  ];
+  it.each(financialReads)('%s %s → 403', async (method, url) => {
+    const res = await asSec(request(app)[method.toLowerCase()](url));
+    expect(res.status).toBe(403);
+  });
+
+  it('cannot create an expense', async () => {
+    const res = await asSec(request(app).post('/api/expenses'))
+      .send({ reason: 'x', amount: 1 });
+    expect(res.status).toBe(403);
+  });
+
+  it('cannot create a tailor daily entry or a correction', async () => {
+    const e = await asSec(request(app).post('/api/tailor-entries'))
+      .send({ tailor_id: tailorId, entry_date: '2026-07-02', pieces_count: 3 });
+    expect(e.status).toBe(403);
+    const c = await asSec(request(app).post(`/api/tailor-entries/${entryId}/corrections`))
+      .send({ new_pieces: 9, reason: 'tentative' });
+    expect(c.status).toBe(403);
+  });
+
+  it('cannot set piece rates or salaries', async () => {
+    const res = await asSec(request(app).put(`/api/staff-pay/${tailorId}`))
+      .send({ piece_rate: 1 });
+    expect(res.status).toBe(403);
+  });
+
+  it('cannot create users or change passwords of others', async () => {
+    const res = await asSec(request(app).post('/api/users'))
+      .send({ username: 'hack', password: 'longenough1', role: 'MANAGER' });
+    expect(res.status).toBe(403);
+    const pw = await asSec(request(app).put(`/api/users/${ids.MANAGER}/password`))
+      .send({ new_password: 'longenough1' });
+    expect(pw.status).toBe(403);
+  });
+});
+
+// =============================================================================
+// 2. SECRETARY — daily operations she IS allowed to do.
+// =============================================================================
+
+describe('SECRETARY — allowed daily operations', () => {
+  it('can read, create and update clients', async () => {
+    expect((await asSec(request(app).get('/api/clients'))).status).toBe(200);
+    const created = await asSec(request(app).post('/api/clients'))
+      .send({ full_name: 'Fatoumata Diallo', phone: '65000000' });
+    expect(created.status).toBe(201);
+    const updated = await asSec(request(app).put(`/api/clients/${created.body.id}`))
+      .send({ full_name: 'Fatoumata Diallo', phone: '65000001' });
+    expect(updated.status).toBe(200);
+  });
+
+  it('can manage client measurements (flexible key-value)', async () => {
+    const res = await asSec(
+      request(app).put(`/api/clients/${clientId}/measurements/boubou`))
+      .send({ measures: { epaule: 45, poitrine: 102, manche: 61 } });
+    expect(res.status).toBe(200);
+    expect(res.body.measures.poitrine).toBe(102);
+  });
+
+  it('can read products and prêt-à-porter (to sell at the counter)', async () => {
+    expect((await asSec(request(app).get('/api/products'))).status).toBe(200);
+    expect((await asSec(request(app).get('/api/pret-a-porter'))).status).toBe(200);
+  });
+
+  it('cannot create, edit or delete products', async () => {
+    expect((await asSec(request(app).post('/api/products'))
+      .send({ category: 'parfum', name: 'x', price: 1 })).status).toBe(403);
+    expect((await asSec(request(app).put(`/api/products/${productId}`))
+      .send({ category: 'tissu', name: 'Bazin', price: 1, quantity: 999 })).status).toBe(403);
+    expect((await asSec(request(app).delete(`/api/products/${productId}`))).status).toBe(403);
+  });
+
+  it('can manage staff contacts read-only', async () => {
+    const list = await asSec(request(app).get('/api/staff'));
+    expect(list.status).toBe(200);
+    // Contact info only — no pay fields in the payload.
+    expect(JSON.stringify(list.body)).not.toMatch(/piece_rate|monthly_salary/);
+    expect((await asSec(request(app).post('/api/staff'))
+      .send({ full_name: 'X', type: 'autre' })).status).toBe(403);
+  });
+
+  it('can create and update orders; invalid status rejected; delete denied', async () => {
+    const created = await asSec(request(app).post('/api/orders'))
+      .send({ client_id: clientId, garment_type: 'chemise', price: 20000 });
+    expect(created.status).toBe(201);
+    expect((await asSec(request(app).put(`/api/orders/${created.body.id}`))
+      .send({ status: 'livre' })).status).toBe(200);
+    expect((await asSec(request(app).put(`/api/orders/${created.body.id}`))
+      .send({ status: 'invalide' })).status).toBe(400);
+    expect((await asSec(request(app).delete(`/api/orders/${created.body.id}`))).status)
+      .toBe(403);
+  });
+
+  it('can manage appointments', async () => {
+    const created = await asSec(request(app).post('/api/appointments'))
+      .send({ client_id: clientId, scheduled_at: '2026-07-10T10:00:00Z', reason: 'essayage' });
+    expect(created.status).toBe(201);
+    expect((await asSec(request(app).delete(`/api/appointments/${created.body.id}`))).status)
+      .toBe(204);
+  });
+});
+
+// =============================================================================
+// 3. SALES — write-only for the secretary, atomic, server-priced.
+// =============================================================================
+
+describe('Sales — server-side pricing and atomic stock', () => {
+  it('secretary can register a sale; stock decrements atomically', async () => {
+    const res = await asSec(request(app).post('/api/sales'))
+      .send({ kind: 'produit', item_id: productId, qty: 2 });
+    expect(res.status).toBe(201);
+    const { rows } = await db.query('SELECT quantity FROM products WHERE id = $1', [productId]);
+    expect(rows[0].quantity).toBe(8); // 10 - 2
+  });
+
+  it('any price/total sent by the client is IGNORED — the DB prices the sale', async () => {
+    await asSec(request(app).post('/api/sales'))
+      .send({ kind: 'produit', item_id: productId, qty: 1, unit_price: 1, total: 1 });
+    const { rows } = await db.query(
+      'SELECT unit_price, total FROM sales ORDER BY sold_at DESC LIMIT 1');
+    expect(rows[0].unit_price).toBe(15000);
+    expect(rows[0].total).toBe(15000);
+  });
+
+  it('sale beyond stock → 409 and stock unchanged', async () => {
+    const before = (await db.query(
+      'SELECT quantity FROM products WHERE id = $1', [productId])).rows[0].quantity;
+    const res = await asSec(request(app).post('/api/sales'))
+      .send({ kind: 'produit', item_id: productId, qty: 9999 });
+    expect(res.status).toBe(409);
+    const after = (await db.query(
+      'SELECT quantity FROM products WHERE id = $1', [productId])).rows[0].quantity;
+    expect(after).toBe(before);
+  });
+
+  it('prêt-à-porter sales work and are priced from the model', async () => {
+    const res = await asSec(request(app).post('/api/sales'))
+      .send({ kind: 'pret_a_porter', item_id: modelId, qty: 1, total: 5 });
+    expect(res.status).toBe(201);
+    const { rows } = await db.query(
+      "SELECT total FROM sales WHERE kind = 'pret_a_porter' ORDER BY sold_at DESC LIMIT 1");
+    expect(rows[0].total).toBe(45000);
+  });
+
+  it('manager reads the sales history; secretary already proven 403', async () => {
+    const res = await asManager(request(app).get('/api/sales'));
+    expect(res.status).toBe(200);
+    expect(res.body.items.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// =============================================================================
+// 4. MANAGER — full access + append-only audit trail with correction log.
+// =============================================================================
+
+describe('MANAGER — financial access and audit trail', () => {
+  it('reads all financial data', async () => {
+    for (const url of ['/api/sales', '/api/expenses', '/api/staff-pay',
+      '/api/tailor-entries', '/api/finance/summary', '/api/settings/private']) {
+      expect((await asManager(request(app).get(url))).status).toBe(200);
+    }
+  });
+
+  it('daily entry amount is computed by the DB (pieces × snapshotted rate)', async () => {
+    const { rows } = await db.query(
+      'SELECT pieces_count, piece_rate, amount FROM tailor_daily_entries WHERE id = $1',
+      [entryId]);
+    expect(rows[0].amount).toBe(rows[0].pieces_count * rows[0].piece_rate);
+    expect(rows[0].amount).toBe(4 * 2000);
+  });
+
+  it('duplicate entry for the same tailor+day → 409', async () => {
+    const res = await asManager(request(app).post('/api/tailor-entries'))
+      .send({ tailor_id: tailorId, entry_date: '2026-07-01', pieces_count: 1 });
+    expect(res.status).toBe(409);
+  });
+
+  it('there is NO update/delete route for entries — correction log only', async () => {
+    expect((await asManager(request(app).put(`/api/tailor-entries/${entryId}`))
+      .send({ pieces_count: 9 })).status).toBe(404);
+    expect((await asManager(request(app).delete(`/api/tailor-entries/${entryId}`))).status)
+      .toBe(404);
+  });
+
+  it('correction requires a reason, changes the effective value, keeps the original', async () => {
+    const noReason = await asManager(
+      request(app).post(`/api/tailor-entries/${entryId}/corrections`))
+      .send({ new_pieces: 6 });
+    expect(noReason.status).toBe(400);
+
+    const ok = await asManager(
+      request(app).post(`/api/tailor-entries/${entryId}/corrections`))
+      .send({ new_pieces: 6, reason: 'Erreur de saisie: 6 pièces, pas 4' });
+    expect(ok.status).toBe(201);
+    expect(ok.body.old_pieces).toBe(4);
+
+    const effective = await asManager(
+      request(app).get(`/api/tailor-entries?tailor_id=${tailorId}`));
+    const entry = effective.body.items.find((e) => e.id === entryId);
+    expect(entry.pieces_count).toBe(6);
+    expect(entry.amount).toBe(6 * 2000);
+    expect(entry.corrected).toBe(true);
+
+    // The original row is untouched — full audit trail.
+    const { rows } = await db.query(
+      'SELECT pieces_count FROM tailor_daily_entries WHERE id = $1', [entryId]);
+    expect(rows[0].pieces_count).toBe(4);
+
+    const history = await asManager(
+      request(app).get(`/api/tailor-entries/${entryId}/corrections`));
+    expect(history.body.items).toHaveLength(1);
+    expect(history.body.items[0].reason).toMatch(/Erreur de saisie/);
+  });
+
+  it('weekly totals use the corrected value', async () => {
+    const res = await asManager(
+      request(app).get('/api/tailor-entries/weekly?week_id=2026-W27'));
+    const row = res.body.items.find((r) => r.tailor_id === tailorId);
+    expect(row.amount_total).toBe(6 * 2000);
+  });
+
+  it('expenses: corrected/voided with mandatory reason, never edited', async () => {
+    const noReason = await asManager(
+      request(app).post(`/api/expenses/${expenseId}/corrections`))
+      .send({ new_amount: 90000 });
+    expect(noReason.status).toBe(400);
+
+    const ok = await asManager(
+      request(app).post(`/api/expenses/${expenseId}/corrections`))
+      .send({ new_amount: 90000, reason: 'Facture réelle: 90 000, pas 100 000' });
+    expect(ok.status).toBe(201);
+
+    const list = await asManager(request(app).get('/api/expenses?from=2026-07-01&to=2026-07-01'));
+    const exp = list.body.items.find((e) => e.id === expenseId);
+    expect(exp.amount).toBe(90000);
+    expect(exp.corrected).toBe(true);
+  });
+
+  it('finance summary aggregates effective (corrected) values', async () => {
+    const res = await asManager(
+      request(app).get('/api/finance/summary?from=2026-07-01&to=2026-07-31'));
+    expect(res.status).toBe(200);
+    expect(res.body.costs.tailor_wages).toBe(6 * 2000);
+    expect(res.body.costs.expenses).toBe(90000);
+    expect(res.body.net_profit).toBe(
+      res.body.revenue.total - res.body.costs.total);
+  });
+});
+
+// =============================================================================
+// 5. DATABASE-LEVEL immutability — even raw SQL cannot rewrite history.
+// =============================================================================
+
+describe('Append-only triggers (direct SQL, bypassing the API)', () => {
+  const appendOnlyTables = [
+    ['tailor_daily_entries', 'pieces_count = 999'],
+    ['expenses', 'amount = 1'],
+    ['entry_corrections', 'new_pieces = 999'],
+    ['expense_corrections', 'new_amount = 1'],
+  ];
+
+  it.each(appendOnlyTables)('UPDATE %s raises', async (table, setClause) => {
+    await expect(db.query(`UPDATE ${table} SET ${setClause}`))
+      .rejects.toThrow(/append-only/);
+  });
+
+  it.each(appendOnlyTables)('DELETE FROM %s raises', async (table) => {
+    await expect(db.query(`DELETE FROM ${table}`))
+      .rejects.toThrow(/append-only/);
+  });
+});
+
+// =============================================================================
+// 6. AUTHENTICATION — tokens, tampering, public surface.
+// =============================================================================
+
+describe('Authentication and token integrity', () => {
+  it('unauthenticated: only login and public settings are reachable', async () => {
+    expect((await request(app).get('/api/settings/public')).status).toBe(200);
+    for (const url of ['/api/clients', '/api/orders', '/api/sales',
+      '/api/finance/summary', '/api/products']) {
+      expect((await request(app).get(url)).status).toBe(401);
+    }
+  });
+
+  it('public settings expose only the public keys (shop identity)', async () => {
+    const res = await request(app).get('/api/settings/public');
+    expect(res.body).toHaveProperty('shop_name');
+    expect(res.body).not.toHaveProperty('default_piece_rate');
+  });
+
+  it('a token signed with the wrong secret → 401', async () => {
+    const forged = jwt.sign({ sub: ids.MANAGER }, 'wrong-secret');
+    const res = await request(app).get('/api/clients')
+      .set('Authorization', `Bearer ${forged}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('a role claim inside the token is IGNORED — DB is the source of truth', async () => {
+    // Correctly signed token for the secretary, with a forged MANAGER claim.
+    const sneaky = jwt.sign(
+      { sub: ids.SECRETARY, role: 'MANAGER' }, process.env.JWT_SECRET);
+    const res = await request(app).get('/api/finance/summary')
+      .set('Authorization', `Bearer ${sneaky}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('a token for a deleted user → 401', async () => {
+    const { rows } = await db.query(
+      `INSERT INTO users (username, password_hash, name, role)
+       VALUES ('ghost', 'x', 'Ghost', 'MANAGER') RETURNING id`);
+    const token = jwt.sign({ sub: rows[0].id }, process.env.JWT_SECRET);
+    await db.query('DELETE FROM users WHERE id = $1', [rows[0].id]);
+    const res = await request(app).get('/api/clients')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('login rejects bad credentials', async () => {
+    const res = await request(app).post('/api/auth/login')
+      .send({ username: MANAGER.username, password: 'wrong' });
+    expect(res.status).toBe(401);
+  });
+});

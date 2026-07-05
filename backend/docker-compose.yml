@@ -1,0 +1,42 @@
+# Couture Mali API — VPS deployment (same pattern as EduGete).
+# Usage on the droplet:
+#   cp .env.example .env   # then fill real secrets
+#   docker compose up -d --build
+#   docker compose exec api node scripts/seed.js   # first run only
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: couture_mali
+      POSTGRES_USER: couture
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U couture -d couture_mali"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://couture:${DB_PASSWORD}@db:5432/couture_mali
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      PORT: 3000
+      SEED_MANAGER_USERNAME: ${SEED_MANAGER_USERNAME:-}
+      SEED_MANAGER_PASSWORD: ${SEED_MANAGER_PASSWORD:-}
+      SEED_MANAGER_NAME: ${SEED_MANAGER_NAME:-}
+      SEED_SECRETARY_USERNAME: ${SEED_SECRETARY_USERNAME:-}
+      SEED_SECRETARY_PASSWORD: ${SEED_SECRETARY_PASSWORD:-}
+      SEED_SECRETARY_NAME: ${SEED_SECRETARY_NAME:-}
+    ports:
+      - "127.0.0.1:3000:3000"   # exposed only to nginx on the host
+
+volumes:
+  pgdata:
