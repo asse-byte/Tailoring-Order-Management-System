@@ -10,8 +10,10 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/loading_shimmer.dart';
 import '../../../../core/widgets/section_header.dart';
+import 'package:provider/provider.dart';
 import '../../../orders/data/orders_repository.dart';
 import '../../../orders/domain/entities/order.dart';
+import '../../../settings/presentation/providers/shop_settings_provider.dart';
 import '../../data/reports_pdf_builder.dart';
 
 enum _Granularity { daily, weekly, monthly }
@@ -57,10 +59,12 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     final loc = context.loc;
     final isFr = loc.locale.languageCode == 'fr';
     try {
+      final String shopName = context.read<ShopSettingsProvider>().shopName;
       final pdf = await ReportsPdfBuilder.build(
         orders: orders,
         from: _from,
         to: _to,
+        shopName: shopName,
       );
       final String filename =
           'tailoring-report_${DateFormat('yyyyMMdd').format(_from)}_${DateFormat('yyyyMMdd').format(_to)}.pdf';

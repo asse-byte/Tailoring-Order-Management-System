@@ -14,13 +14,7 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
 
-  # Firebase
-  firebase_core: ^3.6.0
-  firebase_auth: ^5.3.1
-  cloud_firestore: ^5.4.4
-  firebase_storage: ^12.3.3
-  firebase_messaging: ^15.1.3
-  flutter_local_notifications: ^17.2.3
+
 
   # State + Navigation
   provider: ^6.1.2

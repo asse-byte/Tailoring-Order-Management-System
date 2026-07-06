@@ -10,6 +10,7 @@ import '../../../../core/localization/app_localizations.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/products_provider.dart';
 import '../../domain/product.dart';
+import '../../../settings/presentation/providers/shop_settings_provider.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -344,9 +345,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
       return matchesSearch;
     }).toList();
 
+    final shopName = context.watch<ShopSettingsProvider>().shopName;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('RAYAN COUTURE - Produits'),
+        title: Text('$shopName - Produits'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),

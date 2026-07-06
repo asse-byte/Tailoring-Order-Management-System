@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../features/settings/presentation/providers/shop_settings_provider.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -74,12 +75,14 @@ class DashboardScreen extends StatelessWidget {
         ),
     ];
 
+    final shopName = context.watch<ShopSettingsProvider>().shopName;
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text(
-          'RAYAN COUTURE',
-          style: TextStyle(fontWeight: FontWeight.w900),
+        title: Text(
+          shopName,
+          style: const TextStyle(fontWeight: FontWeight.w900),
         ),
         actions: [
           IconButton(

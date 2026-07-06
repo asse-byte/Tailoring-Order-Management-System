@@ -1,8 +1,6 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../../../../core/constants/app_constants.dart';
 
-/// Represents a user document stored in Firestore at /users/{uid}.
+/// Represents a user document stored in /users/{uid}.
 class AppUser {
   const AppUser({
     required this.id,
@@ -54,9 +52,7 @@ class AppUser {
         'role': role,
         'profilePhotoUrl': profilePhotoUrl,
         'fcmToken': fcmToken,
-        'createdAt': createdAt != null
-            ? Timestamp.fromDate(createdAt!)
-            : FieldValue.serverTimestamp(),
+        'createdAt': createdAt?.toIso8601String(),
       };
 
   /// From the REST API (`/api/auth/login`, `/api/auth/me`). Maps the
@@ -77,7 +73,9 @@ class AppUser {
   factory AppUser.fromMap(String id, Map<String, dynamic> map) {
     final dynamic ts = map['createdAt'];
     DateTime? created;
-    if (ts is Timestamp) created = ts.toDate();
+    if (ts is String) {
+      created = DateTime.tryParse(ts);
+    }
 
     return AppUser(
       id: id,

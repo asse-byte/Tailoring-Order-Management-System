@@ -21,9 +21,10 @@ class ReportsPdfBuilder {
     required List<TailoringOrder> orders,
     required DateTime from,
     required DateTime to,
+    required String shopName,
   }) async {
-    final NumberFormat money = NumberFormat.simpleCurrency();
-    final DateFormat dFmt = DateFormat('d MMM yyyy');
+    final NumberFormat money = NumberFormat.currency(symbol: 'FCFA', decimalDigits: 0, locale: 'fr_FR');
+    final DateFormat dFmt = DateFormat('d MMM yyyy', 'fr');
 
     // ---- compute aggregates ----
     final List<TailoringOrder> inRange = orders.where((o) {
@@ -57,26 +58,26 @@ class ReportsPdfBuilder {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(36),
         build: (pw.Context ctx) => <pw.Widget>[
-          _header(from, to, dFmt),
+          _header(from, to, dFmt, shopName),
           pw.SizedBox(height: 18),
           _summaryGrid(total, revenue, completed, money),
           pw.SizedBox(height: 18),
-          _sectionTitle('Orders by status'),
+          _sectionTitle('Commandes par statut'),
           pw.SizedBox(height: 6),
           _statusTable(pending, inProgress, completed, cancelled),
           pw.SizedBox(height: 18),
-          _sectionTitle('Top garment types'),
+          _sectionTitle('Types de vêtements les plus commandés'),
           pw.SizedBox(height: 6),
           if (topGarments.isEmpty)
-            pw.Text('No data for this range.',
+            pw.Text('Aucune donnée pour cette période.',
                 style: const pw.TextStyle(color: _muted))
           else
             _topGarmentsTable(topGarments.take(5).toList()),
           pw.SizedBox(height: 18),
-          _sectionTitle('Order list'),
+          _sectionTitle('Liste des commandes'),
           pw.SizedBox(height: 6),
           if (inRange.isEmpty)
-            pw.Text('No orders in this range.',
+            pw.Text('Aucune commande pour cette période.',
                 style: const pw.TextStyle(color: _muted))
           else
             _ordersTable(inRange, money, dFmt),
@@ -85,7 +86,7 @@ class ReportsPdfBuilder {
           alignment: pw.Alignment.centerRight,
           margin: const pw.EdgeInsets.only(top: 8),
           child: pw.Text(
-            'Page ${ctx.pageNumber} of ${ctx.pagesCount}',
+            'Page ${ctx.pageNumber} sur ${ctx.pagesCount}',
             style: const pw.TextStyle(color: _muted, fontSize: 9),
           ),
         ),
@@ -96,7 +97,7 @@ class ReportsPdfBuilder {
 
   // ---------- pieces ----------
 
-  static pw.Widget _header(DateTime from, DateTime to, DateFormat dFmt) {
+  static pw.Widget _header(DateTime from, DateTime to, DateFormat dFmt, String shopName) {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -104,14 +105,14 @@ class ReportsPdfBuilder {
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: <pw.Widget>[
-            pw.Text('Tailoring Studio',
+            pw.Text(shopName,
                 style: pw.TextStyle(
                   fontSize: 22,
                   fontWeight: pw.FontWeight.bold,
                   color: _primary,
                 )),
             pw.SizedBox(height: 2),
-            pw.Text('Business report',
+            pw.Text('Rapport d\'activité',
                 style: const pw.TextStyle(color: _muted, fontSize: 11)),
           ],
         ),
@@ -135,9 +136,9 @@ class ReportsPdfBuilder {
       int total, double revenue, int completed, NumberFormat money) {
     final List<({String label, String value})> cells =
         <({String label, String value})>[
-      (label: 'Total orders', value: total.toString()),
-      (label: 'Completed', value: completed.toString()),
-      (label: 'Revenue', value: money.format(revenue)),
+      (label: 'Total commandes', value: total.toString()),
+      (label: 'Terminées', value: completed.toString()),
+      (label: 'Chiffre d\'affaires', value: money.format(revenue)),
     ];
     return pw.Row(
       children: cells
@@ -185,12 +186,12 @@ class ReportsPdfBuilder {
 
   static pw.Widget _statusTable(int p, int ip, int c, int x) {
     return pw.TableHelper.fromTextArray(
-      headers: const <String>['Status', 'Count'],
+      headers: const <String>['Statut', 'Nombre'],
       data: <List<String>>[
-        <String>['Pending', p.toString()],
-        <String>['In Progress', ip.toString()],
-        <String>['Completed', c.toString()],
-        <String>['Cancelled', x.toString()],
+        <String>['En attente', p.toString()],
+        <String>['En cours', ip.toString()],
+        <String>['Terminé', c.toString()],
+        <String>['Annulé', x.toString()],
       ],
       headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
       cellStyle: const pw.TextStyle(fontSize: 10),
@@ -206,7 +207,7 @@ class ReportsPdfBuilder {
 
   static pw.Widget _topGarmentsTable(List<MapEntry<String, int>> items) {
     return pw.TableHelper.fromTextArray(
-      headers: const <String>['Garment', 'Orders'],
+      headers: const <String>['Vêtement', 'Commandes'],
       data: items
           .map((e) => <String>[e.key, e.value.toString()])
           .toList(growable: false),
@@ -236,11 +237,11 @@ class ReportsPdfBuilder {
         .toList(growable: false);
     return pw.TableHelper.fromTextArray(
       headers: const <String>[
-        'Placed',
-        'Customer',
-        'Garment',
-        'Status',
-        'Price'
+        'Date',
+        'Client',
+        'Vêtement',
+        'Statut',
+        'Prix'
       ],
       data: rows,
       headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
@@ -271,13 +272,13 @@ class ReportsPdfBuilder {
   static String _statusLabel(String s) {
     switch (s) {
       case AppConstants.statusPending:
-        return 'Pending';
+        return 'En attente';
       case AppConstants.statusInProgress:
-        return 'In Progress';
+        return 'En cours';
       case AppConstants.statusCompleted:
-        return 'Completed';
+        return 'Terminé';
       case AppConstants.statusCancelled:
-        return 'Cancelled';
+        return 'Annulé';
     }
     return s;
   }

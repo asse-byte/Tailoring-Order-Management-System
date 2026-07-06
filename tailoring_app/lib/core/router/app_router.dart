@@ -1,31 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../constants/app_constants.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/screens/change_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
-import '../../features/auth/presentation/screens/onboarding_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/clients/domain/client.dart';
 import '../../features/clients/presentation/screens/client_detail_screen.dart';
 import '../../features/clients/presentation/screens/client_form_screen.dart';
 import '../../features/clients/presentation/screens/clients_list_screen.dart';
 import '../../features/clients/presentation/screens/measurements_screen.dart';
-import '../../features/notifications/presentation/screens/admin_broadcast_screen.dart';
-import '../../features/orders/presentation/screens/admin_order_detail_screen.dart';
 import '../../features/orders/presentation/screens/admin_orders_list_screen.dart';
 import '../../features/orders/presentation/screens/admin_settings_screen.dart';
 import '../../features/orders/presentation/screens/admin_shell.dart';
+import '../../features/orders/presentation/screens/history_orders_screen.dart';
+import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/walk_in_order_screen.dart';
-import '../../features/reports/presentation/screens/admin_reports_screen.dart';
 import '../../features/products/presentation/screens/products_screen.dart';
 import '../../features/staff/presentation/screens/staff_screen.dart';
 import '../../features/finance/presentation/screens/finance_screen.dart';
 import '../../features/ready_to_wear/presentation/screens/ready_to_wear_screen.dart';
 import '../../features/appointments/presentation/screens/appointments_screen.dart';
-import '../../features/orders/presentation/screens/history_orders_screen.dart';
 
 /// Wraps a [Listenable] so GoRouter can refresh on auth changes.
 class _AuthRefresh extends ChangeNotifier {
@@ -47,10 +42,6 @@ class AppRouter {
           builder: (_, __) => const SplashScreen(),
         ),
         GoRoute(
-          path: '/onboarding',
-          builder: (_, __) => const OnboardingScreen(),
-        ),
-        GoRoute(
           path: '/login',
           builder: (_, __) => const LoginScreen(),
         ),
@@ -61,7 +52,7 @@ class AppRouter {
             GoRoute(
               path: 'order/:id',
               builder: (_, state) =>
-                  AdminOrderDetailScreen(orderId: state.pathParameters['id']!),
+                  OrderDetailScreen(orderId: state.pathParameters['id']!),
             ),
             GoRoute(
               path: 'walk-in',
@@ -90,14 +81,6 @@ class AppRouter {
               builder: (_, state) => ClientDetailScreen(
                 clientId: state.pathParameters['id']!,
               ),
-            ),
-            GoRoute(
-              path: 'broadcast',
-              builder: (_, __) => const AdminBroadcastScreen(),
-            ),
-            GoRoute(
-              path: 'reports',
-              builder: (_, __) => const AdminReportsScreen(),
             ),
             GoRoute(
               path: 'change-password',
@@ -142,25 +125,17 @@ class AppRouter {
           ],
         ),
       ],
-      redirect: (context, state) async {
+      redirect: (context, state) {
         // While auth is still initialising, keep the splash visible.
         if (auth.status == AuthStatus.uninitialized) {
           return state.matchedLocation == '/' ? null : '/';
         }
 
-        final SharedPreferences prefs = await SharedPreferences.getInstance();
-        final bool onboardingDone =
-            prefs.getBool(AppConstants.prefsKeyOnboardingDone) ?? false;
-
         final String loc = state.matchedLocation;
-        final bool isAuthRoute = loc == '/login' || loc == '/onboarding';
 
         // Unauthenticated flow ----------------------------------------------
         if (auth.status == AuthStatus.unauthenticated) {
-          if (!onboardingDone && loc != '/onboarding') return '/onboarding';
-          if (loc == '/' || loc == '/admin') return '/login';
-          // Allow auth screens.
-          return isAuthRoute ? null : '/login';
+          return loc == '/login' ? null : '/login';
         }
 
         // Authenticated flow ------------------------------------------------
@@ -171,7 +146,7 @@ class AppRouter {
           auth.signOut();
           return '/login';
         }
-        if (isAuthRoute || loc == '/') return '/admin';
+        if (loc == '/login' || loc == '/') return '/admin';
 
         return null;
       },

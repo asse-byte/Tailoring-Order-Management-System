@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../clients/data/clients_repository.dart';
 import '../../../clients/domain/client.dart';
 import '../../data/appointments_repository.dart';
+import '../../../settings/presentation/providers/shop_settings_provider.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({super.key});
@@ -224,9 +226,10 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final shopName = context.watch<ShopSettingsProvider>().shopName;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('RAYAN COUTURE - Calendrier'),
+        title: Text('$shopName - Calendrier'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),

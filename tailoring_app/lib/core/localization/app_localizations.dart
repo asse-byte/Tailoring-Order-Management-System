@@ -283,6 +283,14 @@ class AppLocalizations {
       'command': 'Orders',
       'appointments': 'Appointments',
       'history': 'History',
+      'editShopName': 'Edit Shop Name',
+      'editShopLogo': 'Change Logo',
+      'editDefaultPieceRate': 'Default Piece Rate',
+      'shopSettings': 'Shop Settings',
+      'shopNameLabel': 'Shop Name',
+      'logoUploadedSuccess': 'Logo updated successfully',
+      'logoUploadFailed': 'Logo upload failed',
+      'defaultPieceRateLabel': 'Default Piece Rate (FCFA)',
     },
     'fr': {
       // General
@@ -561,6 +569,14 @@ class AppLocalizations {
       'command': 'Commandes',
       'appointments': 'Rendez-vous',
       'history': 'Historiques',
+      'editShopName': 'Modifier le nom de la boutique',
+      'editShopLogo': 'Changer le logo',
+      'editDefaultPieceRate': 'Tarif par pièce par défaut',
+      'shopSettings': 'Paramètres de la boutique',
+      'shopNameLabel': 'Nom de la boutique',
+      'logoUploadedSuccess': 'Logo mis à jour avec succès',
+      'logoUploadFailed': 'Échec du téléversement du logo',
+      'defaultPieceRateLabel': 'Tarif par pièce par défaut (FCFA)',
     }
   };
 
@@ -852,6 +868,16 @@ class AppLocalizations {
   String get command => translate('command');
   String get appointments => translate('appointments');
   String get history => translate('history');
+
+  // Shop settings keys
+  String get editShopName => translate('editShopName');
+  String get editShopLogo => translate('editShopLogo');
+  String get editDefaultPieceRate => translate('editDefaultPieceRate');
+  String get shopSettings => translate('shopSettings');
+  String get shopNameLabel => translate('shopNameLabel');
+  String get logoUploadedSuccess => translate('logoUploadedSuccess');
+  String get logoUploadFailed => translate('logoUploadFailed');
+  String get defaultPieceRateLabel => translate('defaultPieceRateLabel');
 }
 
 class _AppLocalizationsDelegate

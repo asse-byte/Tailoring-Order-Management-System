@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/empty_state.dart';
@@ -11,6 +10,8 @@ import '../../../../core/widgets/loading_shimmer.dart';
 import '../providers/admin_orders_provider.dart';
 import '../widgets/order_card.dart';
 
+/// Commandes actives (en cours / prêt). Les commandes livrées vivent dans
+/// l'Historique — même ligne, statut différent.
 class AdminOrdersListScreen extends StatefulWidget {
   const AdminOrdersListScreen({super.key});
 
@@ -24,9 +25,8 @@ class _AdminOrdersListScreenState extends State<AdminOrdersListScreen> {
   static const List<({String? value, String label})> _statusFilters =
       <({String? value, String label})>[
     (value: null, label: 'Tous actifs'),
-    (value: AppConstants.statusPending, label: 'En cours'),
-    (value: AppConstants.statusInProgress, label: 'Prêt'),
-    (value: AppConstants.statusCancelled, label: 'Annulé'),
+    (value: AppConstants.statusEnCours, label: 'En cours'),
+    (value: AppConstants.statusPret, label: 'Prêt'),
   ];
 
   @override
@@ -53,13 +53,12 @@ class _AdminOrdersListScreenState extends State<AdminOrdersListScreen> {
   @override
   Widget build(BuildContext context) {
     final p = context.watch<AdminOrdersProvider>();
-    final filtered = p.filtered.where((o) => o.status != AppConstants.statusCompleted).toList();
-    final loc = context.loc;
-    final isFr = loc.locale.languageCode == 'fr';
+    final filtered =
+        p.filtered.where((o) => !o.isLivre).toList(growable: false);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(loc.viewAllOrders),
+        title: const Text('Commandes'),
         actions: <Widget>[
           if (p.from != null ||
               p.to != null ||
@@ -67,26 +66,27 @@ class _AdminOrdersListScreenState extends State<AdminOrdersListScreen> {
               p.query.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.filter_alt_off_outlined),
-              tooltip: isFr ? 'Effacer les filtres' : 'Clear filters',
+              tooltip: 'Effacer les filtres',
               onPressed: () {
                 _searchCtrl.clear();
                 p.clearFilters();
               },
             ),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: p.refresh,
+          ),
         ],
       ),
       body: Column(
         children: <Widget>[
-          // Search bar
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: TextField(
               controller: _searchCtrl,
               onChanged: p.setQuery,
               decoration: InputDecoration(
-                hintText: isFr
-                    ? 'Rechercher par client, vêtement, id...'
-                    : 'Search by customer, garment, order id…',
+                hintText: 'Rechercher par client, téléphone, vêtement...',
                 prefixIcon: const Icon(Icons.search_rounded, size: 20),
                 suffixIcon: p.query.isEmpty
                     ? null
@@ -100,7 +100,6 @@ class _AdminOrdersListScreenState extends State<AdminOrdersListScreen> {
               ),
             ),
           ),
-          // Filter chips row
           SizedBox(
             height: 44,
             child: ListView.separated(
@@ -110,14 +109,12 @@ class _AdminOrdersListScreenState extends State<AdminOrdersListScreen> {
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, i) {
                 if (i == _statusFilters.length) {
-                  // Date range chip
                   final bool active = p.from != null && p.to != null;
-                  final String lang = loc.locale.languageCode;
                   return ActionChip(
                     avatar: const Icon(Icons.event_outlined, size: 16),
                     label: Text(active
-                        ? '${DateFormatter.shortDate(p.from!, locale: lang)} – ${DateFormatter.shortDate(p.to!, locale: lang)}'
-                        : (isFr ? 'Période' : 'Date range')),
+                        ? '${DateFormatter.shortDate(p.from!, locale: 'fr')} – ${DateFormatter.shortDate(p.to!, locale: 'fr')}'
+                        : 'Période'),
                     backgroundColor: active
                         ? AppColors.primary.withValues(alpha: 0.12)
                         : null,
@@ -126,22 +123,8 @@ class _AdminOrdersListScreenState extends State<AdminOrdersListScreen> {
                 }
                 final f = _statusFilters[i];
                 final bool selected = p.statusFilter == f.value;
-
-                String chipLabel;
-                if (f.value == null) {
-                  chipLabel = loc.all;
-                } else if (f.value == AppConstants.statusPending) {
-                  chipLabel = loc.statusPending;
-                } else if (f.value == AppConstants.statusInProgress) {
-                  chipLabel = loc.statusInProgress;
-                } else if (f.value == AppConstants.statusCompleted) {
-                  chipLabel = loc.statusCompleted;
-                } else {
-                  chipLabel = loc.statusCancelled;
-                }
-
                 return ChoiceChip(
-                  label: Text(chipLabel),
+                  label: Text(f.label),
                   selected: selected,
                   onSelected: (_) => p.setStatusFilter(f.value),
                   selectedColor: AppColors.primary,
@@ -159,47 +142,54 @@ class _AdminOrdersListScreenState extends State<AdminOrdersListScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/admin/walk-in'),
+        onPressed: () async {
+          await context.push('/admin/walk-in');
+          if (mounted) p.refresh();
+        },
         icon: const Icon(Icons.add_rounded),
-        label: Text(loc.walkIn),
+        label: const Text('Nouvelle commande'),
       ),
     );
   }
 
   Widget _body(AdminOrdersProvider p, List filtered) {
-    final loc = context.loc;
-    final isFr = loc.locale.languageCode == 'fr';
     if (p.loading) return LoadingShimmer.list();
     if (p.error != null) {
       return EmptyState(
-        title: loc.orderLoadError,
+        title: 'Impossible de charger les commandes',
         message: p.error,
         icon: Icons.error_outline,
       );
     }
     if (filtered.isEmpty) {
       return EmptyState(
-        title: p.orders.isEmpty ? loc.noOrdersYet : loc.noFilterResults,
+        title: p.orders.isEmpty
+            ? 'Aucune commande pour le moment'
+            : 'Aucun résultat pour ce filtre',
         message: p.orders.isEmpty
-            ? (isFr
-                ? 'Les commandes passées par les clients et sur place apparaîtront ici.'
-                : 'Customer-placed and walk-in orders will show here.')
-            : loc.noFilterResultsDesc,
+            ? 'Les commandes des clients apparaîtront ici.'
+            : 'Essayez un autre filtre pour voir plus de commandes.',
         icon: Icons.inbox_outlined,
       );
     }
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-      itemCount: filtered.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, i) {
-        final order = filtered[i];
-        return OrderCard(
-          order: order,
-          showCustomer: true,
-          onTap: () => context.push('/admin/order/${order.id}'),
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: p.refresh,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+        itemCount: filtered.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, i) {
+          final order = filtered[i];
+          return OrderCard(
+            order: order,
+            onTap: () async {
+              await context.push('/admin/order/${order.id}');
+              if (mounted) p.refresh();
+            },
+          );
+        },
+      ),
     );
   }
 }

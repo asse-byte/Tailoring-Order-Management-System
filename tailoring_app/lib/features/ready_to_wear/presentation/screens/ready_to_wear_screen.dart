@@ -9,6 +9,7 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/pret_a_porter_repository.dart';
+import '../../../settings/presentation/providers/shop_settings_provider.dart';
 
 class ReadyToWearScreen extends StatefulWidget {
   const ReadyToWearScreen({super.key});
@@ -435,10 +436,11 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final isSec = auth.isSecretary;
+    final shopName = context.watch<ShopSettingsProvider>().shopName;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('RAYAN COUTURE - Prêt-à-porter'),
+        title: Text('$shopName - Prêt-à-porter'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),

@@ -133,7 +133,7 @@ class PretAPorterRepository {
     required int quantity,
   }) async {
     await _api.post('/api/sales', body: {
-      'kind': 'pret-a-porter',
+      'kind': 'pret_a_porter', // valeur API exacte — 'pret-a-porter' est rejeté
       'item_id': modelId,
       'qty': quantity,
     });

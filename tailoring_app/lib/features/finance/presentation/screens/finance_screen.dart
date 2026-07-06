@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/finance_repository.dart';
+import '../../../settings/presentation/providers/shop_settings_provider.dart';
 
 class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key});
@@ -250,9 +251,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
       );
     }
 
+    final shopName = context.watch<ShopSettingsProvider>().shopName;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('RAYAN COUTURE - Comptabilité'),
+        title: Text('$shopName - Comptabilité'),
         actions: [
           IconButton(
             icon: const Icon(Icons.date_range_rounded),

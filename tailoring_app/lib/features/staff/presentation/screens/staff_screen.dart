@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/staff_repository.dart';
+import '../../../settings/presentation/providers/shop_settings_provider.dart';
 
 class StaffScreen extends StatefulWidget {
   const StaffScreen({super.key});
@@ -625,10 +626,11 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final isSec = context.watch<AuthProvider>().isSecretary;
+    final shopName = context.watch<ShopSettingsProvider>().shopName;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('RAYAN COUTURE - Personnel'),
+        title: Text('$shopName - Personnel'),
         bottom: isSec || _tabController == null
             ? null
             : TabBar(

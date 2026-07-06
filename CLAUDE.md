@@ -1,7 +1,7 @@
-# CLAUDE.md — Couture Mali (Tailoring Shop Management App)
+# CLAUDE.md — Rayan Couture (Tailoring Shop Management App)
 
-Mobile app to manage a large tailoring shop in Mali. App UI language is **French**
-(all labels, buttons, error messages). Currency is **FCFA / XOF, no decimals**.
+Mobile app to manage a large tailoring shop in Mali (Rayan Couture). App UI language is **French**
+(all labels, buttons, error messages, and PDF reports). Currency is **FCFA / XOF, no decimals**.
 The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
 
 ## Non-negotiable rules
@@ -44,23 +44,22 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
    delivery, trial), linked to a client.
 8. Historique — delivered orders, full details preserved, search/filter
    by client or date.
-9. Paramètres — manager only: shop name + logo (shown on login screen),
+9. Paramètres — manager only: shop name + logo (shown on login screen, editable dynamically),
    account passwords, default piece rate.
 
-## Current codebase state (as of 2026-07-05)
+## Current codebase state (as of 2026-07-06)
 
 - **`tailoring_app/` is the real app**: Flutter + Provider + go_router,
   feature-first layout (`lib/features/<feature>/{data,domain,presentation}`),
   core utilities in `lib/core/`.
-- Built for **Firebase** (Auth, Firestore, Storage, FCM) but
-  `lib/firebase_options.dart` still has `REPLACE_WITH_*` placeholder keys,
-  so `MockDatabase.useMock` is true and the app runs on a **local mock DB**
-  (SharedPreferences). Data is device-local only right now.
+- Built for a **Node.js + PostgreSQL REST API** (no Firebase SDK or mock db files remain).
 - Roles in `core/constants/app_constants.dart`: `admin` (= Gérant) and
-  `secretary`; `customer` remains only as a transitional constant until
-  the customers feature is refactored into the `/clients` collection.
+  `secretary`.
 - Seeded demo accounts (see README.md): `admin@tailor.app` / `Admin@1234`,
   `secretary@tailor.app` / `Secretary@1234`.
+- The shop name and logo are dynamic and fetched from the REST API settings. The default name is set to "Rayan Couture" in the database seed.
+- If no logo is uploaded, a beautiful visual placeholder (an "R" with gradient) is displayed on the login screen. The manager can upload a new logo dynamically from the settings screen.
+- Image compression and thumbnail generation are done automatically by the `/api/upload` endpoint.
 
 ## Architecture decisions (FINAL — closed 2026-07-05, do not reopen)
 
@@ -104,9 +103,7 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
   `orders.status = 'livre'` (a status change, not a copy);
   `settings` split into public rows (shop name/logo, readable without
   auth for the login screen) and private rows (manager-only).
-- Flutter app data layer migrates from the local mock to the REST API
-  module by module (Clients first). `tailoring_app/` still contains
-  Firebase SDK deps and MockDatabase until that migration completes.
+- Flutter app data layer runs entirely on the REST API. All Firebase SDK dependencies, Firebase configurations, cloud functions, and local mock database files have been completely cleaned up.
 
 ## Working conventions
 

@@ -1,20 +1,165 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/localization/language_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../settings/presentation/providers/shop_settings_provider.dart';
 
-/// Admin settings: profile card, broadcast notification, sign out, language selector.
-class AdminSettingsScreen extends StatelessWidget {
+class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
+
+  @override
+  State<AdminSettingsScreen> createState() => _AdminSettingsScreenState();
+}
+
+class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ShopSettingsProvider>().fetchPrivateSettings();
+      }
+    });
+  }
+
+  Future<void> _changeShopName(BuildContext context) async {
+    final provider = context.read<ShopSettingsProvider>();
+    final controller = TextEditingController(text: provider.shopName);
+    final formKey = GlobalKey<FormState>();
+
+    final bool? save = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.loc.editShopName),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            decoration: InputDecoration(labelText: context.loc.shopNameLabel),
+            validator: (v) => v == null || v.trim().isEmpty ? context.loc.requiredField : null,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.loc.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(ctx, true);
+              }
+            },
+            child: Text(context.loc.save),
+          ),
+        ],
+      ),
+    );
+
+    if (save == true) {
+      final success = await provider.updateShopName(controller.text.trim());
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? 'Nom de la boutique mis à jour.' : 'Échec de la mise à jour.'),
+            backgroundColor: success ? Colors.green : AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _changeLogo(BuildContext context) async {
+    final provider = context.read<ShopSettingsProvider>();
+
+    final XFile? file = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+
+    if (file != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Téléversement du logo...'), duration: Duration(seconds: 1)),
+      );
+      final success = await provider.uploadAndSetLogo(File(file.path));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? context.loc.logoUploadedSuccess : context.loc.logoUploadFailed),
+            backgroundColor: success ? Colors.green : AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _changeDefaultPieceRate(BuildContext context) async {
+    final provider = context.read<ShopSettingsProvider>();
+    final controller = TextEditingController(text: provider.defaultPieceRate.toString());
+    final formKey = GlobalKey<FormState>();
+
+    final bool? save = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.loc.editDefaultPieceRate),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(labelText: context.loc.defaultPieceRateLabel),
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return context.loc.requiredField;
+              final parsed = int.tryParse(v);
+              if (parsed == null || parsed < 0) return context.loc.validationPositiveNumber;
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.loc.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(ctx, true);
+              }
+            },
+            child: Text(context.loc.save),
+          ),
+        ],
+      ),
+    );
+
+    if (save == true) {
+      final success = await provider.updateDefaultPieceRate(int.parse(controller.text));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? 'Tarif par pièce mis à jour.' : 'Échec de la mise à jour.'),
+            backgroundColor: success ? Colors.green : AppColors.error,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final shopSettings = context.watch<ShopSettingsProvider>();
+
     if (auth.isSecretary) {
       return Scaffold(
         appBar: AppBar(title: Text(context.loc.settings)),
@@ -34,6 +179,7 @@ class AdminSettingsScreen extends StatelessWidget {
         ),
       );
     }
+
     return Scaffold(
       appBar: AppBar(title: Text(context.loc.settings)),
       body: ListView(
@@ -79,14 +225,6 @@ class AdminSettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _ActionTile(
-            icon: Icons.campaign_outlined,
-            title: context.loc.broadcastNotification,
-            subtitle: context.loc.broadcastSubtitle,
-            color: AppColors.primary,
-            onTap: () => context.push('/admin/broadcast'),
-          ),
-          const SizedBox(height: 10),
-          _ActionTile(
             icon: Icons.bar_chart_outlined,
             title: context.loc.reportsExports,
             subtitle: context.loc.reportsSubtitle,
@@ -100,6 +238,38 @@ class AdminSettingsScreen extends StatelessWidget {
             subtitle: context.loc.changePasswordSubtitle,
             color: AppColors.accentDark,
             onTap: () => context.push('/admin/change-password'),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            context.loc.shopSettings,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+          ),
+          const SizedBox(height: 10),
+          _ActionTile(
+            icon: Icons.store_rounded,
+            title: context.loc.shopNameLabel,
+            subtitle: shopSettings.shopName,
+            color: AppColors.primary,
+            onTap: () => _changeShopName(context),
+          ),
+          const SizedBox(height: 10),
+          _ActionTile(
+            icon: Icons.image_rounded,
+            title: context.loc.editShopLogo,
+            subtitle: shopSettings.logoUrl != null ? 'Logo téléversé' : 'Aucun logo (Placeholder actif)',
+            color: AppColors.accent,
+            onTap: () => _changeLogo(context),
+          ),
+          const SizedBox(height: 10),
+          _ActionTile(
+            icon: Icons.monetization_on_rounded,
+            title: context.loc.editDefaultPieceRate,
+            subtitle: '${shopSettings.defaultPieceRate} FCFA',
+            color: Colors.green,
+            onTap: () => _changeDefaultPieceRate(context),
           ),
           const SizedBox(height: 16),
           const _LanguageSelector(),
