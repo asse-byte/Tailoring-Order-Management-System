@@ -106,21 +106,25 @@ class _LoginScreenState extends State<LoginScreen> {
                                     size: 42,
                                   ),
                                 )
-                              : Container(
-                                  decoration: const BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [AppColors.primary, AppColors.accent],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
+                              : Image.asset(
+                                  'assets/logo.jpeg',
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => Container(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [AppColors.primary, AppColors.accent],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
                                     ),
-                                  ),
-                                  child: const Center(
-                                    child: Text(
-                                      'R',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 48,
-                                        fontWeight: FontWeight.w900,
+                                    child: const Center(
+                                      child: Text(
+                                        'R',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 48,
+                                          fontWeight: FontWeight.w900,
+                                        ),
                                       ),
                                     ),
                                   ),

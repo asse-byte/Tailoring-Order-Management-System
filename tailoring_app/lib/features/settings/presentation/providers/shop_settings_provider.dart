@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../data/settings_repository.dart';
 
@@ -57,7 +57,7 @@ class ShopSettingsProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> uploadAndSetLogo(File file) async {
+  Future<bool> uploadAndSetLogo(XFile file) async {
     try {
       final String logoUrl = await _repo.uploadLogo(file);
       await _repo.updateSettings(logoUrl: logoUrl);

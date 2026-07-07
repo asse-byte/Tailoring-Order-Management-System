@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -85,12 +84,13 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       source: ImageSource.gallery,
       imageQuality: 85,
     );
+    if (!context.mounted) return;
 
     if (file != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Téléversement du logo...'), duration: Duration(seconds: 1)),
       );
-      final success = await provider.uploadAndSetLogo(File(file.path));
+      final success = await provider.uploadAndSetLogo(file);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

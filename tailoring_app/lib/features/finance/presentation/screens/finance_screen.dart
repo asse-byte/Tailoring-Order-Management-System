@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/finance_repository.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
@@ -150,9 +149,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       amount: amount,
                       spentAt: _formatDate(date),
                     );
+                    if (!ctx.mounted) return;
                     Navigator.pop(ctx);
                     _loadFinanceData();
                   } catch (e) {
+                    if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
                     );
@@ -212,9 +213,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 formKey.currentState!.save();
                 try {
                   await _repo.correctExpense(expense.id, newAmount: newAmount, reason: reason);
+                  if (!ctx.mounted) return;
                   Navigator.pop(ctx);
                   _loadFinanceData();
                 } catch (e) {
+                  if (!ctx.mounted) return;
                   ScaffoldMessenger.of(ctx).showSnackBar(
                     SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
                   );
@@ -334,6 +337,10 @@ class _FinanceScreenState extends State<FinanceScreen> {
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size(0, 40),
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                            ),
                             icon: const Icon(Icons.add_rounded, size: 16),
                             label: const Text('Dépense'),
                             onPressed: _addExpense,
@@ -361,7 +368,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                   margin: const EdgeInsets.only(bottom: 8),
                                   child: ListTile(
                                     leading: CircleAvatar(
-                                      backgroundColor: Colors.red.withOpacity(0.1),
+                                      backgroundColor: Colors.red.withValues(alpha: 0.1),
                                       child: const Icon(Icons.money_off_rounded, color: Colors.red),
                                     ),
                                     title: Text(exp.reason, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -406,7 +413,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: LinearGradient(
-            colors: [color.withOpacity(0.12), color.withOpacity(0.02)],
+            colors: [color.withValues(alpha: 0.12), color.withValues(alpha: 0.02)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -414,7 +421,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: color.withOpacity(0.2),
+              backgroundColor: color.withValues(alpha: 0.2),
               radius: 28,
               child: Icon(icon, color: color, size: 30),
             ),

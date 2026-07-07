@@ -12,5 +12,5 @@ for (const key of ['DATABASE_URL', 'JWT_SECRET']) {
 
 const port = Number(process.env.PORT) || 3000;
 createApp().listen(port, () => {
-  console.log(`Couture Mali API listening on :${port}`);
+  console.log(`Rayan Couture API listening on :${port}`);
 });

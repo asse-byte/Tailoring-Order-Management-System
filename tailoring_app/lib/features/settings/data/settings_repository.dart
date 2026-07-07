@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/network/api_client.dart';
 
@@ -65,12 +65,21 @@ class SettingsRepository {
   }
 
   /// Téléverse le logo; le serveur le compresse et génère une miniature.
-  Future<String> uploadLogo(File file) async {
+  Future<String> uploadLogo(XFile file) async {
     final Uri uri = Uri.parse('${ApiClient.baseUrl}/api/upload');
     final String? jwt = await _api.token;
     final request = http.MultipartRequest('POST', uri);
     if (jwt != null) request.headers['Authorization'] = 'Bearer $jwt';
-    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+    
+    final bytes = await file.readAsBytes();
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: file.name,
+      ),
+    );
+    
     final response = await request.send();
     final String body = await response.stream.bytesToString();
     if (response.statusCode >= 400) {

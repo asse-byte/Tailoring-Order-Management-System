@@ -6,6 +6,8 @@ import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../features/settings/presentation/providers/shop_settings_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/network/api_client.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -75,14 +77,38 @@ class DashboardScreen extends StatelessWidget {
         ),
     ];
 
-    final shopName = context.watch<ShopSettingsProvider>().shopName;
+    final shopSettings = context.watch<ShopSettingsProvider>();
+    final shopName = shopSettings.shopName;
+    final logoUrl = shopSettings.logoUrl;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text(
-          shopName,
-          style: const TextStyle(fontWeight: FontWeight.w900),
+        title: Row(
+          children: [
+            Container(
+              height: 32,
+              width: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.grey.shade300, width: 1.5),
+              ),
+              child: ClipOval(
+                child: logoUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: '${ApiClient.baseUrl}$logoUrl',
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => Image.asset('assets/logo.jpeg', fit: BoxFit.cover),
+                      )
+                    : Image.asset('assets/logo.jpeg', fit: BoxFit.cover),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              shopName,
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ],
         ),
         actions: [
           IconButton(
@@ -168,19 +194,19 @@ class _DashboardCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 3,
-      shadowColor: item.color.withOpacity(0.2),
+      shadowColor: item.color.withValues(alpha: 0.2),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => context.push(item.route),
-        splashColor: item.color.withOpacity(0.1),
+        splashColor: item.color.withValues(alpha: 0.1),
         highlightColor: Colors.transparent,
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                item.color.withOpacity(0.08),
-                item.color.withOpacity(0.02),
+                item.color.withValues(alpha: 0.08),
+                item.color.withValues(alpha: 0.02),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -194,7 +220,7 @@ class _DashboardCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: item.color.withOpacity(0.15),
+                  color: item.color.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
