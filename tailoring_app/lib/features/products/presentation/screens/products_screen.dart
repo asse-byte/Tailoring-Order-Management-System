@@ -6,7 +6,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/localization/app_localizations.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/products_provider.dart';
 import '../../domain/product.dart';
@@ -127,8 +126,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
     int lowStockThreshold = product?.lowStockThreshold ?? 3;
     File? selectedImage;
     bool uploadingImage = false;
-    String? currentImageUrl = product?.images.isNotEmpty == true ? product!.images.first.url : null;
-    String? currentThumbUrl = product?.images.isNotEmpty == true ? product!.images.first.thumbUrl : null;
+    final String? currentImageUrl = product?.images.isNotEmpty == true ? product!.images.first.url : null;
+    final String? currentThumbUrl = product?.images.isNotEmpty == true ? product!.images.first.thumbUrl : null;
 
     final ImagePicker picker = ImagePicker();
 
@@ -153,7 +152,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: category,
+                    initialValue: category,
                     decoration: const InputDecoration(labelText: 'Catégorie'),
                     items: const [
                       DropdownMenuItem(value: 'parfum', child: Text('Parfums')),
@@ -272,11 +271,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   : () async {
                       if (formKey.currentState!.validate()) {
                         formKey.currentState!.save();
+                        final provider = context.read<ProductsProvider>();
+                        final messenger = ScaffoldMessenger.of(context);
                         setDlgState(() => uploadingImage = true);
 
-                        List<Map<String, String>> imgList = [];
+                        final List<Map<String, String>> imgList = [];
                         if (selectedImage != null) {
-                          final uploaded = await context.read<ProductsProvider>().uploadImage(selectedImage!);
+                          final uploaded = await provider.uploadImage(selectedImage!);
                           if (uploaded != null) {
                             imgList.add({
                               'url': uploaded['url']!,
@@ -290,7 +291,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           });
                         }
 
-                        final provider = context.read<ProductsProvider>();
                         bool success;
                         if (product == null) {
                           success = await provider.addProduct(
@@ -315,13 +315,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
                         setDlgState(() => uploadingImage = false);
                         if (success) {
-                          if (mounted) Navigator.pop(ctx);
+                          if (ctx.mounted) Navigator.pop(ctx);
                         } else {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(provider.error ?? 'Erreur d\'enregistrement'), backgroundColor: Colors.red),
-                            );
-                          }
+                          messenger.showSnackBar(
+                            SnackBar(content: Text(provider.error ?? 'Erreur d\'enregistrement'), backgroundColor: Colors.red),
+                          );
                         }
                       }
                     },
@@ -451,7 +449,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       width: 60,
                                       height: 60,
                                       decoration: BoxDecoration(
-                                        color: AppColors.primary.withOpacity(0.05),
+                                        color: AppColors.primary.withValues(alpha: 0.05),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: thumbUrl != null

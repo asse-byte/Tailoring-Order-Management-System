@@ -116,7 +116,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
     double price = existing?.price ?? 45000.0;
     String description = existing?.description ?? '';
 
-    List<Map<String, String>> currentMedia = existing != null
+    final List<Map<String, String>> currentMedia = existing != null
         ? existing.media.map((e) => {'id': e.id, 'url': e.url, 'kind': e.kind, 'thumb_url': e.thumbUrl ?? ''}).toList()
         : [];
 
@@ -247,7 +247,9 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                                       });
                                     });
                                   } catch (e) {
-                                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                                    if (ctx.mounted) {
+                                      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                                    }
                                   } finally {
                                     setDlgState(() => uploading = false);
                                   }
@@ -273,7 +275,9 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                                       });
                                     });
                                   } catch (e) {
-                                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                                    if (ctx.mounted) {
+                                      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                                    }
                                   } finally {
                                     setDlgState(() => uploading = false);
                                   }
@@ -323,9 +327,11 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                               media: currentMedia,
                             );
                           }
+                          if (!ctx.mounted) return;
                           Navigator.pop(ctx);
                           _loadModels();
                         } catch (e) {
+                          if (!ctx.mounted) return;
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
                           );
@@ -498,7 +504,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: Colors.black.withOpacity(0.6),
+                                            color: Colors.black.withValues(alpha: 0.6),
                                             borderRadius: BorderRadius.circular(10),
                                           ),
                                           child: Text(

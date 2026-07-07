@@ -141,7 +141,7 @@ class PretAPorterRepository {
 
   /// Uploads media (images/videos) to the REST API
   Future<Map<String, String>> uploadMedia(File file) async {
-    final String path = '/api/upload';
+    const String path = '/api/upload';
     final Uri uri = Uri.parse('${ApiClient.baseUrl}$path');
     final String? jwt = await _api.token;
     

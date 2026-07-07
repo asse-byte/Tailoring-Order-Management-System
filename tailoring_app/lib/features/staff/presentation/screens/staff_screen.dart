@@ -107,7 +107,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: type,
+                  initialValue: type,
                   decoration: const InputDecoration(labelText: 'Rôle'),
                   items: const [
                     DropdownMenuItem(value: 'couturier', child: Text('Couturier (À la pièce)')),
@@ -129,9 +129,11 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                   formKey.currentState!.save();
                   try {
                     await _repo.createStaff(fullName: name, phone: phone, type: type);
+                    if (!ctx.mounted) return;
                     Navigator.pop(ctx);
                     _loadData();
                   } catch (e) {
+                    if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
                     );
@@ -184,7 +186,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: type,
+                  initialValue: type,
                   decoration: const InputDecoration(labelText: 'Rôle'),
                   items: const [
                     DropdownMenuItem(value: 'couturier', child: Text('Couturier (À la pièce)')),
@@ -209,9 +211,11 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                   formKey.currentState!.save();
                   try {
                     await _repo.updateStaff(member.staffId, fullName: name, phone: phone, type: type, active: active);
+                    if (!ctx.mounted) return;
                     Navigator.pop(ctx);
                     _loadData();
                   } catch (e) {
+                    if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
                     );
@@ -288,9 +292,11 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                       monthlySalary: member.type == 'autre' ? monthlySalary : 0,
                       salaryDueDay: member.type == 'autre' ? salaryDueDay : 0,
                     );
+                    if (!ctx.mounted) return;
                     Navigator.pop(ctx);
                     _loadData();
                   } catch (e) {
+                    if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
                     );
@@ -332,7 +338,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  value: tailorId,
+                  initialValue: tailorId,
                   decoration: const InputDecoration(labelText: 'Couturier'),
                   items: activeTailors
                       .map((t) => DropdownMenuItem(value: t.staffId, child: Text(t.fullName)))
@@ -384,9 +390,11 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                       entryDate: dateStr,
                       piecesCount: pieces,
                     );
+                    if (!ctx.mounted) return;
                     Navigator.pop(ctx);
                     _loadData();
                   } catch (e) {
+                    if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
                     );
@@ -446,9 +454,11 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                 formKey.currentState!.save();
                 try {
                   await _repo.correctTailorEntry(entry.id, newPieces: newPieces, reason: reason);
+                  if (!ctx.mounted) return;
                   Navigator.pop(ctx);
                   _loadData();
                 } catch (e) {
+                  if (!ctx.mounted) return;
                   ScaffoldMessenger.of(ctx).showSnackBar(
                     SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
                   );
@@ -479,7 +489,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                         margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: AppColors.primary.withOpacity(0.1),
+                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                             child: Icon(
                               c.type == 'couturier' ? Icons.content_cut_rounded : Icons.person_rounded,
                               color: AppColors.primary,
@@ -522,7 +532,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                   child: Row(
                     children: [
                       CircleAvatar(
-                        backgroundColor: (m.active ? AppColors.primary : Colors.grey).withOpacity(0.1),
+                        backgroundColor: (m.active ? AppColors.primary : Colors.grey).withValues(alpha: 0.1),
                         child: Icon(
                           m.type == 'couturier' ? Icons.content_cut_rounded : Icons.person_rounded,
                           color: m.active ? AppColors.primary : Colors.grey,

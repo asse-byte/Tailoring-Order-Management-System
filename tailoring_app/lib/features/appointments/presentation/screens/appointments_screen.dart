@@ -96,6 +96,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
           });
         }
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     }
@@ -123,7 +124,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   const Divider(),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: reason,
+                    initialValue: reason,
                     decoration: const InputDecoration(labelText: 'Motif'),
                     items: const [
                       DropdownMenuItem(value: 'Essayage', child: Text('Séance d\'essayage')),
@@ -207,9 +208,11 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                       scheduledAt: finalDateTime.toUtc().toIso8601String(),
                       reason: reason,
                     );
+                    if (!ctx.mounted) return;
                     Navigator.pop(ctx);
                     _loadAppointments();
                   } catch (e) {
+                    if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
                     );
@@ -257,7 +260,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: isOverdue ? Colors.grey[200] : AppColors.primary.withOpacity(0.1),
+                              backgroundColor: isOverdue ? Colors.grey[200] : AppColors.primary.withValues(alpha: 0.1),
                               child: Icon(
                                 Icons.calendar_today_rounded,
                                 color: isOverdue ? Colors.grey : AppColors.primary,

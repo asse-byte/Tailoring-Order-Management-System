@@ -81,7 +81,7 @@ class ProductsRepository {
   /// Uploads product image using the REST upload API
   Future<Map<String, String>> uploadImage(File file) async {
     // We make a multipart request
-    final String path = '/api/upload';
+    const String path = '/api/upload';
     final Uri uri = Uri.parse('${ApiClient.baseUrl}$path');
     final String? jwt = await _api.token;
     
