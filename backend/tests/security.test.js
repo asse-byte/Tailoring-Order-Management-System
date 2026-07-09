@@ -651,3 +651,60 @@ describe('Authentication and token integrity', () => {
       .send({ current_password: 'NewPass#1234', new_password: SECRETARY.password });
   });
 });
+
+// =============================================================================
+// Finance accuracy + input validation (added on top of the audit merge).
+// =============================================================================
+
+describe('Finance — monthly salaries are prorated over the period', () => {
+  it('a single day charges a fraction of the month, a full month charges all', async () => {
+    const staffId = (await asManager(request(app).post('/api/staff'))
+      .send({ full_name: 'Fatou Diallo', type: 'autre' })).body.id;
+    await asManager(request(app).put(`/api/staff-pay/${staffId}`))
+      .send({ monthly_salary: 31000, salary_due_day: 1 });
+
+    const fullMonth = await asManager(
+      request(app).get('/api/finance/summary?from=2026-08-01&to=2026-08-31'));
+    const oneDay = await asManager(
+      request(app).get('/api/finance/summary?from=2026-08-15&to=2026-08-15'));
+
+    // 31/31 months for August (only this salaried employee exists).
+    expect(fullMonth.body.costs.salaries).toBe(31000);
+    expect(oneDay.body.costs.salaries).toBe(Math.round(31000 / 31)); // 1000
+    expect(oneDay.body.costs.salaries).toBeLessThan(fullMonth.body.costs.salaries);
+  });
+});
+
+describe('Finance — cost of goods sold is actually computed', () => {
+  it('COGS reflects (qty × cost_price) of the products sold', async () => {
+    const prodId = (await asManager(request(app).post('/api/products'))
+      .send({ category: 'parfum', name: 'Musc COGS', price: 20000, cost_price: 8000, quantity: 10 }))
+      .body.id;
+    // Sell 2 units today (kind 'produit' — the value the API actually stores).
+    await asSec(request(app).post('/api/sales'))
+      .send({ kind: 'produit', item_id: prodId, qty: 2 });
+
+    const today = new Date().toISOString().slice(0, 10);
+    const sum = await asManager(
+      request(app).get(`/api/finance/summary?from=${today}&to=${today}`));
+    // 2 × 8000 = 16000 must appear (the old 'product'/'model' join returned 0).
+    expect(sum.body.costs.cost_of_goods_sold).toBeGreaterThanOrEqual(16000);
+    expect(sum.body.net_profit).toBe(sum.body.revenue.total - sum.body.costs.total);
+  });
+});
+
+describe('Orders — amount validation on create', () => {
+  it('an invalid price is rejected (not silently coerced to 0)', async () => {
+    const res = await asManager(request(app).post('/api/orders'))
+      .send({ client_id: clientId, garment_type: 'chemise', price: -5 });
+    expect(res.status).toBe(400);
+  });
+
+  it('a missing price defaults to 0 and the order is created', async () => {
+    const res = await asManager(request(app).post('/api/orders'))
+      .send({ client_id: clientId, garment_type: 'chemise' });
+    expect(res.status).toBe(201);
+    expect(res.body.price).toBe(0);
+    expect(res.body.advance).toBe(0);
+  });
+});

@@ -32,10 +32,15 @@ router.get('/', asyncH(async (req, res) => {
 router.post('/', asyncH(async (req, res) => {
   const clientId = str(req.body.client_id);
   const garmentType = str(req.body.garment_type);
-  const price = intOrNull(req.body.price) ?? 0;
-  const advance = intOrNull(req.body.advance) ?? 0;
-  if (!clientId || !garmentType || price === undefined || advance === undefined) {
-    return res.status(400).json({ error: 'client_id, garment_type et montants valides requis.' });
+  // intOrNull → null (missing/empty → default 0), a number (valid), or
+  // undefined (present but invalid, e.g. negative/non-integer) → reject.
+  const price = intOrNull(req.body.price);
+  const advance = intOrNull(req.body.advance);
+  if (!clientId || !garmentType) {
+    return res.status(400).json({ error: 'client_id et garment_type requis.' });
+  }
+  if (price === undefined || advance === undefined) {
+    return res.status(400).json({ error: 'Montants invalides (entiers ≥ 0).' });
   }
   // Freeze the client's measurements into the order (reference at cut time).
   let snapshot = req.body.measurements_snapshot;
@@ -52,8 +57,8 @@ router.post('/', asyncH(async (req, res) => {
              COALESCE($7::date, CURRENT_DATE), $8::date, $9)
      RETURNING *`,
     [clientId, garmentType, str(req.body.fabric) || '', JSON.stringify(snapshot),
-      price, advance, dateStr(req.body.start_date), dateStr(req.body.expected_date),
-      str(req.body.notes)]);
+      price ?? 0, advance ?? 0, dateStr(req.body.start_date),
+      dateStr(req.body.expected_date), str(req.body.notes)]);
   res.status(201).json(rows[0]);
 }));
 
