@@ -32,6 +32,7 @@ class StaffContact {
 class StaffPayInfo {
   final String staffId;
   final String fullName;
+  final String phone;
   final String type;
   final bool active;
   final int? pieceRate;
@@ -41,6 +42,7 @@ class StaffPayInfo {
   const StaffPayInfo({
     required this.staffId,
     required this.fullName,
+    required this.phone,
     required this.type,
     required this.active,
     this.pieceRate,
@@ -52,6 +54,7 @@ class StaffPayInfo {
     return StaffPayInfo(
       staffId: json['staff_id'] as String,
       fullName: json['full_name'] as String,
+      phone: json['phone'] as String? ?? '',
       type: json['type'] as String,
       active: json['active'] as bool? ?? true,
       pieceRate: json['piece_rate'] as int?,
@@ -89,6 +92,35 @@ class TailorEntry {
       piecesCount: json['pieces_count'] as int,
       pieceRate: json['piece_rate'] as int? ?? 0,
       amount: json['amount'] as int? ?? 0,
+    );
+  }
+}
+
+class WeeklyTailorSummary {
+  final String weekId;
+  final String tailorId;
+  final String tailorName;
+  final int piecesTotal;
+  final int amountTotal;
+  final int daysWorked;
+
+  const WeeklyTailorSummary({
+    required this.weekId,
+    required this.tailorId,
+    required this.tailorName,
+    required this.piecesTotal,
+    required this.amountTotal,
+    required this.daysWorked,
+  });
+
+  factory WeeklyTailorSummary.fromJson(Map<String, dynamic> json) {
+    return WeeklyTailorSummary(
+      weekId: json['week_id'] as String? ?? '',
+      tailorId: json['tailor_id'] as String,
+      tailorName: json['tailor_name'] as String? ?? '',
+      piecesTotal: json['pieces_total'] as int? ?? 0,
+      amountTotal: json['amount_total'] as int? ?? 0,
+      daysWorked: json['days_worked'] as int? ?? 0,
     );
   }
 }
@@ -183,5 +215,12 @@ class StaffRepository {
       'new_pieces': newPieces,
       'reason': reason,
     });
+  }
+
+  Future<List<WeeklyTailorSummary>> listWeeklyTotals(String weekId) async {
+    final dynamic res = await _api.get('/api/tailor-entries/weekly?week_id=$weekId');
+    return (res['items'] as List)
+        .map((e) => WeeklyTailorSummary.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }

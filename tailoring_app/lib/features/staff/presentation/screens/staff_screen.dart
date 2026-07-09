@@ -21,16 +21,19 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
   List<StaffContact> _contacts = [];
   List<StaffPayInfo> _payInfoList = [];
   List<TailorEntry> _entries = [];
+  List<WeeklyTailorSummary> _weeklySummary = [];
   bool _loading = true;
   String? _error;
+  late DateTime _currentWeekStart;
 
   @override
   void initState() {
     super.initState();
+    _currentWeekStart = _getWeekStart(DateTime.now());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final isSec = context.read<AuthProvider>().isSecretary;
       if (!isSec) {
-        _tabController = TabController(length: 2, vsync: this);
+        _tabController = TabController(length: 3, vsync: this);
       }
       _loadData();
     });
@@ -40,6 +43,21 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
   void dispose() {
     _tabController?.dispose();
     super.dispose();
+  }
+
+  String _getWeekId(DateTime date) {
+    final year = date.year;
+    final firstDayOfYear = DateTime(year, 1, 1);
+    final dayOfWeek = firstDayOfYear.weekday;
+    final weekStart = firstDayOfYear.subtract(Duration(days: dayOfWeek - 1));
+    final weeksElapsed = ((date.difference(weekStart).inDays) / 7).floor();
+    final weekNum = weeksElapsed + 1;
+    return '$year-W${weekNum.toString().padLeft(2, '0')}';
+  }
+
+  DateTime _getWeekStart(DateTime date) {
+    final diff = date.weekday - 1;
+    return date.subtract(Duration(days: diff));
   }
 
   Future<void> _loadData() async {
@@ -55,6 +73,8 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
       } else {
         _payInfoList = await _repo.listPayInfo();
         _entries = await _repo.listTailorEntries();
+        final weekId = _getWeekId(_currentWeekStart);
+        _weeklySummary = await _repo.listWeeklyTotals(weekId);
       }
     } catch (e) {
       _error = e.toString();
@@ -151,12 +171,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
   Future<void> _editStaffContact(StaffPayInfo member) async {
     final formKey = GlobalKey<FormState>();
     String name = member.fullName;
-    String phone = member.active ? member.fullName : ''; // Wait, use phone from details or list
-    // Since details phone isn't directly in StaffPayInfo, let's load contacts or assume empty if not loaded.
-    final contact = _contacts.firstWhere((x) => x.id == member.staffId, 
-      orElse: () => StaffContact(id: member.staffId, fullName: member.fullName, phone: '', type: member.type, active: member.active));
-    phone = contact.phone;
-
+    String phone = member.phone;
     bool active = member.active;
     String type = member.type;
 
@@ -633,6 +648,89 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
     );
   }
 
+  Widget _buildWeeklySummaryTab() {
+    final weekStart = _currentWeekStart;
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    final weekLabel = '${weekStart.day}/${weekStart.month} - ${weekEnd.day}/${weekEnd.month}/${weekEnd.year}';
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => setState(() => _currentWeekStart = _currentWeekStart.subtract(const Duration(days: 7))),
+              ),
+              Expanded(
+                child: Text(
+                  'Semaine du $weekLabel',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.arrow_forward_rounded),
+                onPressed: () => setState(() => _currentWeekStart = _currentWeekStart.add(const Duration(days: 7))),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _weeklySummary.isEmpty
+              ? const Center(child: Text('Aucune production cette semaine.'))
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _weeklySummary.length,
+                  itemBuilder: (ctx, idx) {
+                    final w = _weeklySummary[idx];
+                    return Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                              child: Icon(Icons.content_cut_rounded, color: AppColors.primary),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(w.tailorName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Pièces: ${w.piecesTotal} | Jours: ${w.daysWorked}',
+                                    style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '${w.amountTotal} F',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green),
+                                ),
+                                const Text('Total', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        )
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isSec = context.watch<AuthProvider>().isSecretary;
@@ -647,7 +745,8 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                 controller: _tabController,
                 tabs: const [
                   Tab(icon: Icon(Icons.people_rounded), text: 'Personnel'),
-                  Tab(icon: Icon(Icons.assignment_turned_in_rounded), text: 'Production (Couturiers)'),
+                  Tab(icon: Icon(Icons.assignment_turned_in_rounded), text: 'Entrées'),
+                  Tab(icon: Icon(Icons.summarize_rounded), text: 'Résumés'),
                 ],
               ),
         actions: [
@@ -675,6 +774,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                       children: [
                         _buildManagerStaffTab(),
                         _buildManagerEntriesTab(),
+                        _buildWeeklySummaryTab(),
                       ],
                     ),
     );

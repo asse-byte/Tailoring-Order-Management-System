@@ -10,7 +10,7 @@ const router = express.Router();
 
 router.get('/', asyncH(async (req, res) => {
   const { rows } = await db.query(
-    `SELECT s.id AS staff_id, s.full_name, s.type, s.active,
+    `SELECT s.id AS staff_id, s.full_name, s.phone, s.type, s.active,
             p.piece_rate, p.monthly_salary, p.salary_due_day
      FROM staff s LEFT JOIN staff_pay p ON p.staff_id = s.id
      ORDER BY s.active DESC, s.full_name`);

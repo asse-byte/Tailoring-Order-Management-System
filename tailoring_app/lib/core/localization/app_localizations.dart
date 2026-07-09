@@ -577,6 +577,60 @@ class AppLocalizations {
       'logoUploadedSuccess': 'Logo mis à jour avec succès',
       'logoUploadFailed': 'Échec du téléversement du logo',
       'defaultPieceRateLabel': 'Tarif par pièce par défaut (FCFA)',
+
+      // Staff screen
+      'newMember': 'Nouveau Membre',
+      'modifyContactInfo': 'Modifier Infos Contact',
+      'financialSettings': 'Paramètres Financiers',
+      'active': 'Actif / En poste',
+      'newTailorEntry': 'Nouvelle Entrée Couture',
+      'tailor': 'Couturier',
+      'pieces': 'Nombre de pièces',
+      'quantity': 'Quantité invalide',
+      'newEntryCreated': 'Entrée créée avec succès',
+      'correctionCreated': 'Correction enregistrée avec succès',
+      'noTailorsFound': 'Aucun couturier actif trouvé pour ajouter une entrée.',
+      'noProductsRecorded': 'Aucune production enregistrée.',
+      'noProductionThisWeek': 'Aucune production cette semaine.',
+      'weekOf': 'Semaine du',
+      'editEntry': 'Corriger l\'entrée',
+      'correctionTitle': 'Correction',
+      'newPiecesCount': 'Nouveau nombre de pièces (0 pour annuler)',
+      'correctionReason': 'Raison de la correction (Obligatoire)',
+      'reasonRequired': 'Raison requise',
+
+      // Products & Ready-to-wear screens
+      'sellPrice': 'Prix de vente (FCFA)',
+      'purchasePrice': 'Prix d\'achat (FCFA)',
+      'unitProfit': 'Bénéfice unitaire',
+      'costPriceInvalid': 'Prix d\'achat invalide',
+      'profit': 'Bénéf',
+      'profitAbbr': 'F',
+      'description': 'Description',
+      'fabric': 'Tissu',
+      'newProduct': 'Nouveau Produit',
+      'newReadyToWear': 'Nouveau Modèle',
+      'editProduct': 'Modifier Produit',
+      'editReadyToWear': 'Modifier Modèle',
+      'noCatalog': 'Aucun produit enregistré.',
+      'invalidPrice': 'Prix invalide',
+
+      // Finance screen
+      'accessDenied': 'Accès refusé',
+      'reservedForManager': 'Réservé au Gérant',
+      'dateRange': 'Sélectionner une plage de dates',
+      'costOfGoodsSold': 'Coût de la marchandise vendue',
+      'tailorWages': 'Salaires des couturiers',
+      'monthlyExpenses': 'Salaires fixes',
+      'manualExpenses': 'Dépenses additionnelles',
+      'totalCosts': 'Coûts totaux',
+      'netProfit': 'Résultat net',
+
+      // Common actions
+      'noStaffRecorded': 'Aucun employé enregistré.',
+      'callFailed': 'Impossible de passer l\'appel.',
+      'invalidFields': 'Champs invalides.',
+      'requiredFields': 'Requis',
     }
   };
 

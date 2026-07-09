@@ -122,6 +122,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     String name = product?.name ?? '';
     String category = product?.category ?? 'parfum';
     double price = product?.price ?? 0.0;
+    double costPrice = product?.costPrice ?? 0.0;
     int quantity = product?.quantity ?? 0;
     int lowStockThreshold = product?.lowStockThreshold ?? 3;
     File? selectedImage;
@@ -164,10 +165,31 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     initialValue: price > 0 ? price.toInt().toString() : '',
-                    decoration: const InputDecoration(labelText: 'Prix (FCFA)'),
+                    decoration: const InputDecoration(labelText: 'Prix de vente (FCFA)'),
                     keyboardType: TextInputType.number,
                     validator: (v) => v == null || double.tryParse(v) == null ? 'Prix invalide' : null,
+                    onChanged: (v) => setDlgState(() => price = double.tryParse(v) ?? 0.0),
                     onSaved: (v) => price = double.tryParse(v ?? '') ?? 0.0,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    initialValue: costPrice > 0 ? costPrice.toInt().toString() : '',
+                    decoration: const InputDecoration(labelText: 'Prix d\'achat (FCFA)'),
+                    keyboardType: TextInputType.number,
+                    validator: (v) => v == null || double.tryParse(v) == null ? 'Prix d\'achat invalide' : null,
+                    onChanged: (v) => setDlgState(() => costPrice = double.tryParse(v) ?? 0.0),
+                    onSaved: (v) => costPrice = double.tryParse(v ?? '') ?? 0.0,
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Bénéfice unitaire: ${(price - costPrice).toInt()} FCFA',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: (price - costPrice) >= 0 ? Colors.green.shade700 : Colors.red,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -297,6 +319,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             name: name,
                             category: category,
                             price: price,
+                            costPrice: costPrice,
                             quantity: quantity,
                             lowStockThreshold: lowStockThreshold,
                             images: imgList,
@@ -307,6 +330,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             name: name,
                             category: category,
                             price: price,
+                            costPrice: costPrice,
                             quantity: quantity,
                             lowStockThreshold: lowStockThreshold,
                             images: imgList,
@@ -517,6 +541,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                             fontSize: 16,
                                           ),
                                         ),
+                                        // Profit is financial data — manager only.
+                                        if (!isSec)
+                                          Text(
+                                            'Bénéf: ${p.profit.toInt()} F',
+                                            style: TextStyle(
+                                              color: p.profit >= 0 ? Colors.green.shade700 : Colors.red,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 11,
+                                            ),
+                                          ),
                                         const SizedBox(height: 8),
                                         Row(
                                           mainAxisSize: MainAxisSize.min,

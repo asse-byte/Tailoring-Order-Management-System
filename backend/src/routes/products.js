@@ -22,7 +22,13 @@ router.get('/', asyncH(async (req, res) => {
      GROUP BY p.id
      ORDER BY p.name LIMIT $2 OFFSET $3`,
     [category, limit, offset]);
-    
+
+  // Financial isolation: cost_price (and the profit it reveals) is manager-only.
+  // The secretary reads this catalog to sell — she must never receive it.
+  if (req.user.role !== 'MANAGER') {
+    for (const row of rows) delete row.cost_price;
+  }
+
   res.json({ items: rows, limit, offset });
 }));
 
@@ -31,6 +37,7 @@ router.get('/', asyncH(async (req, res) => {
 router.post('/', managerOnly, asyncH(async (req, res) => {
   const name = str(req.body.name);
   const price = intOrNull(req.body.price);
+  const costPrice = intOrNull(req.body.cost_price) ?? 0;
   const quantity = intOrNull(req.body.quantity) ?? 0;
   if (!name || !CATEGORIES.includes(req.body.category) || price == null || quantity === undefined) {
     return res.status(400).json({ error: 'Nom, catégorie et prix valides requis.' });
@@ -38,9 +45,9 @@ router.post('/', managerOnly, asyncH(async (req, res) => {
 
   const product = await db.withTransaction(async (tx) => {
     const { rows } = await tx.query(
-      `INSERT INTO products (category, name, price, quantity, low_stock_threshold)
-       VALUES ($1, $2, $3, $4, COALESCE($5, 3)) RETURNING *`,
-      [req.body.category, name, price, quantity, intOrNull(req.body.low_stock_threshold)]);
+      `INSERT INTO products (category, name, price, cost_price, quantity, low_stock_threshold)
+       VALUES ($1, $2, $3, $4, $5, COALESCE($6, 3)) RETURNING *`,
+      [req.body.category, name, price, costPrice, quantity, intOrNull(req.body.low_stock_threshold)]);
     
     const prod = rows[0];
     prod.images = [];
@@ -68,6 +75,7 @@ router.post('/', managerOnly, asyncH(async (req, res) => {
 router.put('/:id', managerOnly, asyncH(async (req, res) => {
   const name = str(req.body.name);
   const price = intOrNull(req.body.price);
+  const costPrice = req.body.cost_price !== undefined ? intOrNull(req.body.cost_price) : null;
   const quantity = intOrNull(req.body.quantity);
   if (!name || !CATEGORIES.includes(req.body.category) || price == null || quantity == null) {
     return res.status(400).json({ error: 'Champs invalides.' });
@@ -75,10 +83,11 @@ router.put('/:id', managerOnly, asyncH(async (req, res) => {
 
   const product = await db.withTransaction(async (tx) => {
     const { rows } = await tx.query(
-      `UPDATE products SET category = $1, name = $2, price = $3, quantity = $4,
-         low_stock_threshold = COALESCE($5, low_stock_threshold)
-       WHERE id = $6 RETURNING *`,
-      [req.body.category, name, price, quantity,
+      `UPDATE products SET category = $1, name = $2, price = $3,
+         cost_price = COALESCE($4, cost_price), quantity = $5,
+         low_stock_threshold = COALESCE($6, low_stock_threshold)
+       WHERE id = $7 RETURNING *`,
+      [req.body.category, name, price, costPrice, quantity,
         intOrNull(req.body.low_stock_threshold), req.params.id]);
 
     if (!rows[0]) return null;

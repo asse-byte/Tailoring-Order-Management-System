@@ -86,3 +86,7 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+
+# Android and Kotlin build artifacts
+.kotlin/
+hs_err_pid*.log

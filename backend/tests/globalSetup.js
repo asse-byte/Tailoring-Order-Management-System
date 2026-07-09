@@ -8,7 +8,7 @@ const EP = require('embedded-postgres');
 const { migrate } = require('../scripts/migrate');
 
 const EmbeddedPostgres = EP.default || EP;
-const PORT = 5641;
+const PORT = 5691;
 
 module.exports = async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'couture-pg-'));

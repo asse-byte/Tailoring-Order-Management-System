@@ -114,6 +114,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
     String name = existing?.name ?? '';
     String fabric = existing?.fabricType ?? '';
     double price = existing?.price ?? 45000.0;
+    double costPrice = existing?.costPrice ?? 0.0;
     String description = existing?.description ?? '';
 
     final List<Map<String, String>> currentMedia = existing != null
@@ -152,10 +153,31 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     initialValue: price > 0 ? price.toInt().toString() : '',
-                    decoration: const InputDecoration(labelText: 'Prix (FCFA)'),
+                    decoration: const InputDecoration(labelText: 'Prix de vente (FCFA)'),
                     keyboardType: TextInputType.number,
                     validator: (v) => v == null || double.tryParse(v) == null ? 'Invalide' : null,
+                    onChanged: (v) => setDlgState(() => price = double.tryParse(v) ?? 0.0),
                     onSaved: (v) => price = double.tryParse(v ?? '') ?? 0.0,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    initialValue: costPrice > 0 ? costPrice.toInt().toString() : '',
+                    decoration: const InputDecoration(labelText: 'Prix d\'achat (FCFA)'),
+                    keyboardType: TextInputType.number,
+                    validator: (v) => v == null || double.tryParse(v) == null ? 'Invalide' : null,
+                    onChanged: (v) => setDlgState(() => costPrice = double.tryParse(v) ?? 0.0),
+                    onSaved: (v) => costPrice = double.tryParse(v ?? '') ?? 0.0,
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Bénéfice unitaire: ${(price - costPrice).toInt()} FCFA',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: (price - costPrice) >= 0 ? Colors.green.shade700 : Colors.red,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -314,6 +336,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                               name: name,
                               fabricType: fabric,
                               price: price,
+                              costPrice: costPrice,
                               description: description,
                               media: currentMedia,
                             );
@@ -323,6 +346,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                               name: name,
                               fabricType: fabric,
                               price: price,
+                              costPrice: costPrice,
                               description: description,
                               media: currentMedia,
                             );
@@ -411,6 +435,20 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                   ),
                 ],
               ),
+              // Profit is financial data — manager only.
+              if (!isSec) ...[
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Bénéfice unitaire: ${m.profit.toInt()} F',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: m.profit >= 0 ? Colors.green.shade700 : Colors.red,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               Chip(
                 avatar: const Icon(Icons.texture_rounded, size: 16),
@@ -534,6 +572,18 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
+                                      if (!isSec)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 2),
+                                          child: Text(
+                                            'Bénéf: ${m.profit.toInt()} F',
+                                            style: TextStyle(
+                                              color: m.profit >= 0 ? Colors.green.shade700 : Colors.red,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ),
                                       const SizedBox(height: 6),
                                       Row(
                                         mainAxisAlignment: MainAxisAlignment.end,

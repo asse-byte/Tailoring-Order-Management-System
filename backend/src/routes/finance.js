@@ -17,7 +17,7 @@ router.get('/summary', asyncH(async (req, res) => {
   const from = dateStr(req.query.from) || `${today.slice(0, 8)}01`;
   const to = dateStr(req.query.to) || today;
 
-  const [sales, ordersRevenue, wages, expenses, salaries] = await Promise.all([
+  const [sales, ordersRevenue, salesCost, ordersCost, wages, expenses, salaries] = await Promise.all([
     // Effective view: corrected quantities, voided sales excluded.
     db.query(
       `SELECT COALESCE(SUM(total), 0)::bigint AS v FROM sales_effective
@@ -27,6 +27,20 @@ router.get('/summary', asyncH(async (req, res) => {
     db.query(
       `SELECT COALESCE(SUM(price), 0)::bigint AS v FROM orders
        WHERE status = 'livre' AND delivered_date BETWEEN $1::date AND $2::date`,
+      [from, to]),
+    // Cost of goods sold: sum of (qty × cost_price) for products sold.
+    db.query(
+      `SELECT COALESCE(SUM(se.qty * p.cost_price), 0)::bigint AS v
+       FROM sales_effective se JOIN products p ON se.item_id = p.id
+       WHERE se.kind = 'product' AND NOT se.voided
+         AND se.sold_at >= $1::date AND se.sold_at < $2::date + 1`,
+      [from, to]),
+    // Cost of ready-to-wear models sold.
+    db.query(
+      `SELECT COALESCE(SUM(se.qty * m.cost_price), 0)::bigint AS v
+       FROM sales_effective se JOIN pret_a_porter_models m ON se.item_id = m.id
+       WHERE se.kind = 'model' AND NOT se.voided
+         AND se.sold_at >= $1::date AND se.sold_at < $2::date + 1`,
       [from, to]),
     db.query(
       `SELECT COALESCE(SUM(amount), 0)::bigint AS v FROM tailor_entries_effective
@@ -43,11 +57,12 @@ router.get('/summary', asyncH(async (req, res) => {
   const months = monthsTouched(from, to);
   const salesTotal = Number(sales.rows[0].v);
   const ordersTotal = Number(ordersRevenue.rows[0].v);
+  const costOfSalesGoods = Number(salesCost.rows[0].v) + Number(ordersCost.rows[0].v);
   const wagesTotal = Number(wages.rows[0].v);
   const expensesTotal = Number(expenses.rows[0].v);
   const salariesTotal = Number(salaries.rows[0].v) * months;
   const revenue = salesTotal + ordersTotal;
-  const costs = wagesTotal + salariesTotal + expensesTotal;
+  const costs = costOfSalesGoods + wagesTotal + salariesTotal + expensesTotal;
 
   res.json({
     from,
@@ -55,6 +70,7 @@ router.get('/summary', asyncH(async (req, res) => {
     months_counted: months,
     revenue: { sales: salesTotal, orders: ordersTotal, total: revenue },
     costs: {
+      cost_of_goods_sold: costOfSalesGoods,
       tailor_wages: wagesTotal,
       salaries: salariesTotal,
       expenses: expensesTotal,

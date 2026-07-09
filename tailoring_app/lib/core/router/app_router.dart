@@ -148,6 +148,11 @@ class AppRouter {
         }
         if (loc == '/login' || loc == '/') return '/admin';
 
+        // Secretary cannot access financial/management routes — redirect to home.
+        if (auth.isSecretary && (loc == '/admin/finance' || loc == '/admin/staff-pay')) {
+          return '/admin';
+        }
+
         return null;
       },
     );

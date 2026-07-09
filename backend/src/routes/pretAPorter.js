@@ -16,6 +16,13 @@ router.get('/', asyncH(async (req, res) => {
      LEFT JOIN model_media md ON md.model_id = m.id
      GROUP BY m.id ORDER BY m.created_at DESC LIMIT $1 OFFSET $2`,
     [limit, offset]);
+
+  // Financial isolation: cost_price (and the profit it reveals) is manager-only.
+  // The secretary reads these models to sell — she must never receive it.
+  if (req.user.role !== 'MANAGER') {
+    for (const row of rows) delete row.cost_price;
+  }
+
   res.json({ items: rows, limit, offset });
 }));
 
@@ -39,14 +46,15 @@ async function insertMedia(tx, modelId, media) {
 router.post('/', managerOnly, asyncH(async (req, res) => {
   const name = str(req.body.name);
   const price = intOrNull(req.body.price);
+  const costPrice = intOrNull(req.body.cost_price) ?? 0;
   if (!name || price == null) {
     return res.status(400).json({ error: 'Nom et prix (entier ≥ 0) requis.' });
   }
   const model = await db.withTransaction(async (tx) => {
     const { rows } = await tx.query(
-      `INSERT INTO pret_a_porter_models (name, fabric_type, price, description)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [name, str(req.body.fabric_type) || '', price, str(req.body.description) || '']);
+      `INSERT INTO pret_a_porter_models (name, fabric_type, price, cost_price, description)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [name, str(req.body.fabric_type) || '', price, costPrice, str(req.body.description) || '']);
     rows[0].media = await insertMedia(tx, rows[0].id, req.body.media);
     return rows[0];
   });
@@ -56,13 +64,14 @@ router.post('/', managerOnly, asyncH(async (req, res) => {
 router.put('/:id', managerOnly, asyncH(async (req, res) => {
   const name = str(req.body.name);
   const price = intOrNull(req.body.price);
+  const costPrice = req.body.cost_price !== undefined ? intOrNull(req.body.cost_price) : null;
   if (!name || price == null) return res.status(400).json({ error: 'Champs invalides.' });
   const model = await db.withTransaction(async (tx) => {
     const { rows } = await tx.query(
       `UPDATE pret_a_porter_models
-       SET name = $1, fabric_type = $2, price = $3, description = $4
-       WHERE id = $5 RETURNING *`,
-      [name, str(req.body.fabric_type) || '', price,
+       SET name = $1, fabric_type = $2, price = $3, cost_price = COALESCE($4, cost_price), description = $5
+       WHERE id = $6 RETURNING *`,
+      [name, str(req.body.fabric_type) || '', price, costPrice,
         str(req.body.description) || '', req.params.id]);
     if (!rows[0]) return null;
     // The media list is authoritative: same replace pattern as products.

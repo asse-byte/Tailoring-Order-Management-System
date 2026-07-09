@@ -225,20 +225,21 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           ),
           const SizedBox(height: 16),
           _ActionTile(
-            icon: Icons.bar_chart_outlined,
-            title: context.loc.reportsExports,
-            subtitle: context.loc.reportsSubtitle,
-            color: AppColors.statusInProgress,
-            onTap: () => context.push('/admin/reports'),
-          ),
-          const SizedBox(height: 10),
-          _ActionTile(
             icon: Icons.lock_reset_outlined,
             title: context.loc.changePassword,
             subtitle: context.loc.changePasswordSubtitle,
             color: AppColors.accentDark,
             onTap: () => context.push('/admin/change-password'),
           ),
+          // Reports feature is not yet implemented.
+          // const SizedBox(height: 10),
+          // _ActionTile(
+          //   icon: Icons.bar_chart_outlined,
+          //   title: context.loc.reportsExports,
+          //   subtitle: context.loc.reportsSubtitle,
+          //   color: AppColors.statusInProgress,
+          //   onTap: () => context.push('/admin/reports'),
+          // ),
           const SizedBox(height: 24),
           Text(
             context.loc.shopSettings,

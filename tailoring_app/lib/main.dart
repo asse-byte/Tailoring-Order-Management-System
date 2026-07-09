@@ -45,34 +45,47 @@ class TailoringApp extends StatelessWidget {
         ChangeNotifierProvider<ProductsProvider>(
             create: (_) => ProductsProvider()),
       ],
-      child: Builder(
-        builder: (context) {
-          final AuthProvider auth = context.watch<AuthProvider>();
-          final LanguageProvider lang = context.watch<LanguageProvider>();
-          final String shopName =
-              context.watch<ShopSettingsProvider>().shopName;
+      child: const _AppView(),
+    );
+  }
+}
 
-          final router = AppRouter.create(auth: auth);
-          return MaterialApp.router(
-            title: shopName,
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(),
-            darkTheme: AppTheme.dark(),
-            themeMode: ThemeMode.system,
-            routerConfig: router,
-            locale: lang.locale,
-            localizationsDelegates: const [
-              AppLocalizations.delegate,
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            // Français uniquement pour l'instant; la structure i18n
-            // (AppLocalizations) est prête pour d'autres langues.
-            supportedLocales: const [Locale('fr')],
-          );
-        },
-      ),
+/// Holds the [GoRouter] so it is built exactly once. Rebuilding the router on
+/// every provider change (e.g. when a screen loads settings) would reset the
+/// navigation stack and silently drop the page just pushed. Auth changes are
+/// handled by the router's own `refreshListenable`, not by re-creating it.
+class _AppView extends StatefulWidget {
+  const _AppView();
+
+  @override
+  State<_AppView> createState() => _AppViewState();
+}
+
+class _AppViewState extends State<_AppView> {
+  late final _router = AppRouter.create(auth: context.read<AuthProvider>());
+
+  @override
+  Widget build(BuildContext context) {
+    final LanguageProvider lang = context.watch<LanguageProvider>();
+    final String shopName = context.watch<ShopSettingsProvider>().shopName;
+
+    return MaterialApp.router(
+      title: shopName,
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: ThemeMode.system,
+      routerConfig: _router,
+      locale: lang.locale,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      // Français uniquement pour l'instant; la structure i18n
+      // (AppLocalizations) est prête pour d'autres langues.
+      supportedLocales: const [Locale('fr')],
     );
   }
 }

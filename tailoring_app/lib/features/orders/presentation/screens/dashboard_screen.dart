@@ -103,10 +103,13 @@ class DashboardScreen extends StatelessWidget {
                     : Image.asset('assets/logo.jpeg', fit: BoxFit.cover),
               ),
             ),
-            const SizedBox(width: 10),
-            Text(
-              shopName,
-              style: const TextStyle(fontWeight: FontWeight.w900),
+            Expanded(
+              child: Text(
+                shopName,
+                style: const TextStyle(fontWeight: FontWeight.w900),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -213,31 +216,34 @@ class _DashboardCard extends StatelessWidget {
             ),
           ),
           padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: item.color.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(), // Cards are small, no scrollbars needed
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: item.color.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    item.icon,
+                    color: item.color,
+                    size: 28,
+                  ),
                 ),
-                child: Icon(
-                  item.icon,
-                  color: item.color,
-                  size: 28,
+                const SizedBox(height: 12),
+                Text(
+                  item.title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
                 ),
-              ),
-              Text(
-                item.title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

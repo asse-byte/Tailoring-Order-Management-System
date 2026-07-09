@@ -150,6 +150,35 @@ describe('SECRETARY — allowed daily operations', () => {
     expect((await asSec(request(app).get('/api/pret-a-porter'))).status).toBe(200);
   });
 
+  it('never receives cost_price / profit on products or prêt-à-porter', async () => {
+    // The manager records a purchase price on a fresh product + model.
+    const prod = await asManager(request(app).post('/api/products'))
+      .send({ category: 'parfum', name: 'Parfum Oud', price: 20000, cost_price: 12000, quantity: 5 });
+    expect(prod.status).toBe(201);
+    const model = await asManager(request(app).post('/api/pret-a-porter'))
+      .send({ name: 'Kaftan luxe', fabric_type: 'soie', price: 60000, cost_price: 35000 });
+    expect(model.status).toBe(201);
+
+    // The manager sees cost_price — it is what lets the app compute profit.
+    const mgrProd = (await asManager(request(app).get('/api/products')))
+      .body.items.find((p) => p.id === prod.body.id);
+    expect(mgrProd.cost_price).toBe(12000);
+    const mgrModel = (await asManager(request(app).get('/api/pret-a-porter')))
+      .body.items.find((m) => m.id === model.body.id);
+    expect(mgrModel.cost_price).toBe(35000);
+
+    // The secretary must NEVER receive cost_price on either read endpoint.
+    const secProducts = await asSec(request(app).get('/api/products'));
+    expect(secProducts.status).toBe(200);
+    for (const p of secProducts.body.items) expect(p).not.toHaveProperty('cost_price');
+    const secModels = await asSec(request(app).get('/api/pret-a-porter'));
+    expect(secModels.status).toBe(200);
+    for (const m of secModels.body.items) expect(m).not.toHaveProperty('cost_price');
+    // Belt and suspenders: no cost figure anywhere in the raw payloads.
+    expect(JSON.stringify(secProducts.body)).not.toMatch(/cost_price/);
+    expect(JSON.stringify(secModels.body)).not.toMatch(/cost_price/);
+  });
+
   it('cannot create, edit or delete products', async () => {
     expect((await asSec(request(app).post('/api/products'))
       .send({ category: 'parfum', name: 'x', price: 1 })).status).toBe(403);

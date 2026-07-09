@@ -38,6 +38,7 @@ class PretAPorterModel {
   final String name;
   final String fabricType;
   final double price;
+  final double costPrice;
   final String? description;
   final List<ModelMedia> media;
 
@@ -46,9 +47,13 @@ class PretAPorterModel {
     required this.name,
     required this.fabricType,
     required this.price,
+    this.costPrice = 0,
     this.description,
     required this.media,
   });
+
+  /// Profit per unit = selling price - cost price
+  double get profit => price - costPrice;
 
   factory PretAPorterModel.fromJson(Map<String, dynamic> json) {
     final List<dynamic> mediaJson = json['media'] as List<dynamic>? ?? [];
@@ -57,6 +62,7 @@ class PretAPorterModel {
       name: json['name'] as String,
       fabricType: json['fabric_type'] as String,
       price: (json['price'] as num).toDouble(),
+      costPrice: (json['cost_price'] as num?)?.toDouble() ?? 0,
       description: json['description'] as String?,
       media: mediaJson.map((e) => ModelMedia.fromJson(e as Map<String, dynamic>)).toList(),
     );
@@ -67,6 +73,7 @@ class PretAPorterModel {
         'name': name,
         'fabric_type': fabricType,
         'price': price,
+        'cost_price': costPrice,
         'description': description,
         'media': media.map((e) => e.toJson()).toList(),
       };
@@ -94,6 +101,7 @@ class PretAPorterRepository {
     required String name,
     required String fabricType,
     required double price,
+    double costPrice = 0,
     String? description,
     required List<Map<String, String>> media,
   }) async {
@@ -101,6 +109,7 @@ class PretAPorterRepository {
       'name': name,
       'fabric_type': fabricType,
       'price': price.toInt(),
+      'cost_price': costPrice.toInt(),
       'description': description,
       'media': media,
     });
@@ -112,6 +121,7 @@ class PretAPorterRepository {
     required String name,
     required String fabricType,
     required double price,
+    double costPrice = 0,
     String? description,
     required List<Map<String, String>> media,
   }) async {
@@ -119,6 +129,7 @@ class PretAPorterRepository {
       'name': name,
       'fabric_type': fabricType,
       'price': price.toInt(),
+      'cost_price': costPrice.toInt(),
       'description': description,
       'media': media,
     });
