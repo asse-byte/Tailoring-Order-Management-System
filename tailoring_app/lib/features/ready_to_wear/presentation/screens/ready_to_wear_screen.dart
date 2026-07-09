@@ -131,7 +131,9 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
         builder: (context, setDlgState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(existing == null ? 'Nouveau Modèle' : 'Modifier Modèle'),
-          content: SingleChildScrollView(
+          content: SizedBox(
+            width: 400,
+            child: SingleChildScrollView(
             child: Form(
               key: formKey,
               child: Column(
@@ -317,6 +319,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                     ),
                 ],
               ),
+            ),
             ),
           ),
           actions: [

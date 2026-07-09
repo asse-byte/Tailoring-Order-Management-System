@@ -303,9 +303,9 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                   try {
                     await _repo.updatePay(
                       member.staffId,
-                      pieceRate: member.type == 'couturier' ? pieceRate : 0,
-                      monthlySalary: member.type == 'autre' ? monthlySalary : 0,
-                      salaryDueDay: member.type == 'autre' ? salaryDueDay : 0,
+                      pieceRate: member.type == 'couturier' ? pieceRate : null,
+                      monthlySalary: member.type == 'autre' ? monthlySalary : null,
+                      salaryDueDay: member.type == 'autre' ? salaryDueDay : null,
                     );
                     if (!ctx.mounted) return;
                     Navigator.pop(ctx);

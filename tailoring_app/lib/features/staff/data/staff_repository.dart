@@ -175,10 +175,13 @@ class StaffRepository {
 
   Future<void> updatePay(
     String staffId, {
-    required int pieceRate,
-    required int monthlySalary,
-    required int salaryDueDay,
+    int? pieceRate,
+    int? monthlySalary,
+    int? salaryDueDay,
   }) async {
+    // Send null for fields that don't apply to the staff type. In particular
+    // salary_due_day has a DB CHECK (BETWEEN 1 AND 31): 0 is rejected, null
+    // is allowed, so couturiers (no monthly salary) must send null here.
     await _api.put('/api/staff-pay/$staffId', body: {
       'piece_rate': pieceRate,
       'monthly_salary': monthlySalary,
