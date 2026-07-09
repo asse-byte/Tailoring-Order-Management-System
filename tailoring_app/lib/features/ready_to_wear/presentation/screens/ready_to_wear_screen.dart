@@ -254,7 +254,12 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      ElevatedButton.icon(
+                      // The global theme makes ElevatedButtons full-width
+                      // (minimumSize: Size.fromHeight → infinite width), which
+                      // crashes inside a Row. Expanded gives each a bounded
+                      // width so they share the row instead.
+                      Expanded(
+                      child: ElevatedButton.icon(
                         onPressed: uploading
                             ? null
                             : () async {
@@ -282,7 +287,10 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                         icon: const Icon(Icons.image_rounded, size: 16),
                         label: const Text('Image'),
                       ),
-                      ElevatedButton.icon(
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                      child: ElevatedButton.icon(
                         onPressed: uploading
                             ? null
                             : () async {
@@ -309,6 +317,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                               },
                         icon: const Icon(Icons.videocam_rounded, size: 16),
                         label: const Text('Vidéo'),
+                      ),
                       ),
                     ],
                   ),
