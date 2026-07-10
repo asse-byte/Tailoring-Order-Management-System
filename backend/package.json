@@ -9,6 +9,7 @@
     "dev": "node scripts/dev.js",
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
+    "reset-password": "node scripts/reset-password.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand"
   },
   "dependencies": {
