@@ -82,10 +82,10 @@ class DashboardScreen extends StatelessWidget {
     final logoUrl = shopSettings.logoUrl;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: false,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        foregroundColor: AppColors.textPrimary,
         title: Row(
           children: [
             Container(
@@ -105,10 +105,15 @@ class DashboardScreen extends StatelessWidget {
                     : Image.asset('assets/logo.jpeg', fit: BoxFit.cover),
               ),
             ),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 shopName,
-                style: const TextStyle(fontWeight: FontWeight.w900),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  color: AppColors.textPrimary,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
