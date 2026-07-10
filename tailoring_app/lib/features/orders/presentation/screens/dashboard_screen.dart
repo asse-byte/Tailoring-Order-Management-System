@@ -148,11 +148,11 @@ class DashboardScreen extends StatelessWidget {
               // Responsive: keep tiles ~compact (~170px) on any screen, and
               // cap content width on large desktops so it never stretches ugly.
               final double maxW = constraints.maxWidth;
-              final int columns = maxW >= 1100
+              final int columns = maxW >= 1000
                   ? 5
-                  : maxW >= 850
+                  : maxW >= 760
                       ? 4
-                      : maxW >= 600
+                      : maxW >= 520
                           ? 3
                           : 2;
               return Center(
@@ -191,9 +191,9 @@ class DashboardScreen extends StatelessWidget {
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: columns,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: 1.05,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                            childAspectRatio: 1.2,
                           ),
                           itemCount: allItems.length,
                           itemBuilder: (context, index) {
@@ -235,50 +235,49 @@ class _DashboardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 0,
-      shadowColor: item.color.withValues(alpha: 0.18),
+      elevation: 3,
+      shadowColor: item.color.withValues(alpha: 0.35),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: item.color.withValues(alpha: 0.18)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => context.push(item.route),
-        splashColor: item.color.withValues(alpha: 0.1),
-        highlightColor: item.color.withValues(alpha: 0.04),
+        splashColor: Colors.white.withValues(alpha: 0.15),
+        highlightColor: Colors.white.withValues(alpha: 0.06),
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                item.color.withValues(alpha: 0.10),
-                item.color.withValues(alpha: 0.02),
+                item.color,
+                Color.lerp(item.color, Colors.black, 0.22)!,
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(9),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: item.color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(11),
                 ),
-                child: Icon(item.icon, color: item.color, size: 22),
+                child: Icon(item.icon, color: Colors.white, size: 20),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 item.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF14181E),
+                  color: Colors.white,
                   height: 1.15,
                 ),
               ),
