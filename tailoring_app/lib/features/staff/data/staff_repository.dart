@@ -200,11 +200,15 @@ class StaffRepository {
     required String tailorId,
     required String entryDate,
     required int piecesCount,
+    int? pieceRate,
   }) async {
+    // pieceRate is optional: when null the server falls back to the tailor's
+    // configured rate, then the shop default.
     final dynamic res = await _api.post('/api/tailor-entries', body: {
       'tailor_id': tailorId,
       'entry_date': entryDate,
       'pieces_count': piecesCount,
+      if (pieceRate != null) 'piece_rate': pieceRate,
     });
     return TailorEntry.fromJson(res as Map<String, dynamic>);
   }

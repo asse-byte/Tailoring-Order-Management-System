@@ -12,17 +12,26 @@ router.post('/', asyncH(async (req, res) => {
   const piecesCount = intOrNull(req.body.pieces_count);
   const entryDate = dateStr(req.body.entry_date);
   const tailorId = req.body.tailor_id;
+  // Optional per-entry rate: a tailor may sew different garment types at
+  // different prices, so the manager can type the rate for THIS entry.
+  const bodyRate = intOrNull(req.body.piece_rate);
+  if (bodyRate === undefined) {
+    return res.status(400).json({ error: 'piece_rate invalide (entier ≥ 0).' });
+  }
   if (!tailorId || piecesCount == null || !entryDate) {
     return res.status(400).json({ error: 'tailor_id, entry_date et pieces_count requis.' });
   }
-  // Rate priority: per-tailor rate → shop default. Snapshotted on the row so
-  // later rate changes never rewrite past wages.
-  const { rows: rateRows } = await db.query(
-    `SELECT COALESCE(
-       (SELECT piece_rate FROM staff_pay WHERE staff_id = $1),
-       (SELECT (value #>> '{}')::int FROM settings WHERE key = 'default_piece_rate')
-     ) AS rate`, [tailorId]);
-  const rate = rateRows[0].rate;
+  // Rate priority: explicit per-entry rate → per-tailor rate → shop default.
+  // Snapshotted on the row so later rate changes never rewrite past wages.
+  let rate = bodyRate;
+  if (rate == null) {
+    const { rows: rateRows } = await db.query(
+      `SELECT COALESCE(
+         (SELECT piece_rate FROM staff_pay WHERE staff_id = $1),
+         (SELECT (value #>> '{}')::int FROM settings WHERE key = 'default_piece_rate')
+       ) AS rate`, [tailorId]);
+    rate = rateRows[0].rate;
+  }
   if (rate == null || rate <= 0) {
     return res.status(400).json({
       error: 'Aucun prix par pièce défini pour ce couturier (ni de valeur par défaut).',

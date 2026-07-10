@@ -339,7 +339,14 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
 
     String tailorId = activeTailors.first.staffId;
     int pieces = 1;
+    int? rate;
     DateTime date = DateTime.now();
+    // Pre-fill the rate with the selected tailor's configured piece rate; the
+    // manager can override it per entry (a tailor may sew different garments
+    // at different prices).
+    final rateController = TextEditingController(
+      text: (activeTailors.first.pieceRate ?? '').toString(),
+    );
 
     await showDialog(
       context: context,
@@ -358,7 +365,12 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                   items: activeTailors
                       .map((t) => DropdownMenuItem(value: t.staffId, child: Text(t.fullName)))
                       .toList(),
-                  onChanged: (v) => tailorId = v ?? tailorId,
+                  onChanged: (v) {
+                    tailorId = v ?? tailorId;
+                    // Refresh the rate field to the newly selected tailor's rate.
+                    final sel = activeTailors.firstWhere((t) => t.staffId == tailorId);
+                    setDlgState(() => rateController.text = (sel.pieceRate ?? '').toString());
+                  },
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -371,6 +383,21 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                     return null;
                   },
                   onSaved: (v) => pieces = int.tryParse(v ?? '') ?? 1,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: rateController,
+                  decoration: const InputDecoration(
+                    labelText: 'Prix par pièce (FCFA)',
+                    helperText: 'Modifiable selon le type de vêtement',
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (v) {
+                    final val = int.tryParse(v ?? '');
+                    if (val == null || val < 1) return 'Prix invalide';
+                    return null;
+                  },
+                  onSaved: (v) => rate = int.tryParse(v ?? ''),
                 ),
                 const SizedBox(height: 12),
                 ListTile(
@@ -404,6 +431,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                       tailorId: tailorId,
                       entryDate: dateStr,
                       piecesCount: pieces,
+                      pieceRate: rate,
                     );
                     if (!ctx.mounted) return;
                     Navigator.pop(ctx);
