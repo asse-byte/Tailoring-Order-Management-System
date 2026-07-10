@@ -38,7 +38,16 @@ class PrimaryButton extends StatelessWidget {
                 Icon(icon, size: 18),
                 const SizedBox(width: 8),
               ],
-              Text(label),
+              // Flexible so a narrow viewport shrinks the label instead of
+              // overflowing the row (yellow/black stripes).
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ],
           );
 
