@@ -22,6 +22,35 @@ npm run seed      # creates the two accounts from SEED_* env vars (once)
 npm start
 ```
 
+## Account recovery (locked-out manager)
+
+There is **no self-service password reset** in the app, by design: the only
+way to reset a password is to have access to the server. If the manager
+forgets their password, username, or both, use the recovery script. It reads
+`DATABASE_URL` if set, otherwise the local dev database — so keep the DB
+running (`npm run dev`, or the API up) in another terminal.
+
+```bash
+# List every account — recover a forgotten USERNAME
+npm run reset-password -- --list
+
+# Set a new password (min 8 chars) for a username
+npm run reset-password -- gerant NouveauPass#2026
+
+# Also rename the account while resetting
+npm run reset-password -- gerant NouveauPass#2026 --rename patron
+```
+
+> The `--` after `npm run reset-password` is required so npm forwards the
+> arguments to the script.
+
+On the production droplet, run it inside the API container:
+
+```bash
+docker compose exec api npm run reset-password -- --list
+docker compose exec api npm run reset-password -- gerant NouveauPass#2026
+```
+
 ## Deployment (DigitalOcean VPS, Docker Compose — same pattern as EduGete)
 
 ```bash
