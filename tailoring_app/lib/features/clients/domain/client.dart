@@ -31,15 +31,15 @@ class ClientOrderSummary {
     required this.id,
     required this.garmentType,
     required this.status,
-    required this.price,
+    required this.total,
     this.createdAt,
     this.expectedDate,
   });
 
   final String id;
   final String garmentType;
-  final String status; // en_cours | pret | livre
-  final int price;
+  final String status; // en_attente | en_cours | termine | livre
+  final int total;
   final DateTime? createdAt;
   final DateTime? expectedDate;
 
@@ -47,8 +47,10 @@ class ClientOrderSummary {
       ClientOrderSummary(
         id: json['id'] as String,
         garmentType: (json['garment_type'] as String?) ?? '',
-        status: (json['status'] as String?) ?? 'en_cours',
-        price: (json['price'] as num?)?.toInt() ?? 0,
+        status: (json['status'] as String?) ?? 'en_attente',
+        // New orders carry a derived `total`; fall back to legacy `price`.
+        total: (json['total'] as num?)?.toInt() ??
+            (json['price'] as num?)?.toInt() ?? 0,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'] as String)
             : null,

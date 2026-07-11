@@ -12,6 +12,13 @@ class StatusBadge extends StatelessWidget {
 
   ({Color bg, Color fg, String label, IconData icon}) _styleFor(String s) {
     switch (s) {
+      case AppConstants.statusEnAttente:
+        return (
+          bg: AppColors.textMuted.withValues(alpha: 0.14),
+          fg: AppColors.textSecondary,
+          label: 'En attente',
+          icon: Icons.schedule_outlined,
+        );
       case AppConstants.statusEnCours:
         return (
           bg: AppColors.statusInProgress.withValues(alpha: 0.14),
@@ -19,11 +26,11 @@ class StatusBadge extends StatelessWidget {
           label: 'En cours',
           icon: Icons.handyman_outlined,
         );
-      case AppConstants.statusPret:
+      case AppConstants.statusTermine:
         return (
           bg: AppColors.statusPending.withValues(alpha: 0.14),
           fg: AppColors.statusPending,
-          label: 'Prêt',
+          label: 'Terminé',
           icon: Icons.check_circle_outline,
         );
       case AppConstants.statusLivre:

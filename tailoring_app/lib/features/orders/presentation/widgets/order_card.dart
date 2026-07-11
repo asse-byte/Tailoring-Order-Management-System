@@ -55,8 +55,12 @@ class OrderCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text(order.garmentType,
-                            style: theme.textTheme.titleMedium),
+                        Text(
+                          order.activeItems.length > 1
+                              ? '${order.garmentType} +${order.activeItems.length - 1}'
+                              : order.garmentType,
+                          style: theme.textTheme.titleMedium,
+                        ),
                         const SizedBox(height: 2),
                         Text(order.clientName,
                             style: theme.textTheme.bodySmall),
@@ -91,7 +95,7 @@ class OrderCard extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    formatFcfa(order.price),
+                    formatFcfa(order.total),
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: AppColors.primary,
                     ),

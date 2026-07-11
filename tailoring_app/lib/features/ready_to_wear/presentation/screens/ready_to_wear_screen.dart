@@ -442,7 +442,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    '${m.price.toInt()} F',
+                    formatFcfa(m.price.toInt()),
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primary),
                   ),
                 ],
@@ -558,7 +558,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                                             borderRadius: BorderRadius.circular(10),
                                           ),
                                           child: Text(
-                                            '${m.price.toInt()} F',
+                                            formatFcfa(m.price.toInt()),
                                             style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                                           ),
                                         ),

@@ -25,8 +25,9 @@ class _AdminOrdersListScreenState extends State<AdminOrdersListScreen> {
   static const List<({String? value, String label})> _statusFilters =
       <({String? value, String label})>[
     (value: null, label: 'Tous actifs'),
+    (value: AppConstants.statusEnAttente, label: 'En attente'),
     (value: AppConstants.statusEnCours, label: 'En cours'),
-    (value: AppConstants.statusPret, label: 'Prêt'),
+    (value: AppConstants.statusTermine, label: 'Terminé'),
   ];
 
   @override

@@ -71,6 +71,16 @@ Large batch of owner-requested changes, executed one tested commit per item
   `formatFcfa`, `parseThousands`) and `core/widgets/formatted_number_field.dart`
   (`FormattedNumberField` + `ThousandsSeparatorInputFormatter`, live grouping).
   Commas are display-only; always `parseThousands` before sending to the API.
+- **Item 2 — DONE.** Commandes redesigned: an order has multiple line
+  items (`order_items`, append-only) each with its own qty/unit_price; the
+  order total is derived from `order_items_effective` (voided lines = 0).
+  Edits to a line go through `order_item_corrections` (mandatory reason) —
+  never in place. Orders link to a tailor (`orders.tailor_id`) and use the
+  4-state enum `en_attente → en_cours → termine → livre` (old 'pret' →
+  'termine'). Several orders per client per day are allowed. Flutter:
+  `OrderItemLine`, dynamic line-item create screen, per-line correction UI
+  in the detail screen. Finance order revenue and the client order-history
+  endpoint read the derived total. Migration 006.
 - **Item 5 — DONE (calculation bug fixed).** `GET /api/finance/summary`
   computed COGS with the wrong `kind` literals (`'product'`/`'model'`) while
   sales store `'produit'`/`'pret_a_porter'`, so **cost of goods sold was

@@ -536,7 +536,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.end,
                                       children: [
                                         Text(
-                                          '${p.price.toInt()} F',
+                                          formatFcfa(p.price.toInt()),
                                           style: const TextStyle(
                                             color: AppColors.primary,
                                             fontWeight: FontWeight.bold,

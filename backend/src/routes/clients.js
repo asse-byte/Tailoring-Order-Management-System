@@ -90,9 +90,13 @@ router.delete('/:id/measurements/:garmentType', asyncH(async (req, res) => {
 
 router.get('/:id/orders', asyncH(async (req, res) => {
   const { limit, offset } = pagination(req);
+  // Total is derived from the (append-only) effective line items.
   const { rows } = await db.query(
-    `SELECT * FROM orders WHERE client_id = $1
-     ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+    `SELECT o.*,
+       COALESCE((SELECT SUM(line_total)::int FROM order_items_effective
+                 WHERE order_id = o.id), 0) AS total
+     FROM orders o WHERE o.client_id = $1
+     ORDER BY o.created_at DESC LIMIT $2 OFFSET $3`,
     [req.params.id, limit, offset]);
   res.json({ items: rows, limit, offset });
 }));

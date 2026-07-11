@@ -1,22 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/garment_types.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_formatter.dart';
-import '../../../../core/utils/validators.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../clients/data/clients_repository.dart';
 import '../../../clients/domain/client.dart';
+import '../../../staff/data/staff_repository.dart';
 import '../../data/orders_repository.dart';
 
-/// Nouvelle commande : pour un client existant ou un nouveau client
-/// (créé d'abord dans /clients, puis la commande est liée à sa fiche).
-/// Les mesures de référence sont figées automatiquement par le serveur
-/// depuis la fiche du client.
+/// One editable order line (garment type + quantity + unit price).
+class _LineDraft {
+  _LineDraft({String? garment})
+      : garment = garment ?? GarmentTypes.all.first,
+        qty = TextEditingController(text: '1'),
+        price = TextEditingController();
+  String garment;
+  final TextEditingController qty;
+  final TextEditingController price;
+
+  int get quantity => int.tryParse(qty.text.trim()) ?? 0;
+  int get unitPrice => parseThousands(price.text) ?? 0;
+  int get lineTotal => quantity * unitPrice;
+
+  void dispose() {
+    qty.dispose();
+    price.dispose();
+  }
+}
+
+/// Nouvelle commande : plusieurs articles (types de vêtement) dans une seule
+/// commande, chacun avec sa quantité et son prix, liée à un couturier.
 class WalkInOrderScreen extends StatefulWidget {
   const WalkInOrderScreen({super.key});
 
@@ -32,32 +52,51 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
   final TextEditingController _newName = TextEditingController();
   final TextEditingController _newPhone = TextEditingController();
 
-  String _garment = GarmentTypes.all.first;
+  final List<_LineDraft> _lines = <_LineDraft>[_LineDraft()];
   final TextEditingController _fabric = TextEditingController();
-  final TextEditingController _price = TextEditingController();
   final TextEditingController _advance = TextEditingController(text: '0');
   final TextEditingController _notes = TextEditingController();
   DateTime? _expected;
+  String _status = AppConstants.statusEnAttente;
+
+  List<StaffContact> _tailors = <StaffContact>[];
+  String? _tailorId;
 
   bool _submitting = false;
 
   final OrdersRepository _ordersRepo = OrdersRepository();
   final ClientsRepository _clientsRepo = ClientsRepository();
+  final StaffRepository _staffRepo = StaffRepository();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTailors();
+  }
+
+  Future<void> _loadTailors() async {
+    try {
+      final all = await _staffRepo.listContacts();
+      if (!mounted) return;
+      setState(() => _tailors =
+          all.where((s) => s.type == 'couturier' && s.active).toList());
+    } catch (_) {/* tailor optional — ignore load errors */}
+  }
 
   @override
   void dispose() {
     for (final c in <TextEditingController>[
-      _newName,
-      _newPhone,
-      _fabric,
-      _price,
-      _advance,
-      _notes,
+      _newName, _newPhone, _fabric, _advance, _notes,
     ]) {
       c.dispose();
     }
+    for (final l in _lines) {
+      l.dispose();
+    }
     super.dispose();
   }
+
+  int get _total => _lines.fold(0, (sum, l) => sum + l.lineTotal);
 
   void _toast(String msg, {bool error = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -90,9 +129,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
       ),
       builder: (_) => _ClientPickerSheet(clients: clients),
     );
-    if (chosen != null) {
-      setState(() => _selectedClient = chosen);
-    }
+    if (chosen != null) setState(() => _selectedClient = chosen);
   }
 
   Future<void> _submit() async {
@@ -101,11 +138,19 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
       _toast('Veuillez sélectionner un client.', error: true);
       return;
     }
+    // Build & validate the line items.
+    final List<NewOrderItem> items = <NewOrderItem>[];
+    for (final l in _lines) {
+      if (l.quantity < 1 || l.unitPrice < 0 || l.price.text.trim().isEmpty) {
+        _toast('Chaque article doit avoir une quantité et un prix.', error: true);
+        return;
+      }
+      items.add(NewOrderItem(
+        garmentType: l.garment, quantity: l.quantity, unitPrice: l.unitPrice));
+    }
 
     setState(() => _submitting = true);
     try {
-      // Un nouveau client devient d'abord une fiche client (module Clients),
-      // puis la commande est liée à cette fiche.
       final String clientId = _useExisting
           ? _selectedClient!.id
           : (await _clientsRepo.create(
@@ -116,9 +161,10 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
 
       await _ordersRepo.create(
         clientId: clientId,
-        garmentType: _garment,
+        items: items,
+        tailorId: _tailorId,
+        status: _status,
         fabric: _fabric.text.trim(),
-        price: parseThousands(_price.text) ?? 0,
         advance: parseThousands(_advance.text) ?? 0,
         expectedDate: _expected,
         notes: _notes.text.trim(),
@@ -213,16 +259,63 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                   ),
                 ],
                 const SizedBox(height: 24),
-                Text('Type de vêtement',
+
+                // ---- Line items ---------------------------------------------
+                Row(
+                  children: <Widget>[
+                    Text('Articles',
+                        style: Theme.of(context).textTheme.labelLarge),
+                    const Spacer(),
+                    Text(
+                      'Total: ${formatFcfa(_total)}',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ...List<Widget>.generate(_lines.length, _buildLineEditor),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => setState(() => _lines.add(_LineDraft())),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Ajouter un type'),
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+                Text('Couturier (responsable)',
                     style: Theme.of(context).textTheme.labelLarge),
                 const SizedBox(height: 8),
+                DropdownButtonFormField<String?>(
+                  initialValue: _tailorId,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.badge_outlined, size: 20),
+                  ),
+                  hint: const Text('Aucun / à assigner'),
+                  items: <DropdownMenuItem<String?>>[
+                    const DropdownMenuItem<String?>(
+                        value: null, child: Text('Aucun / à assigner')),
+                    ..._tailors.map((t) => DropdownMenuItem<String?>(
+                        value: t.id, child: Text(t.fullName))),
+                  ],
+                  onChanged: (v) => setState(() => _tailorId = v),
+                ),
+                const SizedBox(height: 16),
+                Text('Statut', style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  initialValue: _garment,
-                  items: GarmentTypes.all
-                      .map((g) =>
-                          DropdownMenuItem<String>(value: g, child: Text(g)))
+                  initialValue: _status,
+                  items: AppConstants.orderStatuses
+                      .map((s) => DropdownMenuItem<String>(
+                          value: s, child: Text(AppConstants.statusLabel(s))))
                       .toList(growable: false),
-                  onChanged: (v) => setState(() => _garment = v ?? _garment),
+                  onChanged: (v) =>
+                      setState(() => _status = v ?? AppConstants.statusEnAttente),
                 ),
                 const SizedBox(height: 16),
                 AppTextField(
@@ -233,26 +326,11 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                   minLines: 1,
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: FormattedNumberField(
-                        controller: _price,
-                        label: 'Prix (FCFA)',
-                        validator: (v) =>
-                            (v == null || v < 0) ? 'Montant invalide' : null,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FormattedNumberField(
-                        controller: _advance,
-                        label: 'Avance (FCFA)',
-                        validator: (v) =>
-                            (v == null || v < 0) ? 'Montant invalide' : null,
-                      ),
-                    ),
-                  ],
+                FormattedNumberField(
+                  controller: _advance,
+                  label: 'Avance (FCFA)',
+                  validator: (v) =>
+                      (v == null || v < 0) ? 'Montant invalide' : null,
                 ),
                 const SizedBox(height: 16),
                 Text('Date de livraison prévue',
@@ -301,6 +379,85 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLineEditor(int index) {
+    final _LineDraft line = _lines[index];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: line.garment,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Type'),
+                  items: GarmentTypes.all
+                      .map((g) =>
+                          DropdownMenuItem<String>(value: g, child: Text(g)))
+                      .toList(growable: false),
+                  onChanged: (v) =>
+                      setState(() => line.garment = v ?? line.garment),
+                ),
+              ),
+              if (_lines.length > 1)
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: AppColors.error),
+                  onPressed: () => setState(() {
+                    _lines.removeAt(index).dispose();
+                  }),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: <Widget>[
+              SizedBox(
+                width: 84,
+                child: TextFormField(
+                  controller: line.qty,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Qté'),
+                  onChanged: (_) => setState(() {}),
+                  validator: (v) {
+                    final n = int.tryParse(v ?? '');
+                    return (n == null || n < 1) ? '≥1' : null;
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FormattedNumberField(
+                  controller: line.price,
+                  label: 'Prix unitaire',
+                  onChanged: (_) => setState(() {}),
+                  validator: (v) => (v == null || v < 0) ? 'Prix' : null,
+                ),
+              ),
+            ],
+          ),
+          if (line.lineTotal > 0)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Sous-total: ${formatFcfa(line.lineTotal)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/garment_types.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../data/clients_repository.dart';
 import '../../domain/client.dart';
@@ -107,23 +109,16 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     if (type != null) _openMeasurements(type);
   }
 
-  String _statusLabel(String status) {
-    switch (status) {
-      case 'pret':
-        return 'Prêt';
-      case 'livre':
-        return 'Livré';
-      default:
-        return 'En cours';
-    }
-  }
+  String _statusLabel(String status) => AppConstants.statusLabel(status);
 
   Color _statusColor(String status) {
     switch (status) {
-      case 'pret':
+      case AppConstants.statusTermine:
         return Colors.orange;
-      case 'livre':
+      case AppConstants.statusLivre:
         return Colors.green;
+      case AppConstants.statusEnAttente:
+        return AppColors.textSecondary;
       default:
         return AppColors.primary;
     }
@@ -274,7 +269,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: <Widget>[
                         Text(
-                          '${order.price} F',
+                          formatFcfa(order.total),
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         Text(
