@@ -61,6 +61,26 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
 - If no logo is uploaded, a beautiful visual placeholder (an "R" with gradient) is displayed on the login screen. The manager can upload a new logo dynamically from the settings screen.
 - Image compression and thumbnail generation are done automatically by the `/api/upload` endpoint.
 
+## Client change-batch (started 2026-07-10)
+
+Large batch of owner-requested changes, executed one tested commit per item
+(see the numbered plan). Progress:
+
+- **Item 1 — DONE.** All money / large-number fields use comma thousands
+  separators. Shared: `core/utils/money.dart` (`formatThousands`,
+  `formatFcfa`, `parseThousands`) and `core/widgets/formatted_number_field.dart`
+  (`FormattedNumberField` + `ThousandsSeparatorInputFormatter`, live grouping).
+  Commas are display-only; always `parseThousands` before sending to the API.
+- **Item 5 — DONE (calculation bug fixed).** `GET /api/finance/summary`
+  computed COGS with the wrong `kind` literals (`'product'`/`'model'`) while
+  sales store `'produit'`/`'pret_a_porter'`, so **cost of goods sold was
+  always 0**. Effect: since COGS was introduced (commit d77178d, 2026-07-09)
+  net profit was OVERSTATED and total costs UNDERSTATED by the full purchase
+  cost of everything sold. Any net-profit figure the owner saw before this fix
+  did not subtract product/model purchase costs — historical judgement calls
+  based on those numbers should be revisited. Proven by
+  `backend/tests/finance_calculations.test.js`.
+
 ## Architecture decisions (FINAL — closed 2026-07-05, do not reopen)
 
 - **Backend: Node.js + Express + PostgreSQL** in `backend/`. JWT auth

@@ -29,17 +29,19 @@ router.get('/summary', asyncH(async (req, res) => {
        WHERE status = 'livre' AND delivered_date BETWEEN $1::date AND $2::date`,
       [from, to]),
     // Cost of goods sold: sum of (qty × cost_price) for products sold.
+    // NB: sales.kind is 'produit' / 'pret_a_porter' (see 001_init.sql), NOT
+    // 'product' / 'model' — a wrong literal here silently zeroed all COGS.
     db.query(
       `SELECT COALESCE(SUM(se.qty * p.cost_price), 0)::bigint AS v
        FROM sales_effective se JOIN products p ON se.item_id = p.id
-       WHERE se.kind = 'product' AND NOT se.voided
+       WHERE se.kind = 'produit' AND NOT se.voided
          AND se.sold_at >= $1::date AND se.sold_at < $2::date + 1`,
       [from, to]),
     // Cost of ready-to-wear models sold.
     db.query(
       `SELECT COALESCE(SUM(se.qty * m.cost_price), 0)::bigint AS v
        FROM sales_effective se JOIN pret_a_porter_models m ON se.item_id = m.id
-       WHERE se.kind = 'model' AND NOT se.voided
+       WHERE se.kind = 'pret_a_porter' AND NOT se.voided
          AND se.sold_at >= $1::date AND se.sold_at < $2::date + 1`,
       [from, to]),
     db.query(
