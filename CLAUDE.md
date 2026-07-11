@@ -88,6 +88,11 @@ Large batch of owner-requested changes, executed one tested commit per item
   duplicate row, orders stay the source of truth. Sorted nearest-first;
   Flutter shows a red warning style + countdown badge for anything ≤ 3 days
   away, and order entries deep-link to the order detail.
+- **Item 4 — DONE.** Garment types (`core/constants/garment_types.dart`):
+  `Boubou` → `Grand Boubou`, `Pantalon` removed, `Création` added. These
+  types live only as a Flutter constant (no DB seed), so no migration was
+  needed. The legacy English `garmentName()` word-map is unused by the
+  active French dropdowns and left as-is.
 - **Item 5 — DONE (calculation bug fixed).** `GET /api/finance/summary`
   computed COGS with the wrong `kind` literals (`'product'`/`'model'`) while
   sales store `'produit'`/`'pret_a_porter'`, so **cost of goods sold was

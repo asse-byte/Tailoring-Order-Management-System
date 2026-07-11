@@ -6,10 +6,10 @@ class GarmentTypes {
   GarmentTypes._();
 
   static const List<String> all = <String>[
-    'Boubou',
+    'Grand Boubou',
     'Complet',
     'Chemise',
-    'Pantalon',
+    'Création',
     'Robe',
     'Jupe',
     'Veste',
@@ -18,7 +18,7 @@ class GarmentTypes {
 
   static const Map<String, List<String>> defaultFields =
       <String, List<String>>{
-    'Boubou': <String>[
+    'Grand Boubou': <String>[
       'Épaule', 'Poitrine', 'Longueur totale', 'Longueur manche',
       'Tour de cou', 'Poignet',
     ],
@@ -30,9 +30,7 @@ class GarmentTypes {
       'Épaule', 'Poitrine', 'Taille', 'Longueur', 'Longueur manche',
       'Tour de cou', 'Poignet',
     ],
-    'Pantalon': <String>[
-      'Ceinture', 'Bassin', 'Cuisse', 'Genou', 'Bas', 'Longueur',
-    ],
+    'Création': <String>[],
     'Robe': <String>[
       'Épaule', 'Poitrine', 'Taille', 'Bassin', 'Longueur', 'Longueur manche',
     ],
