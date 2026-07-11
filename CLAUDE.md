@@ -81,6 +81,13 @@ Large batch of owner-requested changes, executed one tested commit per item
   `OrderItemLine`, dynamic line-item create screen, per-line correction UI
   in the detail screen. Finance order revenue and the client order-history
   endpoint read the derived total. Migration 006.
+- **Item 3 — DONE.** The Rendez-vous agenda (`GET /api/appointments`) is a
+  merged view: manual appointments UNION every active order's expected
+  delivery date (source 'order', read-only, reason 'livraison'). Creating an
+  order therefore puts its delivery on the calendar automatically — no
+  duplicate row, orders stay the source of truth. Sorted nearest-first;
+  Flutter shows a red warning style + countdown badge for anything ≤ 3 days
+  away, and order entries deep-link to the order detail.
 - **Item 5 — DONE (calculation bug fixed).** `GET /api/finance/summary`
   computed COGS with the wrong `kind` literals (`'product'`/`'model'`) while
   sales store `'produit'`/`'pret_a_porter'`, so **cost of goods sold was

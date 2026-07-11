@@ -5,15 +5,32 @@ const { asyncH, pagination, str } = require('../util');
 const router = express.Router();
 const REASONS = ['mesure', 'essayage', 'livraison', 'autre'];
 
+// The agenda merges two sources so a delivery never has to be entered twice:
+//   - manual appointments (source 'manual', editable),
+//   - every active order's expected delivery date (source 'order', derived,
+//     read-only) — so creating an order automatically puts its delivery on
+//     the calendar. Orders are the source of truth; nothing is duplicated.
+// Sorted nearest-first.
 router.get('/', asyncH(async (req, res) => {
-  const { limit, offset } = pagination(req, 50, 200);
+  const { limit, offset } = pagination(req, 100, 300);
   const { from, to } = req.query;
   const { rows } = await db.query(
-    `SELECT a.*, c.full_name AS client_name, c.phone AS client_phone
-     FROM appointments a JOIN clients c ON c.id = a.client_id
-     WHERE ($1::timestamptz IS NULL OR a.scheduled_at >= $1)
-       AND ($2::timestamptz IS NULL OR a.scheduled_at < $2)
-     ORDER BY a.scheduled_at LIMIT $3 OFFSET $4`,
+    `SELECT * FROM (
+       SELECT a.id, 'manual'::text AS source, a.client_id,
+              c.full_name AS client_name, c.phone AS client_phone,
+              a.scheduled_at, a.reason, a.notes, NULL::uuid AS order_id
+       FROM appointments a JOIN clients c ON c.id = a.client_id
+       UNION ALL
+       SELECT o.id, 'order'::text AS source, o.client_id,
+              c.full_name AS client_name, c.phone AS client_phone,
+              o.expected_date::timestamptz AS scheduled_at,
+              'livraison'::text AS reason, o.notes, o.id AS order_id
+       FROM orders o JOIN clients c ON c.id = o.client_id
+       WHERE o.expected_date IS NOT NULL AND o.status <> 'livre'
+     ) agenda
+     WHERE ($1::timestamptz IS NULL OR scheduled_at >= $1)
+       AND ($2::timestamptz IS NULL OR scheduled_at < $2)
+     ORDER BY scheduled_at LIMIT $3 OFFSET $4`,
     [from || null, to || null, limit, offset]);
   res.json({ items: rows, limit, offset });
 }));

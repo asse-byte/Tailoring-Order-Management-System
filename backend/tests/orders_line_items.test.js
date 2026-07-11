@@ -108,3 +108,18 @@ test('delivered order revenue equals its items total; same-day orders allowed', 
   const after = await summary();
   expect(after.revenue.orders - before.revenue.orders).toBe(30000 + 12000);
 });
+
+test('an active order with an expected date appears on the agenda (source order)', async () => {
+  const order = (await asM(request(app).post('/api/orders')).send({
+    client_id: clientId,
+    expected_date: '2026-09-15',
+    items: [{ garment_type: 'Grand Boubou', quantity: 1, unit_price: 18000 }],
+  })).body;
+
+  const agenda = await asM(request(app).get('/api/appointments'));
+  expect(agenda.status).toBe(200);
+  const entry = agenda.body.items.find((i) => i.order_id === order.id);
+  expect(entry).toBeDefined();
+  expect(entry.source).toBe('order');
+  expect(entry.reason).toBe('livraison');
+});

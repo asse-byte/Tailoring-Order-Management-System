@@ -8,6 +8,11 @@ class Appointment {
   final String scheduledAt; // ISO timestamp
   final String reason;
 
+  /// 'manual' (a real appointment row) or 'order' (an order's delivery date,
+  /// surfaced automatically and read-only).
+  final String source;
+  final String? orderId;
+
   const Appointment({
     required this.id,
     required this.clientId,
@@ -15,7 +20,29 @@ class Appointment {
     required this.clientPhone,
     required this.scheduledAt,
     required this.reason,
+    this.source = 'manual',
+    this.orderId,
   });
+
+  bool get isFromOrder => source == 'order';
+
+  DateTime? get scheduledDate => DateTime.tryParse(scheduledAt);
+
+  /// Days from today (date-only) to the appointment; negative = past.
+  int? get daysUntil {
+    final d = scheduledDate;
+    if (d == null) return null;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(d.year, d.month, d.day);
+    return target.difference(today).inDays;
+  }
+
+  /// Upcoming and 3 days or less away — shown in a warning colour.
+  bool get isSoon {
+    final d = daysUntil;
+    return d != null && d >= 0 && d <= 3;
+  }
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
     return Appointment(
@@ -25,6 +52,8 @@ class Appointment {
       clientPhone: json['client_phone'] as String? ?? '',
       scheduledAt: json['scheduled_at'] as String,
       reason: json['reason'] as String? ?? '',
+      source: json['source'] as String? ?? 'manual',
+      orderId: json['order_id'] as String?,
     );
   }
 }
