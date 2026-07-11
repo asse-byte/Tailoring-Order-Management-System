@@ -53,8 +53,8 @@ beforeAll(async () => {
   expenseId = (await asManager(request(app).post('/api/expenses'))
     .send({ reason: 'Loyer', amount: 100000, spent_at: '2026-07-01' })).body.id;
   orderId = (await asManager(request(app).post('/api/orders'))
-    .send({ client_id: clientId, garment_type: 'boubou', fabric: 'bazin',
-      price: 30000, advance: 10000 })).body.id;
+    .send({ client_id: clientId, fabric: 'bazin', advance: 10000,
+      items: [{ garment_type: 'boubou', quantity: 1, unit_price: 30000 }] })).body.id;
 });
 
 afterAll(async () => {
@@ -198,7 +198,8 @@ describe('SECRETARY — allowed daily operations', () => {
 
   it('can create and update orders; invalid status rejected; delete denied', async () => {
     const created = await asSec(request(app).post('/api/orders'))
-      .send({ client_id: clientId, garment_type: 'chemise', price: 20000 });
+      .send({ client_id: clientId,
+        items: [{ garment_type: 'chemise', quantity: 1, unit_price: 20000 }] });
     expect(created.status).toBe(201);
     expect((await asSec(request(app).put(`/api/orders/${created.body.id}`))
       .send({ status: 'livre' })).status).toBe(200);
@@ -210,7 +211,8 @@ describe('SECRETARY — allowed daily operations', () => {
 
   it('Historique: delivered orders filter by client and by date', async () => {
     const created = await asSec(request(app).post('/api/orders'))
-      .send({ client_id: clientId, garment_type: 'veste', price: 25000 });
+      .send({ client_id: clientId,
+        items: [{ garment_type: 'veste', quantity: 1, unit_price: 25000 }] });
     await asSec(request(app).put(`/api/orders/${created.body.id}`))
       .send({ status: 'livre' });
 
