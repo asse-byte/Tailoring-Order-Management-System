@@ -6,6 +6,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/money.dart';
+import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/products_provider.dart';
 import '../../domain/product.dart';
@@ -125,6 +127,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
     double costPrice = product?.costPrice ?? 0.0;
     int quantity = product?.quantity ?? 0;
     int lowStockThreshold = product?.lowStockThreshold ?? 3;
+    final priceCtrl = TextEditingController(text: price > 0 ? formatThousands(price.toInt()) : '');
+    final costCtrl = TextEditingController(text: costPrice > 0 ? formatThousands(costPrice.toInt()) : '');
+    final qtyCtrl = TextEditingController(text: product != null ? formatThousands(quantity) : '');
+    final thresholdCtrl = TextEditingController(text: formatThousands(lowStockThreshold));
     File? selectedImage;
     bool uploadingImage = false;
     final String? currentImageUrl = product?.images.isNotEmpty == true ? product!.images.first.url : null;
@@ -163,28 +169,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     onChanged: (v) => setDlgState(() => category = v ?? 'parfum'),
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    initialValue: price > 0 ? price.toInt().toString() : '',
-                    decoration: const InputDecoration(labelText: 'Prix de vente (FCFA)'),
-                    keyboardType: TextInputType.number,
-                    validator: (v) => v == null || double.tryParse(v) == null ? 'Prix invalide' : null,
-                    onChanged: (v) => setDlgState(() => price = double.tryParse(v) ?? 0.0),
-                    onSaved: (v) => price = double.tryParse(v ?? '') ?? 0.0,
+                  FormattedNumberField(
+                    controller: priceCtrl,
+                    label: 'Prix de vente (FCFA)',
+                    validator: (v) => v == null ? 'Prix invalide' : null,
+                    onChanged: (v) => setDlgState(() => price = (v ?? 0).toDouble()),
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    initialValue: costPrice > 0 ? costPrice.toInt().toString() : '',
-                    decoration: const InputDecoration(labelText: 'Prix d\'achat (FCFA)'),
-                    keyboardType: TextInputType.number,
-                    validator: (v) => v == null || double.tryParse(v) == null ? 'Prix d\'achat invalide' : null,
-                    onChanged: (v) => setDlgState(() => costPrice = double.tryParse(v) ?? 0.0),
-                    onSaved: (v) => costPrice = double.tryParse(v ?? '') ?? 0.0,
+                  FormattedNumberField(
+                    controller: costCtrl,
+                    label: 'Prix d\'achat (FCFA)',
+                    validator: (v) => v == null ? 'Prix d\'achat invalide' : null,
+                    onChanged: (v) => setDlgState(() => costPrice = (v ?? 0).toDouble()),
                   ),
                   const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Bénéfice unitaire: ${(price - costPrice).toInt()} FCFA',
+                      'Bénéfice unitaire: ${formatFcfa((price - costPrice).toInt())}',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: (price - costPrice) >= 0 ? Colors.green.shade700 : Colors.red,
@@ -192,20 +194,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    initialValue: product != null ? quantity.toString() : '',
-                    decoration: const InputDecoration(labelText: 'Quantité en stock'),
-                    keyboardType: TextInputType.number,
-                    validator: (v) => v == null || int.tryParse(v) == null ? 'Quantité invalide' : null,
-                    onSaved: (v) => quantity = int.tryParse(v ?? '') ?? 0,
+                  FormattedNumberField(
+                    controller: qtyCtrl,
+                    label: 'Quantité en stock',
+                    suffixText: null,
+                    validator: (v) => v == null ? 'Quantité invalide' : null,
+                    onChanged: (v) => quantity = v ?? 0,
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    initialValue: lowStockThreshold.toString(),
-                    decoration: const InputDecoration(labelText: 'Seuil d\'alerte stock bas'),
-                    keyboardType: TextInputType.number,
-                    validator: (v) => v == null || int.tryParse(v) == null ? 'Seuil invalide' : null,
-                    onSaved: (v) => lowStockThreshold = int.tryParse(v ?? '') ?? 3,
+                  FormattedNumberField(
+                    controller: thresholdCtrl,
+                    label: 'Seuil d\'alerte stock bas',
+                    suffixText: null,
+                    validator: (v) => v == null ? 'Seuil invalide' : null,
+                    onChanged: (v) => lowStockThreshold = v ?? 3,
                   ),
                   const SizedBox(height: 16),
                   

@@ -6,7 +6,9 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/localization/language_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
+import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 
@@ -104,7 +106,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
 
   Future<void> _changeDefaultPieceRate(BuildContext context) async {
     final provider = context.read<ShopSettingsProvider>();
-    final controller = TextEditingController(text: provider.defaultPieceRate.toString());
+    final controller = TextEditingController(text: formatThousands(provider.defaultPieceRate));
     final formKey = GlobalKey<FormState>();
 
     final bool? save = await showDialog<bool>(
@@ -113,14 +115,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
         title: Text(context.loc.editDefaultPieceRate),
         content: Form(
           key: formKey,
-          child: TextFormField(
+          child: FormattedNumberField(
             controller: controller,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(labelText: context.loc.defaultPieceRateLabel),
+            label: context.loc.defaultPieceRateLabel,
             validator: (v) {
-              if (v == null || v.trim().isEmpty) return context.loc.requiredField;
-              final parsed = int.tryParse(v);
-              if (parsed == null || parsed < 0) return context.loc.validationPositiveNumber;
+              if (v == null) return context.loc.requiredField;
+              if (v < 0) return context.loc.validationPositiveNumber;
               return null;
             },
           ),
@@ -143,7 +143,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     );
 
     if (save == true) {
-      final success = await provider.updateDefaultPieceRate(int.parse(controller.text));
+      final success = await provider.updateDefaultPieceRate(parseThousands(controller.text) ?? 0);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -268,7 +268,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           _ActionTile(
             icon: Icons.monetization_on_rounded,
             title: context.loc.editDefaultPieceRate,
-            subtitle: '${shopSettings.defaultPieceRate} FCFA',
+            subtitle: formatFcfa(shopSettings.defaultPieceRate),
             color: Colors.green,
             onTap: () => _changeDefaultPieceRate(context),
           ),

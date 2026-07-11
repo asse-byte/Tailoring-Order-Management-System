@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/money.dart';
+import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/staff_repository.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
@@ -250,6 +252,8 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
     int pieceRate = member.pieceRate ?? 0;
     int monthlySalary = member.monthlySalary ?? 0;
     int salaryDueDay = member.salaryDueDay ?? 1;
+    final pieceRateCtrl = TextEditingController(text: formatThousands(pieceRate));
+    final salaryCtrl = TextEditingController(text: formatThousands(monthlySalary));
 
     await showDialog(
       context: context,
@@ -263,20 +267,18 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (member.type == 'couturier')
-                  TextFormField(
-                    initialValue: pieceRate.toString(),
-                    decoration: const InputDecoration(labelText: 'Tarif par pièce (FCFA)'),
-                    keyboardType: TextInputType.number,
-                    validator: (v) => v == null || int.tryParse(v) == null ? 'Invalide' : null,
-                    onSaved: (v) => pieceRate = int.tryParse(v ?? '') ?? 0,
+                  FormattedNumberField(
+                    controller: pieceRateCtrl,
+                    label: 'Tarif par pièce (FCFA)',
+                    validator: (v) => v == null ? 'Invalide' : null,
+                    onChanged: (v) => pieceRate = v ?? 0,
                   )
                 else ...[
-                  TextFormField(
-                    initialValue: monthlySalary.toString(),
-                    decoration: const InputDecoration(labelText: 'Salaire Mensuel (FCFA)'),
-                    keyboardType: TextInputType.number,
-                    validator: (v) => v == null || int.tryParse(v) == null ? 'Invalide' : null,
-                    onSaved: (v) => monthlySalary = int.tryParse(v ?? '') ?? 0,
+                  FormattedNumberField(
+                    controller: salaryCtrl,
+                    label: 'Salaire Mensuel (FCFA)',
+                    validator: (v) => v == null ? 'Invalide' : null,
+                    onChanged: (v) => monthlySalary = v ?? 0,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -345,7 +347,9 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
     // manager can override it per entry (a tailor may sew different garments
     // at different prices).
     final rateController = TextEditingController(
-      text: (activeTailors.first.pieceRate ?? '').toString(),
+      text: activeTailors.first.pieceRate != null
+          ? formatThousands(activeTailors.first.pieceRate!)
+          : '',
     );
 
     await showDialog(
@@ -369,7 +373,8 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                     tailorId = v ?? tailorId;
                     // Refresh the rate field to the newly selected tailor's rate.
                     final sel = activeTailors.firstWhere((t) => t.staffId == tailorId);
-                    setDlgState(() => rateController.text = (sel.pieceRate ?? '').toString());
+                    setDlgState(() => rateController.text =
+                        sel.pieceRate != null ? formatThousands(sel.pieceRate!) : '');
                   },
                 ),
                 const SizedBox(height: 12),
@@ -385,19 +390,12 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                   onSaved: (v) => pieces = int.tryParse(v ?? '') ?? 1,
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                FormattedNumberField(
                   controller: rateController,
-                  decoration: const InputDecoration(
-                    labelText: 'Prix par pièce (FCFA)',
-                    helperText: 'Modifiable selon le type de vêtement',
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (v) {
-                    final val = int.tryParse(v ?? '');
-                    if (val == null || val < 1) return 'Prix invalide';
-                    return null;
-                  },
-                  onSaved: (v) => rate = int.tryParse(v ?? ''),
+                  label: 'Prix par pièce (FCFA)',
+                  hint: 'Modifiable selon le type de vêtement',
+                  validator: (v) => (v == null || v < 1) ? 'Prix invalide' : null,
+                  onChanged: (v) => rate = v,
                 ),
                 const SizedBox(height: 12),
                 ListTile(
@@ -431,7 +429,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                       tailorId: tailorId,
                       entryDate: dateStr,
                       piecesCount: pieces,
-                      pieceRate: rate,
+                      pieceRate: parseThousands(rateController.text) ?? rate,
                     );
                     if (!ctx.mounted) return;
                     Navigator.pop(ctx);
@@ -564,8 +562,8 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
               final m = _payInfoList[idx];
               final String typeLabel = m.type == 'couturier' ? 'Couturier' : 'Mensuel';
               final String payLabel = m.type == 'couturier'
-                  ? 'Tarif p. pièce: ${m.pieceRate ?? 0} F'
-                  : 'Salaire: ${m.monthlySalary ?? 0} F (le ${m.salaryDueDay ?? 1})';
+                  ? 'Tarif p. pièce: ${formatFcfa(m.pieceRate ?? 0)}'
+                  : 'Salaire: ${formatFcfa(m.monthlySalary ?? 0)} (le ${m.salaryDueDay ?? 1})';
 
               return Card(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -658,7 +656,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                       child: ListTile(
                         title: Text(e.tailorName, style: const TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text(
-                          'Date: ${e.entryDate} | Pièces: ${e.piecesCount}\nTarif: ${e.pieceRate} F | Total: ${e.amount} F',
+                          'Date: ${e.entryDate} | Pièces: ${e.piecesCount}\nTarif: ${formatFcfa(e.pieceRate)} | Total: ${formatFcfa(e.amount)}',
                           style: const TextStyle(height: 1.3),
                         ),
                         isThreeLine: true,
@@ -742,7 +740,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  '${w.amountTotal} F',
+                                  formatFcfa(w.amountTotal),
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green),
                                 ),
                                 const Text('Total', style: TextStyle(fontSize: 10, color: Colors.grey)),

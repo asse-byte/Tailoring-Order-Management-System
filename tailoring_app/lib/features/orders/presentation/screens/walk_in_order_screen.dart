@@ -5,7 +5,9 @@ import '../../../../core/constants/garment_types.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../clients/data/clients_repository.dart';
 import '../../../clients/domain/client.dart';
@@ -116,8 +118,8 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
         clientId: clientId,
         garmentType: _garment,
         fabric: _fabric.text.trim(),
-        price: int.tryParse(_price.text.trim()) ?? 0,
-        advance: int.tryParse(_advance.text.trim()) ?? 0,
+        price: parseThousands(_price.text) ?? 0,
+        advance: parseThousands(_advance.text) ?? 0,
         expectedDate: _expected,
         notes: _notes.text.trim(),
       );
@@ -234,30 +236,20 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                 Row(
                   children: <Widget>[
                     Expanded(
-                      child: AppTextField(
+                      child: FormattedNumberField(
                         controller: _price,
                         label: 'Prix (FCFA)',
-                        keyboardType: TextInputType.number,
-                        validator: (v) {
-                          final n = int.tryParse(v ?? '');
-                          return (n == null || n < 0)
-                              ? 'Montant invalide'
-                              : null;
-                        },
+                        validator: (v) =>
+                            (v == null || v < 0) ? 'Montant invalide' : null,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: AppTextField(
+                      child: FormattedNumberField(
                         controller: _advance,
                         label: 'Avance (FCFA)',
-                        keyboardType: TextInputType.number,
-                        validator: (v) {
-                          final n = int.tryParse(v ?? '');
-                          return (n == null || n < 0)
-                              ? 'Montant invalide'
-                              : null;
-                        },
+                        validator: (v) =>
+                            (v == null || v < 0) ? 'Montant invalide' : null,
                       ),
                     ),
                   ],

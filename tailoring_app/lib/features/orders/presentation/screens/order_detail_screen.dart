@@ -7,6 +7,7 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
+import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/section_header.dart';
@@ -137,8 +138,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> _editDetails() async {
     final TailoringOrder order = _order!;
     final formKey = GlobalKey<FormState>();
-    final priceCtrl = TextEditingController(text: order.price.toString());
-    final advanceCtrl = TextEditingController(text: order.advance.toString());
+    final priceCtrl = TextEditingController(text: formatThousands(order.price));
+    final advanceCtrl = TextEditingController(text: formatThousands(order.advance));
     final fabricCtrl = TextEditingController(text: order.fabric);
     final notesCtrl = TextEditingController(text: order.notes);
 
@@ -172,26 +173,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   Row(
                     children: <Widget>[
                       Expanded(
-                        child: AppTextField(
+                        child: FormattedNumberField(
                           controller: priceCtrl,
                           label: 'Prix (FCFA)',
-                          keyboardType: TextInputType.number,
-                          validator: (v) {
-                            final n = int.tryParse(v ?? '');
-                            return (n == null || n < 0) ? 'Invalide' : null;
-                          },
+                          validator: (v) => (v == null || v < 0) ? 'Invalide' : null,
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: AppTextField(
+                        child: FormattedNumberField(
                           controller: advanceCtrl,
                           label: 'Avance (FCFA)',
-                          keyboardType: TextInputType.number,
-                          validator: (v) {
-                            final n = int.tryParse(v ?? '');
-                            return (n == null || n < 0) ? 'Invalide' : null;
-                          },
+                          validator: (v) => (v == null || v < 0) ? 'Invalide' : null,
                         ),
                       ),
                     ],
@@ -225,8 +218,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       _order = await _repo.update(
         order.id,
         fabric: fabricCtrl.text.trim(),
-        price: int.parse(priceCtrl.text.trim()),
-        advance: int.parse(advanceCtrl.text.trim()),
+        price: parseThousands(priceCtrl.text) ?? 0,
+        advance: parseThousands(advanceCtrl.text) ?? 0,
         notes: notesCtrl.text.trim(),
       );
       if (!mounted) return;

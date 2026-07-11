@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/utils/money.dart';
+import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/finance_repository.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
@@ -83,6 +85,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
     final formKey = GlobalKey<FormState>();
     String reason = '';
     int amount = 0;
+    final amountCtrl = TextEditingController();
     DateTime date = DateTime.now();
 
     await showDialog(
@@ -103,15 +106,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
                     onSaved: (v) => reason = v ?? '',
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Montant (FCFA)'),
-                    keyboardType: TextInputType.number,
-                    validator: (v) {
-                      final val = int.tryParse(v ?? '');
-                      if (val == null || val <= 0) return 'Montant invalide';
-                      return null;
-                    },
-                    onSaved: (v) => amount = int.tryParse(v ?? '') ?? 0,
+                  FormattedNumberField(
+                    controller: amountCtrl,
+                    label: 'Montant (FCFA)',
+                    validator: (v) => (v == null || v <= 0) ? 'Montant invalide' : null,
+                    onChanged: (v) => amount = v ?? 0,
                   ),
                   const SizedBox(height: 12),
                   ListTile(
@@ -171,6 +170,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
   Future<void> _correctExpense(Expense expense) async {
     final formKey = GlobalKey<FormState>();
     int newAmount = expense.amount;
+    final newAmountCtrl = TextEditingController(text: formatThousands(expense.amount));
     String reason = '';
 
     await showDialog(
@@ -183,18 +183,13 @@ class _FinanceScreenState extends State<FinanceScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Dépense d\'origine: ${expense.reason} (${expense.amount} F)'),
+              Text('Dépense d\'origine: ${expense.reason} (${formatFcfa(expense.amount)})'),
               const SizedBox(height: 12),
-              TextFormField(
-                initialValue: expense.amount.toString(),
-                decoration: const InputDecoration(labelText: 'Nouveau montant (0 pour annuler/supprimer)'),
-                keyboardType: TextInputType.number,
-                validator: (v) {
-                  final val = int.tryParse(v ?? '');
-                  if (val == null || val < 0) return 'Invalide';
-                  return null;
-                },
-                onSaved: (v) => newAmount = int.tryParse(v ?? '') ?? 0,
+              FormattedNumberField(
+                controller: newAmountCtrl,
+                label: 'Nouveau montant (0 pour annuler/supprimer)',
+                validator: (v) => (v == null || v < 0) ? 'Invalide' : null,
+                onChanged: (v) => newAmount = v ?? 0,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -303,23 +298,23 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         // KPI cards
                         _buildKpiCard(
                           title: 'Revenus Totaux',
-                          value: '${_summary!.totalRevenue} FCFA',
+                          value: formatFcfa(_summary!.totalRevenue),
                           color: Colors.green,
                           icon: Icons.trending_up_rounded,
-                          details: 'Commandes: ${_summary!.ordersRevenue} F\nVentes Comptoir: ${_summary!.salesRevenue} F',
+                          details: 'Commandes: ${formatFcfa(_summary!.ordersRevenue)}\nVentes Comptoir: ${formatFcfa(_summary!.salesRevenue)}',
                         ),
                         const SizedBox(height: 16),
                         _buildKpiCard(
                           title: 'Dépenses & Coûts',
-                          value: '${_summary!.totalCosts} FCFA',
+                          value: formatFcfa(_summary!.totalCosts),
                           color: Colors.red,
                           icon: Icons.trending_down_rounded,
-                          details: 'Salaires (Mensuels): ${_summary!.salaries} F\nMain d\'œuvre (Pièce): ${_summary!.tailorWages} F\nFrais & Dépenses: ${_summary!.expenses} F',
+                          details: 'Salaires (Mensuels): ${formatFcfa(_summary!.salaries)}\nMain d\'œuvre (Pièce): ${formatFcfa(_summary!.tailorWages)}\nFrais & Dépenses: ${formatFcfa(_summary!.expenses)}',
                         ),
                         const SizedBox(height: 16),
                         _buildKpiCard(
                           title: 'Bénéfice Net',
-                          value: '${_summary!.netProfit} FCFA',
+                          value: formatFcfa(_summary!.netProfit),
                           color: _summary!.netProfit >= 0 ? Colors.teal : Colors.orange,
                           icon: Icons.account_balance_rounded,
                           details: 'Indicateur de rentabilité nette sur la période.',
@@ -377,7 +372,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
-                                          '-${exp.amount} F',
+                                          '-${formatFcfa(exp.amount)}',
                                           style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16),
                                         ),
                                         const SizedBox(width: 8),

@@ -7,6 +7,8 @@ import 'package:video_player/video_player.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/money.dart';
+import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/pret_a_porter_repository.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
@@ -116,6 +118,8 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
     double price = existing?.price ?? 45000.0;
     double costPrice = existing?.costPrice ?? 0.0;
     String description = existing?.description ?? '';
+    final priceCtrl = TextEditingController(text: price > 0 ? formatThousands(price.toInt()) : '');
+    final costCtrl = TextEditingController(text: costPrice > 0 ? formatThousands(costPrice.toInt()) : '');
 
     final List<Map<String, String>> currentMedia = existing != null
         ? existing.media.map((e) => {'id': e.id, 'url': e.url, 'kind': e.kind, 'thumb_url': e.thumbUrl ?? ''}).toList()
@@ -153,28 +157,24 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                     onSaved: (v) => fabric = v ?? '',
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    initialValue: price > 0 ? price.toInt().toString() : '',
-                    decoration: const InputDecoration(labelText: 'Prix de vente (FCFA)'),
-                    keyboardType: TextInputType.number,
-                    validator: (v) => v == null || double.tryParse(v) == null ? 'Invalide' : null,
-                    onChanged: (v) => setDlgState(() => price = double.tryParse(v) ?? 0.0),
-                    onSaved: (v) => price = double.tryParse(v ?? '') ?? 0.0,
+                  FormattedNumberField(
+                    controller: priceCtrl,
+                    label: 'Prix de vente (FCFA)',
+                    validator: (v) => v == null ? 'Invalide' : null,
+                    onChanged: (v) => setDlgState(() => price = (v ?? 0).toDouble()),
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    initialValue: costPrice > 0 ? costPrice.toInt().toString() : '',
-                    decoration: const InputDecoration(labelText: 'Prix d\'achat (FCFA)'),
-                    keyboardType: TextInputType.number,
-                    validator: (v) => v == null || double.tryParse(v) == null ? 'Invalide' : null,
-                    onChanged: (v) => setDlgState(() => costPrice = double.tryParse(v) ?? 0.0),
-                    onSaved: (v) => costPrice = double.tryParse(v ?? '') ?? 0.0,
+                  FormattedNumberField(
+                    controller: costCtrl,
+                    label: 'Prix d\'achat (FCFA)',
+                    validator: (v) => v == null ? 'Invalide' : null,
+                    onChanged: (v) => setDlgState(() => costPrice = (v ?? 0).toDouble()),
                   ),
                   const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Bénéfice unitaire: ${(price - costPrice).toInt()} FCFA',
+                      'Bénéfice unitaire: ${formatFcfa((price - costPrice).toInt())}',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: (price - costPrice) >= 0 ? Colors.green.shade700 : Colors.red,
