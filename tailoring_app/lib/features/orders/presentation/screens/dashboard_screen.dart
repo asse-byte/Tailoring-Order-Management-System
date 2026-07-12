@@ -17,69 +17,60 @@ class DashboardScreen extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
     final isSec = auth.isSecretary;
 
-    // Define items list. Each item has title, icon, color, route.
+    // Unified brand identity: every tile shares the same Deep Teal look so the
+    // grid reads as one elegant system. Only the icon distinguishes a module.
     final List<_DashboardItem> allItems = [
       _DashboardItem(
         title: context.loc.clients,
         icon: Icons.people_rounded,
-        color: const Color(0xFF6C63FF),
         route: '/admin/customers',
       ),
       _DashboardItem(
         title: context.loc.products,
         icon: Icons.shopping_bag_rounded,
-        color: const Color(0xFFFF6584),
         route: '/admin/products',
       ),
       const _DashboardItem(
         title: 'Tailleurs',
         icon: Icons.content_cut_rounded,
-        color: Color(0xFF4E9F3D),
         route: '/admin/staff',
       ),
       if (!isSec)
         const _DashboardItem(
           title: 'Staff',
           icon: Icons.badge_rounded,
-          color: Color(0xFF2A9D8F),
           route: '/admin/monthly-staff',
         ),
       if (!isSec)
         _DashboardItem(
           title: context.loc.finance,
           icon: Icons.account_balance_wallet_rounded,
-          color: const Color(0xFFFFB319),
           route: '/admin/finance',
         ),
       _DashboardItem(
         title: context.loc.readyToWear,
         icon: Icons.checkroom_rounded,
-        color: const Color(0xFF00B4D8),
         route: '/admin/ready-to-wear',
       ),
       _DashboardItem(
         title: context.loc.command,
         icon: Icons.receipt_long_rounded,
-        color: const Color(0xFF7209B7),
         route: '/admin/orders',
       ),
       _DashboardItem(
         title: context.loc.appointments,
         icon: Icons.event_rounded,
-        color: const Color(0xFFF72585),
         route: '/admin/appointments',
       ),
       _DashboardItem(
         title: context.loc.history,
         icon: Icons.history_rounded,
-        color: const Color(0xFF3F37C9),
         route: '/admin/history',
       ),
       if (!isSec)
         _DashboardItem(
           title: context.loc.settings,
           icon: Icons.settings_rounded,
-          color: const Color(0xFF4895EF),
           route: '/admin/settings',
         ),
     ];
@@ -223,13 +214,11 @@ class DashboardScreen extends StatelessWidget {
 class _DashboardItem {
   final String title;
   final IconData icon;
-  final Color color;
   final String route;
 
   const _DashboardItem({
     required this.title,
     required this.icon,
-    required this.color,
     required this.route,
   });
 }
@@ -243,7 +232,7 @@ class _DashboardCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 3,
-      shadowColor: item.color.withValues(alpha: 0.35),
+      shadowColor: AppColors.primary.withValues(alpha: 0.35),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
@@ -253,11 +242,11 @@ class _DashboardCard extends StatelessWidget {
         splashColor: Colors.white.withValues(alpha: 0.15),
         highlightColor: Colors.white.withValues(alpha: 0.06),
         child: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                item.color,
-                Color.lerp(item.color, Colors.black, 0.22)!,
+                AppColors.primary,
+                AppColors.primaryDark,
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -271,10 +260,10 @@ class _DashboardCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.22),
+                  color: AppColors.accent.withValues(alpha: 0.22),
                   borderRadius: BorderRadius.circular(11),
                 ),
-                child: Icon(item.icon, color: Colors.white, size: 20),
+                child: Icon(item.icon, color: AppColors.accent, size: 20),
               ),
               const SizedBox(height: 8),
               Text(
