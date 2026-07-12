@@ -188,7 +188,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               onPressed: () async {
                 if (selectedClient == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Veuillez sélectionner un client.'), backgroundColor: Colors.orange),
+                    const SnackBar(content: Text('Veuillez sélectionner un client.'), backgroundColor: AppColors.warning),
                   );
                   return;
                 }
@@ -215,7 +215,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   } catch (e) {
                     if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
                     );
                   }
                 }
@@ -338,7 +338,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                                           actions: [
                                             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
                                             ElevatedButton(
-                                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
                                               onPressed: () => Navigator.pop(ctx, true),
                                               child: const Text('Supprimer'),
                                             ),

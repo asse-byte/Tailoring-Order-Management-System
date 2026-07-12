@@ -72,7 +72,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(success ? 'Nom de la boutique mis à jour.' : 'Échec de la mise à jour.'),
-            backgroundColor: success ? Colors.green : AppColors.error,
+            backgroundColor: success ? AppColors.success : AppColors.error,
           ),
         );
       }
@@ -97,7 +97,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(success ? context.loc.logoUploadedSuccess : context.loc.logoUploadFailed),
-            backgroundColor: success ? Colors.green : AppColors.error,
+            backgroundColor: success ? AppColors.success : AppColors.error,
           ),
         );
       }
@@ -148,7 +148,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(success ? 'Tarif par pièce mis à jour.' : 'Échec de la mise à jour.'),
-            backgroundColor: success ? Colors.green : AppColors.error,
+            backgroundColor: success ? AppColors.success : AppColors.error,
           ),
         );
       }
@@ -186,7 +186,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(ok ? 'Lien mis à jour.' : 'Échec de la mise à jour.'),
-            backgroundColor: ok ? Colors.green : AppColors.error,
+            backgroundColor: ok ? AppColors.success : AppColors.error,
           ),
         );
       }
@@ -307,7 +307,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             icon: Icons.monetization_on_rounded,
             title: context.loc.editDefaultPieceRate,
             subtitle: formatFcfa(shopSettings.defaultPieceRate),
-            color: Colors.green,
+            color: AppColors.success,
             onTap: () => _changeDefaultPieceRate(context),
           ),
           const SizedBox(height: 10),

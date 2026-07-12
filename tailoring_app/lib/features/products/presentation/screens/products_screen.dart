@@ -102,12 +102,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 final success = await context.read<ProductsProvider>().sellProduct(product.id, qty);
                 if (success && mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Vente enregistrée avec succès !'), backgroundColor: Colors.green),
+                    const SnackBar(content: Text('Vente enregistrée avec succès !'), backgroundColor: AppColors.success),
                   );
                 } else if (mounted) {
                   final err = context.read<ProductsProvider>().error ?? 'Une erreur est survenue.';
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(err), backgroundColor: Colors.red),
+                    SnackBar(content: Text(err), backgroundColor: AppColors.error),
                   );
                 }
               }
@@ -189,7 +189,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       'Bénéfice unitaire: ${formatFcfa((price - costPrice).toInt())}',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: (price - costPrice) >= 0 ? Colors.green.shade700 : Colors.red,
+                        color: (price - costPrice) >= 0 ? AppColors.success : AppColors.error,
                       ),
                     ),
                   ),
@@ -344,7 +344,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           if (ctx.mounted) Navigator.pop(ctx);
                         } else {
                           messenger.showSnackBar(
-                            SnackBar(content: Text(provider.error ?? 'Erreur d\'enregistrement'), backgroundColor: Colors.red),
+                            SnackBar(content: Text(provider.error ?? 'Erreur d\'enregistrement'), backgroundColor: AppColors.error),
                           );
                         }
                       }
@@ -512,7 +512,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                               Text(
                                                 'Stock: ${p.quantity} ',
                                                 style: TextStyle(
-                                                  color: p.isLowStock ? Colors.red : Colors.grey[700],
+                                                  color: p.isLowStock ? AppColors.error : Colors.grey[700],
                                                   fontWeight: p.isLowStock ? FontWeight.bold : FontWeight.normal,
                                                 ),
                                               ),
@@ -520,10 +520,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                   decoration: BoxDecoration(
-                                                    color: Colors.red[100],
+                                                    color: AppColors.error.withValues(alpha: 0.12),
                                                     borderRadius: BorderRadius.circular(4),
                                                   ),
-                                                  child: const Text('Bas / Low', style: TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.bold)),
+                                                  child: const Text('Bas / Low', style: TextStyle(color: AppColors.error, fontSize: 9, fontWeight: FontWeight.bold)),
                                                 )
                                             ],
                                           )
@@ -548,7 +548,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                           Text(
                                             'Bénéf: ${p.profit.toInt()} F',
                                             style: TextStyle(
-                                              color: p.profit >= 0 ? Colors.green.shade700 : Colors.red,
+                                              color: p.profit >= 0 ? AppColors.success : AppColors.error,
                                               fontWeight: FontWeight.w600,
                                               fontSize: 11,
                                             ),
@@ -560,7 +560,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                             // Sell button (both roles can sell)
                                             if (p.quantity > 0)
                                               IconButton(
-                                                icon: const Icon(Icons.shopping_cart_rounded, color: Colors.green),
+                                                icon: const Icon(Icons.shopping_cart_rounded, color: AppColors.success),
                                                 tooltip: 'Vendre',
                                                 constraints: const BoxConstraints(),
                                                 padding: const EdgeInsets.all(4),
@@ -576,7 +576,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                 onPressed: () => _openProductForm(product: p),
                                               ),
                                               IconButton(
-                                                icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                                                icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
                                                 constraints: const BoxConstraints(),
                                                 padding: const EdgeInsets.all(4),
                                                 onPressed: () async {
@@ -588,7 +588,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                       actions: [
                                                         TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
                                                         ElevatedButton(
-                                                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
                                                           onPressed: () => Navigator.pop(ctx, true),
                                                           child: const Text('Supprimer'),
                                                         ),

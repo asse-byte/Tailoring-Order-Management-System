@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -249,7 +250,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   } catch (e) {
                     if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
                     );
                   }
                 }
@@ -309,7 +310,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 } catch (e) {
                   if (!ctx.mounted) return;
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+                    SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
                   );
                 }
               }
@@ -332,11 +333,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.lock_rounded, size: 64, color: Colors.red),
+              Icon(Icons.lock_rounded, size: 64, color: AppColors.error),
               SizedBox(height: 16),
               Text(
                 'Accès refusé - Réservé au Gérant',
-                style: TextStyle(color: Colors.red, fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(color: AppColors.error, fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -425,7 +426,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         _buildKpiCard(
                           title: 'Revenus Totaux',
                           value: formatFcfa(_summary!.totalRevenue),
-                          color: Colors.green,
+                          color: AppColors.success,
                           icon: Icons.trending_up_rounded,
                           details: 'Commandes: ${formatFcfa(_summary!.ordersRevenue)}\nVentes Comptoir: ${formatFcfa(_summary!.salesRevenue)}',
                         ),
@@ -433,7 +434,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         _buildKpiCard(
                           title: 'Dépenses & Coûts',
                           value: formatFcfa(_summary!.totalCosts),
-                          color: Colors.red,
+                          color: AppColors.error,
                           icon: Icons.trending_down_rounded,
                           details: 'Salaires (Mensuels): ${formatFcfa(_summary!.salaries)}\nMain d\'œuvre (Pièce): ${formatFcfa(_summary!.tailorWages)}\nFrais & Dépenses: ${formatFcfa(_summary!.expenses)}',
                         ),
@@ -441,7 +442,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         _buildKpiCard(
                           title: 'Bénéfice Net',
                           value: formatFcfa(_summary!.netProfit),
-                          color: _summary!.netProfit >= 0 ? Colors.teal : Colors.orange,
+                          color: _summary!.netProfit >= 0 ? Colors.teal : AppColors.warning,
                           icon: Icons.account_balance_rounded,
                           details: 'Indicateur de rentabilité nette sur la période.',
                         ),
@@ -452,13 +453,13 @@ class _FinanceScreenState extends State<FinanceScreen> {
                           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       _detailSection('Revenus — Commandes livrées',
-                          _orderRows, Icons.receipt_long_rounded, Colors.green),
+                          _orderRows, Icons.receipt_long_rounded, AppColors.success),
                       _detailSection('Revenus — Ventes produits',
-                          _saleRows, Icons.shopping_bag_rounded, Colors.green),
+                          _saleRows, Icons.shopping_bag_rounded, AppColors.success),
                       _detailSection("Coûts — Main d'œuvre (couture)",
-                          _wageRows, Icons.content_cut_rounded, Colors.red),
+                          _wageRows, Icons.content_cut_rounded, AppColors.error),
                       _detailSection('Coûts — Dépenses',
-                          _expenseRows, Icons.receipt_rounded, Colors.red),
+                          _expenseRows, Icons.receipt_rounded, AppColors.error),
 
                       const SizedBox(height: 24),
 
@@ -502,8 +503,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                   margin: const EdgeInsets.only(bottom: 8),
                                   child: ListTile(
                                     leading: CircleAvatar(
-                                      backgroundColor: Colors.red.withValues(alpha: 0.1),
-                                      child: const Icon(Icons.money_off_rounded, color: Colors.red),
+                                      backgroundColor: AppColors.error.withValues(alpha: 0.1),
+                                      child: const Icon(Icons.money_off_rounded, color: AppColors.error),
                                     ),
                                     title: Text(exp.reason, style: const TextStyle(fontWeight: FontWeight.bold)),
                                     subtitle: Text(exp.spentAt),
@@ -512,11 +513,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                       children: [
                                         Text(
                                           '-${formatFcfa(exp.amount)}',
-                                          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16),
+                                          style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold, fontSize: 16),
                                         ),
                                         const SizedBox(width: 8),
                                         IconButton(
-                                          icon: const Icon(Icons.edit_note_rounded, color: Colors.orange),
+                                          icon: const Icon(Icons.edit_note_rounded, color: AppColors.warning),
                                           tooltip: 'Corriger / Annuler',
                                           onPressed: () => _correctExpense(exp),
                                         )

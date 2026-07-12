@@ -156,7 +156,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                   } catch (e) {
                     if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
                     );
                   }
                 }
@@ -233,7 +233,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                   } catch (e) {
                     if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
                     );
                   }
                 }
@@ -314,7 +314,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                   } catch (e) {
                     if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
                     );
                   }
                 }
@@ -491,7 +491,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                   } catch (e) {
                     if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
                     );
                   }
                 }
@@ -555,7 +555,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                 } catch (e) {
                   if (!ctx.mounted) return;
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+                    SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
                   );
                 }
               }
@@ -598,7 +598,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                           ),
                           trailing: c.phone.isNotEmpty
                               ? IconButton(
-                                  icon: const Icon(Icons.phone_rounded, color: Colors.green),
+                                  icon: const Icon(Icons.phone_rounded, color: AppColors.success),
                                   onPressed: () => _callPhone(c.phone),
                                 )
                               : null,
@@ -670,7 +670,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                             onPressed: () => _editStaffContact(m),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.monetization_on_rounded, color: Colors.green),
+                            icon: const Icon(Icons.monetization_on_rounded, color: AppColors.success),
                             tooltip: 'Paramètres Financiers',
                             onPressed: () => _editStaffPay(m),
                           ),
@@ -718,7 +718,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                         ),
                         isThreeLine: true,
                         trailing: IconButton(
-                          icon: const Icon(Icons.edit_note_rounded, color: Colors.orange),
+                          icon: const Icon(Icons.edit_note_rounded, color: AppColors.warning),
                           tooltip: 'Corriger l\'entrée',
                           onPressed: () => _correctTailorEntry(e),
                         ),
@@ -821,7 +821,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                                         Text(formatFcfa(dayTotal),
                                             style: const TextStyle(
                                                 fontWeight: FontWeight.bold,
-                                                color: Colors.green)),
+                                                color: AppColors.success)),
                                       ],
                                     ),
                                     const Divider(),
@@ -945,7 +945,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                               children: [
                                 Text(
                                   formatFcfa(w.amountTotal),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.success),
                                 ),
                                 const Text('Total', style: TextStyle(fontSize: 10, color: Colors.grey)),
                               ],

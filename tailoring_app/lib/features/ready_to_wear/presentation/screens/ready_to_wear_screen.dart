@@ -91,14 +91,14 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                   setState(() => _loading = false);
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Vente de prêt-à-porter enregistrée avec succès !'), backgroundColor: Colors.green),
+                      const SnackBar(content: Text('Vente de prêt-à-porter enregistrée avec succès !'), backgroundColor: AppColors.success),
                     );
                   }
                 } catch (e) {
                   setState(() => _loading = false);
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
                     );
                   }
                 }
@@ -177,7 +177,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                       'Bénéfice unitaire: ${formatFcfa((price - costPrice).toInt())}',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: (price - costPrice) >= 0 ? Colors.green.shade700 : Colors.red,
+                        color: (price - costPrice) >= 0 ? AppColors.success : AppColors.error,
                       ),
                     ),
                   ),
@@ -238,7 +238,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                                     });
                                   },
                                   child: Container(
-                                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                    decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
                                     child: const Icon(Icons.close, color: Colors.white, size: 16),
                                   ),
                                 ),
@@ -369,7 +369,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                         } catch (e) {
                           if (!ctx.mounted) return;
                           ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+                            SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
                           );
                         }
                       }
@@ -456,7 +456,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                     'Bénéfice unitaire: ${m.profit.toInt()} F',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: m.profit >= 0 ? Colors.green.shade700 : Colors.red,
+                      color: m.profit >= 0 ? AppColors.success : AppColors.error,
                     ),
                   ),
                 ),
@@ -590,7 +590,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                                           child: Text(
                                             'Bénéf: ${m.profit.toInt()} F',
                                             style: TextStyle(
-                                              color: m.profit >= 0 ? Colors.green.shade700 : Colors.red,
+                                              color: m.profit >= 0 ? AppColors.success : AppColors.error,
                                               fontWeight: FontWeight.w600,
                                               fontSize: 11,
                                             ),
@@ -604,7 +604,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                                           IconButton(
                                             constraints: const BoxConstraints(),
                                             padding: const EdgeInsets.all(4),
-                                            icon: const Icon(Icons.shopping_cart_rounded, color: Colors.green, size: 18),
+                                            icon: const Icon(Icons.shopping_cart_rounded, color: AppColors.success, size: 18),
                                             tooltip: 'Vendre',
                                             onPressed: () => _recordSale(m),
                                           ),
@@ -628,7 +628,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                                                     actions: [
                                                       TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
                                                       ElevatedButton(
-                                                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
                                                         onPressed: () => Navigator.pop(ctx, true),
                                                         child: const Text('Supprimer'),
                                                       ),

@@ -114,9 +114,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   Color _statusColor(String status) {
     switch (status) {
       case AppConstants.statusTermine:
-        return Colors.orange;
+        return AppColors.warning;
       case AppConstants.statusLivre:
-        return Colors.green;
+        return AppColors.success;
       case AppConstants.statusEnAttente:
         return AppColors.textSecondary;
       default:

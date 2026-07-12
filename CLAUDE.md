@@ -125,6 +125,15 @@ Large batch of owner-requested changes, executed one tested commit per item
   existing list endpoints filtered by date (`FinanceRepository.*Rows`).
   Expense editing still goes through the append-only `expense_corrections`
   path (unchanged) — the pattern was NOT weakened for the UI.
+- **Item 9 — DONE.** Colour system unified on the single `AppColors`
+  palette (Deep Teal primary, Gold accent, neutral surfaces/text, and the
+  semantic tokens success/warning/error/info). Every scattered raw Material
+  status colour (`Colors.green/red/orange`, incl. shades) across finance,
+  staff, products, ready-to-wear, appointments, settings and client screens
+  was mapped to `AppColors.success/error/warning` so success is one green,
+  danger one red, warning one amber everywhere. The ≤ 3-day Rendez-vous
+  warning uses `AppColors.error` for a clear, distinct red (item 3). Vivid
+  per-module dashboard tile colours are intentional and kept.
 - **Item 5 — DONE (calculation bug fixed).** `GET /api/finance/summary`
   computed COGS with the wrong `kind` literals (`'product'`/`'model'`) while
   sales store `'produit'`/`'pret_a_porter'`, so **cost of goods sold was
