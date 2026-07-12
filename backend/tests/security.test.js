@@ -75,6 +75,7 @@ describe('SECRETARY — financial routes are completely blocked (403)', () => {
     ['GET', `/api/staff-pay/${NIL}/history`],
     ['GET', '/api/tailor-entries'],
     ['GET', '/api/tailor-entries/weekly?week_id=2026-W27'],
+    ['GET', `/api/tailor-entries/weekly-detail?week_id=2026-W27&tailor_id=${NIL}`],
     ['GET', '/api/finance/summary'],
     ['GET', '/api/settings/private'],
     ['GET', '/api/users'],
