@@ -924,7 +924,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                           children: [
                             CircleAvatar(
                               backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                              child: Icon(Icons.content_cut_rounded, color: AppColors.primary),
+                              child: const Icon(Icons.content_cut_rounded, color: AppColors.primary),
                             ),
                             const SizedBox(width: 12),
                             Expanded(

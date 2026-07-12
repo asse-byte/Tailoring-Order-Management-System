@@ -41,7 +41,7 @@ class InvoiceService {
   }) async {
     final doc = pw.Document();
     final logo = logoBytes != null ? pw.MemoryImage(logoBytes) : null;
-    final df = _fmtDate;
+    const df = _fmtDate;
 
     doc.addPage(
       pw.Page(
@@ -66,7 +66,7 @@ class InvoiceService {
                   alignment: pw.Alignment.center,
                   child: logo == null
                       ? pw.Text('R',
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                               color: PdfColors.white,
                               fontSize: 30,
                               fontWeight: pw.FontWeight.bold))
@@ -77,12 +77,12 @@ class InvoiceService {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: <pw.Widget>[
                     pw.Text(shopName,
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                             fontSize: 22,
                             fontWeight: pw.FontWeight.bold,
                             color: _teal)),
                     pw.Text('Atelier de couture',
-                        style: pw.TextStyle(fontSize: 11, color: _gold)),
+                        style: const pw.TextStyle(fontSize: 11, color: _gold)),
                   ],
                 ),
                 pw.Spacer(),
@@ -90,7 +90,7 @@ class InvoiceService {
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: <pw.Widget>[
                     pw.Text('FACTURE',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                             fontSize: 18, fontWeight: pw.FontWeight.bold)),
                     pw.Text('N° ${order.id.substring(0, 8).toUpperCase()}',
                         style: const pw.TextStyle(fontSize: 10)),
@@ -110,7 +110,7 @@ class InvoiceService {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: <pw.Widget>[
                     pw.Text('Client',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                             fontWeight: pw.FontWeight.bold, color: _teal)),
                     pw.Text(order.clientName),
                     if (order.clientPhone.isNotEmpty)
@@ -168,13 +168,13 @@ class InvoiceService {
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: <pw.Widget>[
                   pw.Text('TOTAL: ${formatFcfa(order.total)}',
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                           fontSize: 15,
                           fontWeight: pw.FontWeight.bold,
                           color: _teal)),
                   pw.Text('Avance: ${formatFcfa(order.advance)}'),
                   pw.Text('Reste à payer: ${formatFcfa(order.reste)}',
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                 ],
               ),
             ),
@@ -186,7 +186,7 @@ class InvoiceService {
                 destination: promoGroupLink,
                 child: pw.Text(
                   'Rejoignez notre groupe: $promoGroupLink',
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                       color: _teal,
                       decoration: pw.TextDecoration.underline,
                       fontSize: 11),
@@ -195,7 +195,7 @@ class InvoiceService {
             ],
             pw.Center(
               child: pw.Text('Merci de votre confiance — $shopName',
-                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
+                  style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
             ),
           ],
         ),
