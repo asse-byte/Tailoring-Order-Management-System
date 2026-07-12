@@ -106,6 +106,17 @@ Large batch of owner-requested changes, executed one tested commit per item
   (garment types, quantities, client names, daily + weekly totals). Still
   append-only (corrections change pieces only). The `duplicate entry → 409`
   security test was replaced by one asserting multiple same-day entries.
+- **Item 7 — DONE.** Order invoice + WhatsApp. `InvoiceService`
+  (`orders/data/invoice_service.dart`) builds a branded A4 PDF (logo or the
+  "R" placeholder, Rayan Couture, client, line items, total/advance/reste,
+  dates, clickable promo link) via `pdf`/`printing` and shares it with
+  `Printing.sharePdf`; `sendWhatsApp` opens `wa.me/<intl-phone>` (Mali 223
+  prepended to 8-digit locals) with a prefilled recap, warning on a
+  missing/invalid number. Both actions are on the order detail screen and
+  available to BOTH roles (only the order price the client already knows —
+  no internal financials). New public setting `promo_group_link`
+  (migration 008) editable in Paramètres. Invoice/WhatsApp available to
+  manager and secretary.
 - **Item 5 — DONE (calculation bug fixed).** `GET /api/finance/summary`
   computed COGS with the wrong `kind` literals (`'product'`/`'model'`) while
   sales store `'produit'`/`'pret_a_porter'`, so **cost of goods sold was

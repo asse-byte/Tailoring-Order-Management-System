@@ -17,11 +17,13 @@ class ShopSettingsProvider extends ChangeNotifier {
   String _shopName = 'Rayan Couture';
   String? _logoUrl;
   int _defaultPieceRate = 0;
+  String _promoGroupLink = '';
   bool _loaded = false;
 
   String get shopName => _shopName;
   String? get logoUrl => _logoUrl;
   int get defaultPieceRate => _defaultPieceRate;
+  String get promoGroupLink => _promoGroupLink;
   bool get loaded => _loaded;
 
   Future<void> refresh() async {
@@ -29,10 +31,22 @@ class ShopSettingsProvider extends ChangeNotifier {
       final settings = await _repo.publicSettings();
       _shopName = settings.shopName;
       _logoUrl = settings.logoUrl;
+      _promoGroupLink = settings.promoGroupLink;
       _loaded = true;
       notifyListeners();
     } catch (_) {
       // Serveur injoignable : on garde le nom par défaut
+    }
+  }
+
+  Future<bool> updatePromoGroupLink(String link) async {
+    try {
+      await _repo.updateSettings(promoGroupLink: link);
+      _promoGroupLink = link;
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

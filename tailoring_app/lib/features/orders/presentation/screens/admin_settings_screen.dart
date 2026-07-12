@@ -155,6 +155,44 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     }
   }
 
+  Future<void> _changePromoLink(BuildContext context) async {
+    final provider = context.read<ShopSettingsProvider>();
+    final controller = TextEditingController(text: provider.promoGroupLink);
+    final bool? save = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Lien du groupe promo'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(
+            labelText: 'Lien (WhatsApp, Facebook…)',
+            hintText: 'https://chat.whatsapp.com/…',
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(context.loc.cancel)),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(context.loc.save)),
+        ],
+      ),
+    );
+    if (save == true) {
+      final ok = await provider.updatePromoGroupLink(controller.text.trim());
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ok ? 'Lien mis à jour.' : 'Échec de la mise à jour.'),
+            backgroundColor: ok ? Colors.green : AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -271,6 +309,16 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             subtitle: formatFcfa(shopSettings.defaultPieceRate),
             color: Colors.green,
             onTap: () => _changeDefaultPieceRate(context),
+          ),
+          const SizedBox(height: 10),
+          _ActionTile(
+            icon: Icons.link_rounded,
+            title: 'Lien du groupe promo',
+            subtitle: shopSettings.promoGroupLink.isEmpty
+                ? 'Non défini (affiché sur les factures)'
+                : shopSettings.promoGroupLink,
+            color: AppColors.info,
+            onTap: () => _changePromoLink(context),
           ),
           const SizedBox(height: 16),
           const _LanguageSelector(),

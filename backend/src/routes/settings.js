@@ -32,6 +32,9 @@ privateRouter.put('/', asyncH(async (req, res) => {
     if (rate == null) return res.status(400).json({ error: 'default_piece_rate invalide.' });
     updates.push(['default_piece_rate', JSON.stringify(rate)]);
   }
+  if (req.body.promo_group_link !== undefined) {
+    updates.push(['promo_group_link', JSON.stringify(str(req.body.promo_group_link) || '')]);
+  }
   if (!updates.length) return res.status(400).json({ error: 'Rien à mettre à jour.' });
   for (const [key, value] of updates) {
     await db.query('UPDATE settings SET value = $1 WHERE key = $2', [value, key]);

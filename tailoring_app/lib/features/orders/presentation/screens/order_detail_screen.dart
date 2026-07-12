@@ -14,7 +14,9 @@ import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../settings/presentation/providers/shop_settings_provider.dart';
 import '../../../staff/data/staff_repository.dart';
+import '../../data/invoice_service.dart';
 import '../../data/orders_repository.dart';
 import '../../domain/entities/order.dart';
 
@@ -415,6 +417,34 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
+  Future<void> _shareInvoice() async {
+    final shop = context.read<ShopSettingsProvider>();
+    _toast('Génération de la facture…');
+    try {
+      await InvoiceService.shareInvoice(
+        order: _order!,
+        shopName: shop.shopName,
+        promoGroupLink: shop.promoGroupLink,
+        logoUrl: shop.logoUrl,
+      );
+    } catch (e) {
+      if (mounted) _toast('Impossible de générer la facture : $e', error: true);
+    }
+  }
+
+  Future<void> _sendWhatsApp() async {
+    final shop = context.read<ShopSettingsProvider>();
+    final ok = await InvoiceService.sendWhatsApp(
+      order: _order!,
+      shopName: shop.shopName,
+      promoGroupLink: shop.promoGroupLink,
+    );
+    if (!ok && mounted) {
+      _toast('Numéro de téléphone du client manquant ou invalide.',
+          error: true);
+    }
+  }
+
   Future<void> _confirmDelete() async {
     final bool yes = await showConfirmDialog(
       context,
@@ -746,6 +776,26 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             icon: const Icon(Icons.edit_outlined),
             label: const Text('Modifier couturier, avance & notes'),
             onPressed: _editDetails,
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                  label: const Text('Facture'),
+                  onPressed: _shareInvoice,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
+                  label: const Text('WhatsApp'),
+                  onPressed: _sendWhatsApp,
+                ),
+              ),
+            ],
           ),
           if (auth.isAdmin) ...<Widget>[
             const SizedBox(height: 10),
