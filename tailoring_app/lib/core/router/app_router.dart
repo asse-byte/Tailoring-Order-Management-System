@@ -18,6 +18,7 @@ import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/walk_in_order_screen.dart';
 import '../../features/products/presentation/screens/products_screen.dart';
 import '../../features/staff/presentation/screens/staff_screen.dart';
+import '../../features/staff/presentation/screens/monthly_staff_screen.dart';
 import '../../features/finance/presentation/screens/finance_screen.dart';
 import '../../features/ready_to_wear/presentation/screens/ready_to_wear_screen.dart';
 import '../../features/appointments/presentation/screens/appointments_screen.dart';
@@ -107,6 +108,10 @@ class AppRouter {
               builder: (_, __) => const StaffScreen(),
             ),
             GoRoute(
+              path: 'monthly-staff',
+              builder: (_, __) => const MonthlyStaffScreen(),
+            ),
+            GoRoute(
               path: 'finance',
               builder: (_, __) => const FinanceScreen(),
             ),
@@ -149,7 +154,10 @@ class AppRouter {
         if (loc == '/login' || loc == '/') return '/admin';
 
         // Secretary cannot access financial/management routes — redirect to home.
-        if (auth.isSecretary && (loc == '/admin/finance' || loc == '/admin/staff-pay')) {
+        if (auth.isSecretary &&
+            (loc == '/admin/finance' ||
+                loc == '/admin/staff-pay' ||
+                loc == '/admin/monthly-staff')) {
           return '/admin';
         }
 

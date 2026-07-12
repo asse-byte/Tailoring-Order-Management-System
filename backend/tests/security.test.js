@@ -474,10 +474,21 @@ describe('MANAGER — financial access and audit trail', () => {
     expect(rows[0].amount).toBe(4 * 2000);
   });
 
-  it('duplicate entry for the same tailor+day → 409', async () => {
-    const res = await asManager(request(app).post('/api/tailor-entries'))
-      .send({ tailor_id: tailorId, entry_date: '2026-07-01', pieces_count: 1 });
-    expect(res.status).toBe(409);
+  it('a tailor can have several itemised entries on the same day', async () => {
+    // Item 6: the one-entry-per-day rule was removed so a tailor can log
+    // different garment types on the same day. Uses a dedicated tailor so the
+    // shared weekly/finance totals below stay clean.
+    const t = (await asManager(request(app).post('/api/staff'))
+      .send({ full_name: 'Multi Jour', phone: '76000099', type: 'couturier' })).body.id;
+    await asManager(request(app).put(`/api/staff-pay/${t}`)).send({ piece_rate: 1000 });
+    // Dated in August so it stays out of the July finance-summary window and
+    // the 2026-W27 weekly totals asserted by other tests.
+    const a = await asManager(request(app).post('/api/tailor-entries'))
+      .send({ tailor_id: t, entry_date: '2026-08-03', pieces_count: 2, garment_type: 'Grand Boubou' });
+    const b = await asManager(request(app).post('/api/tailor-entries'))
+      .send({ tailor_id: t, entry_date: '2026-08-03', pieces_count: 3, garment_type: 'Chemise' });
+    expect(a.status).toBe(201);
+    expect(b.status).toBe(201);
   });
 
   it('there is NO update/delete route for entries — correction log only', async () => {

@@ -90,3 +90,6 @@ credentials.json
 # Android and Kotlin build artifacts
 .kotlin/
 hs_err_pid*.log
+
+# test scratch output
+backend/test_out.txt

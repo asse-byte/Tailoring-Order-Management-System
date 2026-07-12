@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/constants/garment_types.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../orders/data/orders_repository.dart';
+import '../../../orders/domain/entities/order.dart';
 import '../../data/staff_repository.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 
@@ -103,14 +106,13 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
     final formKey = GlobalKey<FormState>();
     String name = '';
     String phone = '';
-    String type = 'couturier';
 
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Nouveau Membre'),
+          title: const Text('Nouveau Tailleur'),
           content: Form(
             key: formKey,
             child: Column(
@@ -127,15 +129,11 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                   keyboardType: TextInputType.phone,
                   onSaved: (v) => phone = v ?? '',
                 ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: type,
-                  decoration: const InputDecoration(labelText: 'Rôle'),
-                  items: const [
-                    DropdownMenuItem(value: 'couturier', child: Text('Couturier (À la pièce)')),
-                    DropdownMenuItem(value: 'autre', child: Text('Autre (Mensuel)')),
-                  ],
-                  onChanged: (v) => setDlgState(() => type = v ?? 'couturier'),
+                const SizedBox(height: 8),
+                const Text(
+                  'Tous les tailleurs sont payés à la pièce. Les employés mensuels '
+                  'se gèrent dans la section « Staff ».',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -150,7 +148,8 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                 if (formKey.currentState!.validate()) {
                   formKey.currentState!.save();
                   try {
-                    await _repo.createStaff(fullName: name, phone: phone, type: type);
+                    await _repo.createStaff(
+                        fullName: name, phone: phone, type: 'couturier');
                     if (!ctx.mounted) return;
                     Navigator.pop(ctx);
                     _loadData();
@@ -342,7 +341,17 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
     String tailorId = activeTailors.first.staffId;
     int pieces = 1;
     int? rate;
+    String garment = GarmentTypes.all.first;
+    String? linkedOrderId;
     DateTime date = DateTime.now();
+    // Optional: link the day's work to an active order so the client name is
+    // derived (never re-typed). Load a short list of recent non-delivered ones.
+    List<TailoringOrder> linkableOrders = <TailoringOrder>[];
+    try {
+      linkableOrders = await OrdersRepository().list(limit: 50);
+      linkableOrders = linkableOrders.where((o) => !o.isLivre).toList();
+    } catch (_) {/* linking is optional */}
+    if (!mounted) return;
     // Pre-fill the rate with the selected tailor's configured piece rate; the
     // manager can override it per entry (a tailor may sew different garments
     // at different prices).
@@ -377,6 +386,49 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                         sel.pieceRate != null ? formatThousands(sel.pieceRate!) : '');
                   },
                 ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: garment,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Type de vêtement'),
+                  items: GarmentTypes.all
+                      .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                      .toList(),
+                  onChanged: (v) => setDlgState(() => garment = v ?? garment),
+                ),
+                if (linkableOrders.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String?>(
+                    initialValue: linkedOrderId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Commande liée (optionnel)',
+                      helperText: 'Renseigne automatiquement le client',
+                    ),
+                    items: <DropdownMenuItem<String?>>[
+                      const DropdownMenuItem<String?>(
+                          value: null, child: Text('Aucune')),
+                      ...linkableOrders.map((o) => DropdownMenuItem<String?>(
+                            value: o.id,
+                            child: Text('${o.clientName} — ${o.garmentType}',
+                                overflow: TextOverflow.ellipsis),
+                          )),
+                    ],
+                    onChanged: (v) {
+                      final ord = v == null
+                          ? null
+                          : linkableOrders.firstWhere((o) => o.id == v);
+                      setDlgState(() {
+                        linkedOrderId = v;
+                        if (ord != null && ord.garmentType.isNotEmpty) {
+                          garment = GarmentTypes.all.contains(ord.garmentType)
+                              ? ord.garmentType
+                              : garment;
+                        }
+                      });
+                    },
+                  ),
+                ],
                 const SizedBox(height: 12),
                 TextFormField(
                   initialValue: '1',
@@ -430,6 +482,8 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                       entryDate: dateStr,
                       piecesCount: pieces,
                       pieceRate: parseThousands(rateController.text) ?? rate,
+                      garmentType: garment,
+                      orderId: linkedOrderId,
                     );
                     if (!ctx.mounted) return;
                     Navigator.pop(ctx);
@@ -514,17 +568,19 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
   }
 
   Widget _buildSecretaryView() {
+    final couturiers =
+        _contacts.where((c) => c.type == 'couturier').toList();
     return _loading
         ? const Center(child: CircularProgressIndicator())
         : _error != null
             ? Center(child: Text('Erreur: $_error'))
-            : _contacts.isEmpty
-                ? const Center(child: Text('Aucun employé enregistré.'))
+            : couturiers.isEmpty
+                ? const Center(child: Text('Aucun tailleur enregistré.'))
                 : ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: _contacts.length,
+                    itemCount: couturiers.length,
                     itemBuilder: (ctx, idx) {
-                      final c = _contacts[idx];
+                      final c = couturiers[idx];
                       return Card(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         margin: const EdgeInsets.only(bottom: 12),
@@ -553,17 +609,18 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
   }
 
   Widget _buildManagerStaffTab() {
-    return _payInfoList.isEmpty
-        ? const Center(child: Text('Aucun employé enregistré.'))
+    final tailors =
+        _payInfoList.where((m) => m.type == 'couturier').toList();
+    return tailors.isEmpty
+        ? const Center(child: Text('Aucun tailleur enregistré.'))
         : ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: _payInfoList.length,
+            itemCount: tailors.length,
             itemBuilder: (ctx, idx) {
-              final m = _payInfoList[idx];
-              final String typeLabel = m.type == 'couturier' ? 'Couturier' : 'Mensuel';
-              final String payLabel = m.type == 'couturier'
-                  ? 'Tarif p. pièce: ${formatFcfa(m.pieceRate ?? 0)}'
-                  : 'Salaire: ${formatFcfa(m.monthlySalary ?? 0)} (le ${m.salaryDueDay ?? 1})';
+              final m = tailors[idx];
+              const String typeLabel = 'Couturier';
+              final String payLabel =
+                  'Tarif p. pièce: ${formatFcfa(m.pieceRate ?? 0)}';
 
               return Card(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -674,6 +731,150 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
     );
   }
 
+  /// Detailed week for one tailor: entries grouped Monday→Sunday, each day
+  /// listing garment types + quantities + client names + daily total.
+  Future<void> _showWeeklyDetail(String tailorId, String tailorName) async {
+    final weekId = _getWeekId(_currentWeekStart);
+    final WeeklyDetail detail;
+    try {
+      detail = await _repo.weeklyDetail(weekId, tailorId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      }
+      return;
+    }
+    if (!mounted) return;
+
+    // Group by day, preserving Monday→Sunday order.
+    const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+    final Map<String, List<WeeklyDetailEntry>> byDay = {};
+    for (final e in detail.items) {
+      byDay.putIfAbsent(e.entryDate, () => []).add(e);
+    }
+    final sortedDates = byDay.keys.toList()..sort();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (ctx, scrollCtrl) => Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Center(
+                  child: Container(
+                    height: 4,
+                    width: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text('Semaine de $tailorName',
+                    style: Theme.of(ctx).textTheme.headlineSmall),
+                Text('Semaine $weekId',
+                    style: Theme.of(ctx).textTheme.bodySmall),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: detail.items.isEmpty
+                      ? const Center(child: Text('Aucune production cette semaine.'))
+                      : ListView.builder(
+                          controller: scrollCtrl,
+                          itemCount: sortedDates.length,
+                          itemBuilder: (ctx, i) {
+                            final date = sortedDates[i];
+                            final dayEntries = byDay[date]!;
+                            final dt = DateTime.tryParse(date);
+                            final dayLabel = dt != null
+                                ? '${dayNames[dt.weekday - 1]} ${dt.day}/${dt.month}'
+                                : date;
+                            final dayTotal = dayEntries.fold<int>(
+                                0, (s, e) => s + e.amount);
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Row(
+                                      children: <Widget>[
+                                        Text(dayLabel,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold)),
+                                        const Spacer(),
+                                        Text(formatFcfa(dayTotal),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.green)),
+                                      ],
+                                    ),
+                                    const Divider(),
+                                    ...dayEntries.map((e) => Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 3),
+                                          child: Row(
+                                            children: <Widget>[
+                                              Expanded(
+                                                child: Text(
+                                                  '${e.garmentType.isEmpty ? 'Pièce' : e.garmentType}'
+                                                  ' × ${e.piecesCount}'
+                                                  '${e.clientName != null ? '  · ${e.clientName}' : ''}',
+                                                  style: Theme.of(ctx)
+                                                      .textTheme
+                                                      .bodyMedium,
+                                                ),
+                                              ),
+                                              Text(formatFcfa(e.amount)),
+                                            ],
+                                          ),
+                                        )),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: <Widget>[
+                      Text('Total semaine',
+                          style: Theme.of(ctx).textTheme.titleMedium),
+                      const Spacer(),
+                      Text(formatFcfa(detail.total),
+                          style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w800,
+                              )),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildWeeklySummaryTab() {
     final weekStart = _currentWeekStart;
     final weekEnd = weekStart.add(const Duration(days: 6));
@@ -714,6 +915,9 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                     return Card(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       margin: const EdgeInsets.only(bottom: 10),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                      onTap: () => _showWeeklyDetail(w.tailorId, w.tailorName),
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Row(
@@ -749,6 +953,7 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
                           ],
                         ),
                       ),
+                      ),
                     );
                   },
                 ),
@@ -764,13 +969,13 @@ class _StaffScreenState extends State<StaffScreen> with SingleTickerProviderStat
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('$shopName - Personnel'),
+        title: Text('$shopName - Tailleurs'),
         bottom: isSec || _tabController == null
             ? null
             : TabBar(
                 controller: _tabController,
                 tabs: const [
-                  Tab(icon: Icon(Icons.people_rounded), text: 'Personnel'),
+                  Tab(icon: Icon(Icons.content_cut_rounded), text: 'Tailleurs'),
                   Tab(icon: Icon(Icons.assignment_turned_in_rounded), text: 'Entrées'),
                   Tab(icon: Icon(Icons.summarize_rounded), text: 'Résumés'),
                 ],

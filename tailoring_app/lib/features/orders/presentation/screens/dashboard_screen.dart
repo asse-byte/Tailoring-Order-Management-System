@@ -31,12 +31,19 @@ class DashboardScreen extends StatelessWidget {
         color: const Color(0xFFFF6584),
         route: '/admin/products',
       ),
-      _DashboardItem(
-        title: context.loc.staff,
-        icon: Icons.badge_rounded,
-        color: const Color(0xFF4E9F3D),
+      const _DashboardItem(
+        title: 'Tailleurs',
+        icon: Icons.content_cut_rounded,
+        color: Color(0xFF4E9F3D),
         route: '/admin/staff',
       ),
+      if (!isSec)
+        const _DashboardItem(
+          title: 'Staff',
+          icon: Icons.badge_rounded,
+          color: Color(0xFF2A9D8F),
+          route: '/admin/monthly-staff',
+        ),
       if (!isSec)
         _DashboardItem(
           title: context.loc.finance,

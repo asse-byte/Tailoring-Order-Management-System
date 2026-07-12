@@ -37,11 +37,17 @@ router.post('/', asyncH(async (req, res) => {
       error: 'Aucun prix par pièce défini pour ce couturier (ni de valeur par défaut).',
     });
   }
+  // Optional descriptive fields (item 6). When an order is linked the client
+  // name is derived from it at read time — never re-typed here.
+  const garmentType = str(req.body.garment_type);
+  const orderId = str(req.body.order_id);
   const { rows } = await db.query(
     `INSERT INTO tailor_daily_entries
-       (tailor_id, entry_date, pieces_count, piece_rate, week_id, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [tailorId, entryDate, piecesCount, rate, isoWeekId(entryDate), req.user.id]);
+       (tailor_id, entry_date, pieces_count, piece_rate, week_id, created_by,
+        garment_type, order_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::uuid) RETURNING *`,
+    [tailorId, entryDate, piecesCount, rate, isoWeekId(entryDate), req.user.id,
+      garmentType, orderId]);
   res.status(201).json(rows[0]);
 }));
 
@@ -52,15 +58,39 @@ router.get('/', asyncH(async (req, res) => {
   const from = dateStr(req.query.from);
   const to = dateStr(req.query.to);
   const { rows } = await db.query(
-    `SELECT e.*, s.full_name AS tailor_name
-     FROM tailor_entries_effective e JOIN staff s ON s.id = e.tailor_id
+    `SELECT e.*, s.full_name AS tailor_name,
+            c.full_name AS client_name
+     FROM tailor_entries_effective e
+     JOIN staff s ON s.id = e.tailor_id
+     LEFT JOIN orders o ON o.id = e.order_id
+     LEFT JOIN clients c ON c.id = o.client_id
      WHERE ($1::text IS NULL OR e.week_id = $1)
        AND ($2::uuid IS NULL OR e.tailor_id = $2)
        AND ($3::date IS NULL OR e.entry_date >= $3)
        AND ($4::date IS NULL OR e.entry_date <= $4)
-     ORDER BY e.entry_date DESC LIMIT 500`,
+     ORDER BY e.entry_date DESC, e.created_at DESC LIMIT 500`,
     [weekId, tailorId, from, to]);
   res.json({ items: rows });
+}));
+
+// Detailed week for ONE tailor: every entry (garment type, pieces, client,
+// amount) so the UI can group Monday→Sunday. Manager-only like the rest.
+router.get('/weekly-detail', asyncH(async (req, res) => {
+  const weekId = str(req.query.week_id);
+  const tailorId = str(req.query.tailor_id);
+  if (!weekId || !tailorId) {
+    return res.status(400).json({ error: 'week_id et tailor_id requis.' });
+  }
+  const { rows } = await db.query(
+    `SELECT e.id, e.entry_date, e.garment_type, e.pieces_count, e.piece_rate,
+            e.amount, e.order_id, e.corrected, c.full_name AS client_name
+     FROM tailor_entries_effective e
+     LEFT JOIN orders o ON o.id = e.order_id
+     LEFT JOIN clients c ON c.id = o.client_id
+     WHERE e.week_id = $1 AND e.tailor_id = $2
+     ORDER BY e.entry_date, e.created_at`, [weekId, tailorId]);
+  const total = rows.reduce((s, r) => s + Number(r.amount), 0);
+  res.json({ week_id: weekId, tailor_id: tailorId, items: rows, total });
 }));
 
 // Weekly totals per tailor — what gets paid every week.

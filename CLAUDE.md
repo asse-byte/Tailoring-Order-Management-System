@@ -93,6 +93,19 @@ Large batch of owner-requested changes, executed one tested commit per item
   types live only as a Flutter constant (no DB seed), so no migration was
   needed. The legacy English `garmentName()` word-map is unused by the
   active French dropdowns and left as-is.
+- **Item 6 — DONE.** Staff split into two home modules: **Tailleurs**
+  (couturiers, always piece-rate) keeps the existing screen (list/entries/
+  weekly), and a new manager-only **Staff** module
+  (`monthly_staff_screen.dart`, route `/admin/monthly-staff`, secretary
+  redirected) for monthly employees. Tailor daily entries are now itemised:
+  migration 007 adds `garment_type` + optional `order_id` to
+  `tailor_daily_entries` and drops the one-row-per-day UNIQUE so a tailor can
+  log several garment types per day. Client name is DERIVED from the linked
+  order (never re-typed). New `GET /api/tailor-entries/weekly-detail`
+  returns a tailor's week; the Résumés tab drills into a Monday→Sunday sheet
+  (garment types, quantities, client names, daily + weekly totals). Still
+  append-only (corrections change pieces only). The `duplicate entry → 409`
+  security test was replaced by one asserting multiple same-day entries.
 - **Item 5 — DONE (calculation bug fixed).** `GET /api/finance/summary`
   computed COGS with the wrong `kind` literals (`'product'`/`'model'`) while
   sales store `'produit'`/`'pret_a_porter'`, so **cost of goods sold was
