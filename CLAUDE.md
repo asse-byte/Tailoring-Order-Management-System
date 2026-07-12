@@ -117,6 +117,14 @@ Large batch of owner-requested changes, executed one tested commit per item
   no internal financials). New public setting `promo_group_link`
   (migration 008) editable in Paramètres. Invoice/WhatsApp available to
   manager and secretary.
+- **Item 8 — DONE.** Finances screen now shows, besides the KPI cards, a
+  separate expandable detail table per category — delivered-order revenue,
+  product sales, tailor wages (couture) and expenses — each listing its
+  operations with a subtotal, driven by period presets (Jour/Semaine/Mois/
+  Année/Personnalisé) that recompute from/to and reload. Rows come from the
+  existing list endpoints filtered by date (`FinanceRepository.*Rows`).
+  Expense editing still goes through the append-only `expense_corrections`
+  path (unchanged) — the pattern was NOT weakened for the UI.
 - **Item 5 — DONE (calculation bug fixed).** `GET /api/finance/summary`
   computed COGS with the wrong `kind` literals (`'product'`/`'model'`) while
   sales store `'produit'`/`'pret_a_porter'`, so **cost of goods sold was

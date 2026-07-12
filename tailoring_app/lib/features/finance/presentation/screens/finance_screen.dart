@@ -21,10 +21,17 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
   FinanceSummary? _summary;
   List<Expense> _expenses = [];
-  
+
+  // Per-category detail rows for the selected period.
+  List<FinanceRow> _orderRows = [];
+  List<FinanceRow> _saleRows = [];
+  List<FinanceRow> _wageRows = [];
+  List<FinanceRow> _expenseRows = [];
+
   // Date range state: default to current month
   DateTime _fromDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime _toDate = DateTime.now();
+  String _period = 'mois'; // jour | semaine | mois | annee | perso
 
   @override
   void initState() {
@@ -50,19 +57,107 @@ class _FinanceScreenState extends State<FinanceScreen> {
     try {
       final fromStr = _formatDate(_fromDate);
       final toStr = _formatDate(_toDate);
-      
-      final sum = await _repo.getSummary(from: fromStr, to: toStr);
-      final expList = await _repo.listExpenses();
+
+      final results = await Future.wait(<Future<dynamic>>[
+        _repo.getSummary(from: fromStr, to: toStr),
+        _repo.listExpenses(),
+        _repo.deliveredOrderRows(from: fromStr, to: toStr),
+        _repo.saleRows(from: fromStr, to: toStr),
+        _repo.tailorWageRows(from: fromStr, to: toStr),
+        _repo.expenseRows(from: fromStr, to: toStr),
+      ]);
 
       setState(() {
-        _summary = sum;
-        _expenses = expList;
+        _summary = results[0] as FinanceSummary;
+        _expenses = results[1] as List<Expense>;
+        _orderRows = results[2] as List<FinanceRow>;
+        _saleRows = results[3] as List<FinanceRow>;
+        _wageRows = results[4] as List<FinanceRow>;
+        _expenseRows = results[5] as List<FinanceRow>;
       });
     } catch (e) {
       _error = e.toString();
     } finally {
       setState(() => _loading = false);
     }
+  }
+
+  void _setPeriod(String period) {
+    final now = DateTime.now();
+    final DateTime to = now;
+    DateTime from;
+    switch (period) {
+      case 'jour':
+        from = DateTime(now.year, now.month, now.day);
+        break;
+      case 'semaine':
+        from = now.subtract(Duration(days: now.weekday - 1));
+        from = DateTime(from.year, from.month, from.day);
+        break;
+      case 'annee':
+        from = DateTime(now.year, 1, 1);
+        break;
+      case 'mois':
+      default:
+        from = DateTime(now.year, now.month, 1);
+    }
+    setState(() {
+      _period = period;
+      _fromDate = from;
+      _toDate = to;
+    });
+    _loadFinanceData();
+  }
+
+  /// An expandable table for one finance category (rows + subtotal).
+  Widget _detailSection(
+      String title, List<FinanceRow> rows, IconData icon, Color color) {
+    final int subtotal = rows.fold(0, (s, r) => s + r.amount);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ExpansionTile(
+        leading: Icon(icon, color: color),
+        title: Text(title,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        subtitle: Text('${rows.length} opération(s)'),
+        trailing: Text(formatFcfa(subtotal),
+            style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        children: rows.isEmpty
+            ? const <Widget>[
+                Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Text('Aucune opération sur la période.'),
+                )
+              ]
+            : rows
+                .map((r) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(r.title,
+                                    style: const TextStyle(fontSize: 13)),
+                                if (r.subtitle.isNotEmpty)
+                                  Text(r.subtitle,
+                                      style: TextStyle(
+                                          fontSize: 11, color: Colors.grey[600])),
+                              ],
+                            ),
+                          ),
+                          Text(formatFcfa(r.amount),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 13)),
+                        ],
+                      ),
+                    ))
+                .toList(),
+      ),
+    );
   }
 
   Future<void> _selectDateRange() async {
@@ -275,6 +370,37 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Period presets
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: <Widget>[
+                            for (final p in const <({String key, String label})>[
+                              (key: 'jour', label: 'Jour'),
+                              (key: 'semaine', label: 'Semaine'),
+                              (key: 'mois', label: 'Mois'),
+                              (key: 'annee', label: 'Année'),
+                            ])
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ChoiceChip(
+                                  label: Text(p.label),
+                                  selected: _period == p.key,
+                                  onSelected: (_) => _setPeriod(p.key),
+                                ),
+                              ),
+                            ChoiceChip(
+                              label: const Text('Personnalisé'),
+                              selected: _period == 'perso',
+                              onSelected: (_) {
+                                setState(() => _period = 'perso');
+                                _selectDateRange();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       // Date range summary header
                       Padding(
                         padding: const EdgeInsets.only(bottom: 16.0),
@@ -320,9 +446,22 @@ class _FinanceScreenState extends State<FinanceScreen> {
                           details: 'Indicateur de rentabilité nette sur la période.',
                         ),
                       ],
-                      
+
+                      const SizedBox(height: 20),
+                      const Text('Détail par catégorie',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      _detailSection('Revenus — Commandes livrées',
+                          _orderRows, Icons.receipt_long_rounded, Colors.green),
+                      _detailSection('Revenus — Ventes produits',
+                          _saleRows, Icons.shopping_bag_rounded, Colors.green),
+                      _detailSection("Coûts — Main d'œuvre (couture)",
+                          _wageRows, Icons.content_cut_rounded, Colors.red),
+                      _detailSection('Coûts — Dépenses',
+                          _expenseRows, Icons.receipt_rounded, Colors.red),
+
                       const SizedBox(height: 24),
-                      
+
                       // Expense Title row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
