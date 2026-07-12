@@ -87,7 +87,9 @@ Large batch of owner-requested changes, executed one tested commit per item
   order therefore puts its delivery on the calendar automatically — no
   duplicate row, orders stay the source of truth. Sorted nearest-first;
   Flutter shows a red warning style + countdown badge for anything ≤ 3 days
-  away, and order entries deep-link to the order detail.
+  away, and order entries deep-link to the order detail. Manual appointment
+  creation was later removed from the UI (orders are the source of delivery
+  dates); the calendar is read/merge-only.
 - **Item 4 — DONE.** Garment types (`core/constants/garment_types.dart`):
   `Boubou` → `Grand Boubou`, `Pantalon` removed, `Création` added. These
   types live only as a Flutter constant (no DB seed), so no migration was
@@ -102,10 +104,15 @@ Large batch of owner-requested changes, executed one tested commit per item
   `tailor_daily_entries` and drops the one-row-per-day UNIQUE so a tailor can
   log several garment types per day. Client name is DERIVED from the linked
   order (never re-typed). New `GET /api/tailor-entries/weekly-detail`
-  returns a tailor's week; the Résumés tab drills into a Monday→Sunday sheet
-  (garment types, quantities, client names, daily + weekly totals). Still
-  append-only (corrections change pieces only). The `duplicate entry → 409`
-  security test was replaced by one asserting multiple same-day entries.
+  returns a tailor's week. Still append-only (corrections change pieces
+  only). The `duplicate entry → 409` security test was replaced by one
+  asserting multiple same-day entries. UI later simplified: the 3 tabs
+  (Personnel/Entrées/Résumés) were removed — Tailleurs is now a single
+  tailor list; tapping a tailor opens one sheet with everything (a real
+  navigable Monday→Sunday week showing all 7 days with garments/quantities/
+  clients + daily & weekly totals, plus add-entry, per-entry correction and
+  edit-rate). The Flutter `_getWeekId` was made true ISO-8601 to match the
+  backend `isoWeekId`.
 - **Item 7 — DONE.** Order invoice + WhatsApp. `InvoiceService`
   (`orders/data/invoice_service.dart`) builds a branded A4 PDF (logo or the
   "R" placeholder, Rayan Couture, client, line items, total/advance/reste,

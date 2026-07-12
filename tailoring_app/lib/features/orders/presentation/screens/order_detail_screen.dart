@@ -486,16 +486,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     children: <Widget>[
                       _header(_order!),
                       const SizedBox(height: 20),
-                      Row(
-                        children: <Widget>[
-                          const SectionHeader(title: 'Articles'),
-                          const Spacer(),
-                          TextButton.icon(
-                            onPressed: _addLine,
-                            icon: const Icon(Icons.add_rounded, size: 18),
-                            label: const Text('Ajouter'),
-                          ),
-                        ],
+                      SectionHeader(
+                        title: 'Articles',
+                        action: TextButton.icon(
+                          onPressed: _addLine,
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: const Text('Ajouter'),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       _lineItemsCard(_order!),

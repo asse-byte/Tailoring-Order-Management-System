@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../clients/data/clients_repository.dart';
-import '../../../clients/domain/client.dart';
 import '../../data/appointments_repository.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 
@@ -16,7 +14,6 @@ class AppointmentsScreen extends StatefulWidget {
 
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
   final AppointmentsRepository _repo = AppointmentsRepository();
-  final ClientsRepository _clientsRepo = ClientsRepository();
 
   List<Appointment> _appointments = [];
   bool _loading = true;
@@ -45,187 +42,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     } finally {
       setState(() => _loading = false);
     }
-  }
-
-  Future<void> _addAppointment() async {
-    final formKey = GlobalKey<FormState>();
-    Client? selectedClient;
-    String reason = 'Essayage';
-    DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
-    TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 0);
-
-    // Pick client helper
-    Future<void> showClientPicker(StateSetter setDlgState) async {
-      try {
-        final List<Client> clients = await _clientsRepo.list(limit: 100);
-        if (!mounted) return;
-        final Client? chosen = await showModalBottomSheet<Client>(
-          context: context,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          builder: (ctx) => SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Sélectionner un client', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: clients.length,
-                      itemBuilder: (context, index) {
-                        final c = clients[index];
-                        return ListTile(
-                          title: Text(c.fullName),
-                          subtitle: Text(c.phone),
-                          onTap: () => Navigator.pop(ctx, c),
-                        );
-                      },
-                    ),
-                  )
-                ],
-              ),
-            ),
-          ),
-        );
-        if (chosen != null) {
-          setDlgState(() {
-            selectedClient = chosen;
-          });
-        }
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
-      }
-    }
-
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDlgState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Nouveau Rendez-vous'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Client Picker Row
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Client', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(selectedClient == null ? 'Choisir un client...' : '${selectedClient!.fullName} (${selectedClient!.phone})'),
-                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-                    onTap: () => showClientPicker(setDlgState),
-                  ),
-                  const Divider(),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: reason,
-                    decoration: const InputDecoration(labelText: 'Motif'),
-                    items: const [
-                      DropdownMenuItem(value: 'Essayage', child: Text('Séance d\'essayage')),
-                      DropdownMenuItem(value: 'Consultation', child: Text('Consultation / Mesures')),
-                      DropdownMenuItem(value: 'Livraison', child: Text('Livraison')),
-                    ],
-                    onChanged: (v) => setDlgState(() => reason = v ?? 'Essayage'),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Date:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      TextButton.icon(
-                        icon: const Icon(Icons.calendar_today_rounded),
-                        label: Text('${selectedDate.toLocal()}'.substring(0, 10)),
-                        onPressed: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: selectedDate,
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
-                          );
-                          if (picked != null) {
-                            setDlgState(() => selectedDate = picked);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Heure:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      TextButton.icon(
-                        icon: const Icon(Icons.access_time_rounded),
-                        label: Text(selectedTime.format(context)),
-                        onPressed: () async {
-                          final picked = await showTimePicker(
-                            context: context,
-                            initialTime: selectedTime,
-                          );
-                          if (picked != null) {
-                            setDlgState(() => selectedTime = picked);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annuler'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (selectedClient == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Veuillez sélectionner un client.'), backgroundColor: AppColors.warning),
-                  );
-                  return;
-                }
-
-                if (formKey.currentState!.validate()) {
-                  formKey.currentState!.save();
-                  final DateTime finalDateTime = DateTime(
-                    selectedDate.year,
-                    selectedDate.month,
-                    selectedDate.day,
-                    selectedTime.hour,
-                    selectedTime.minute,
-                  );
-
-                  try {
-                    await _repo.create(
-                      clientId: selectedClient!.id,
-                      scheduledAt: finalDateTime.toUtc().toIso8601String(),
-                      reason: reason,
-                    );
-                    if (!ctx.mounted) return;
-                    Navigator.pop(ctx);
-                    _loadAppointments();
-                  } catch (e) {
-                    if (!ctx.mounted) return;
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
-                    );
-                  }
-                }
-              },
-              child: const Text('Enregistrer'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -356,11 +172,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                         );
                       },
                     ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addAppointment,
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add_rounded, color: Colors.white),
-      ),
     );
   }
 }
