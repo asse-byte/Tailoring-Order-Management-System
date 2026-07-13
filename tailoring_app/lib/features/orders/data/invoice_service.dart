@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -20,15 +21,22 @@ class InvoiceService {
   static const PdfColor _teal = PdfColor.fromInt(0xFF006D6D);
   static const PdfColor _gold = PdfColor.fromInt(0xFFC9A84C);
 
-  /// Fetches the shop logo bytes if a URL is set (best-effort).
+  /// Resolves the logo bytes for the invoice, in priority order:
+  /// 1. the shop's uploaded logo (settings URL), 2. the bundled default
+  /// `assets/logo.jpeg`, 3. null (the PDF then draws the "R" placeholder).
   static Future<Uint8List?> _logoBytes(String? logoUrl) async {
-    if (logoUrl == null || logoUrl.isEmpty) return null;
+    if (logoUrl != null && logoUrl.isNotEmpty) {
+      try {
+        final url = logoUrl.startsWith('http')
+            ? logoUrl
+            : '${ApiClient.baseUrl}$logoUrl';
+        final res = await http.get(Uri.parse(url));
+        if (res.statusCode == 200) return res.bodyBytes;
+      } catch (_) {/* fall back to bundled asset */}
+    }
     try {
-      final url = logoUrl.startsWith('http')
-          ? logoUrl
-          : '${ApiClient.baseUrl}$logoUrl';
-      final res = await http.get(Uri.parse(url));
-      if (res.statusCode == 200) return res.bodyBytes;
+      final data = await rootBundle.load('assets/logo.jpeg');
+      return data.buffer.asUint8List();
     } catch (_) {/* fall back to placeholder */}
     return null;
   }
