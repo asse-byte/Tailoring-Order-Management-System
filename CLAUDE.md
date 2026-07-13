@@ -61,6 +61,20 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
 - If no logo is uploaded, a beautiful visual placeholder (an "R" with gradient) is displayed on the login screen. The manager can upload a new logo dynamically from the settings screen.
 - Image compression and thumbnail generation are done automatically by the `/api/upload` endpoint.
 
+## Multi-shop / resale model (decided 2026-07-13)
+
+The app is sold to multiple tailoring shops using the **isolated-instance-per-
+shop** model (owner's choice): each shop gets its own Docker deployment + its
+own PostgreSQL database. NO shared multi-tenancy, NO `shop_id` column — do not
+add one unless the owner explicitly switches models. Each shop feels bespoke
+purely through the already-dynamic settings (shop name, logo, default piece
+rate, promo link). Onboarding a new shop is one command: `npm run setup-shop`
+(`backend/scripts/setup-shop.js` — migrate → seed the 2 accounts → write shop
+identity from env; idempotent). See `docs/ONBOARDING_NEW_SHOP.md`. Invoice logo
+priority: uploaded logo → bundled `tailoring_app/assets/logo.jpeg` → "R"
+placeholder. Dashboard tiles are unified on one Teal+Gold brand look (no more
+per-module random colours).
+
 ## Client change-batch (started 2026-07-10)
 
 Large batch of owner-requested changes, executed one tested commit per item
