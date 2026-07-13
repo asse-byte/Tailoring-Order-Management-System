@@ -62,6 +62,11 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
   List<StaffContact> _tailors = <StaffContact>[];
   String? _tailorId;
 
+  /// Garment types the selected existing client already has measurements for.
+  /// Used to warn instantly when a line's garment type has no measurement.
+  Set<String> _measuredGarments = <String>{};
+  bool _loadingMeasures = false;
+
   bool _submitting = false;
 
   final OrdersRepository _ordersRepo = OrdersRepository();
@@ -129,7 +134,72 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
       ),
       builder: (_) => _ClientPickerSheet(clients: clients),
     );
-    if (chosen != null) setState(() => _selectedClient = chosen);
+    if (chosen != null) {
+      setState(() => _selectedClient = chosen);
+      _loadClientMeasures(chosen.id);
+    }
+  }
+
+  /// Loads the garment types the selected client already has measurements for,
+  /// so we can warn instantly when an ordered type has no measurement.
+  Future<void> _loadClientMeasures(String clientId) async {
+    setState(() => _loadingMeasures = true);
+    try {
+      final Map<String, Map<String, num>> m =
+          await _clientsRepo.measurements(clientId);
+      if (!mounted) return;
+      setState(() => _measuredGarments = m.keys.toSet());
+    } catch (_) {
+      if (mounted) setState(() => _measuredGarments = <String>{});
+    } finally {
+      if (mounted) setState(() => _loadingMeasures = false);
+    }
+  }
+
+  /// True when the chosen existing client has no measurement for [garment].
+  bool _missingMeasure(String garment) =>
+      _useExisting &&
+      _selectedClient != null &&
+      !_loadingMeasures &&
+      !_measuredGarments.contains(garment);
+
+  /// Instant amber warning shown under a garment type the client has no
+  /// measurement for, with a shortcut to record it (the draft is kept —
+  /// we only push, then reload measures on return).
+  Widget _measureWarning(String garment) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: <Widget>[
+          const Icon(Icons.straighten_rounded,
+              size: 16, color: AppColors.warning),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Ce client n\'a pas de mesure pour « $garment ».',
+              style: const TextStyle(
+                  color: AppColors.warning,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(0, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: () async {
+              final String id = _selectedClient!.id;
+              await context.push(
+                  '/admin/clients/$id/measurements/${Uri.encodeComponent(garment)}');
+              if (mounted) await _loadClientMeasures(id);
+            },
+            child: const Text('Ajouter la mesure'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _submit() async {
@@ -147,6 +217,32 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
       }
       items.add(NewOrderItem(
         garmentType: l.garment, quantity: l.quantity, unitPrice: l.unitPrice));
+    }
+
+    // Safety net: warn (but don't block) if some ordered types have no
+    // measurement recorded for this client.
+    final Set<String> missing =
+        _lines.map((l) => l.garment).where(_missingMeasure).toSet();
+    if (missing.isNotEmpty) {
+      final bool proceed = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Mesures manquantes'),
+              content: Text(
+                  'Ce client n\'a pas de mesure pour : ${missing.join(', ')}.\n\n'
+                  'Créer la commande quand même ?'),
+              actions: <Widget>[
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Annuler')),
+                ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Continuer')),
+              ],
+            ),
+          ) ??
+          false;
+      if (!proceed) return;
     }
 
     setState(() => _submitting = true);
@@ -210,6 +306,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                     setState(() {
                       _useExisting = s.first;
                       _selectedClient = null;
+                      _measuredGarments = <String>{};
                       _newName.clear();
                       _newPhone.clear();
                     });
@@ -419,6 +516,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                 ),
             ],
           ),
+          if (_missingMeasure(line.garment)) _measureWarning(line.garment),
           const SizedBox(height: 8),
           Row(
             children: <Widget>[
