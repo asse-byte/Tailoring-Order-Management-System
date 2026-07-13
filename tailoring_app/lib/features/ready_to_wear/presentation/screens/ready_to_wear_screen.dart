@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -267,7 +266,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                                 if (file != null) {
                                   setDlgState(() => uploading = true);
                                   try {
-                                    final uploaded = await _repo.uploadMedia(File(file.path));
+                                    final uploaded = await _repo.uploadMedia(file);
                                     setDlgState(() {
                                       currentMedia.add({
                                         'url': uploaded['url']!,
@@ -298,7 +297,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                                 if (file != null) {
                                   setDlgState(() => uploading = true);
                                   try {
-                                    final uploaded = await _repo.uploadMedia(File(file.path));
+                                    final uploaded = await _repo.uploadMedia(file);
                                     setDlgState(() {
                                       currentMedia.add({
                                         'url': uploaded['url']!,

@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart' show XFile;
 import '../../data/products_repository.dart';
 import '../../domain/product.dart';
 
@@ -179,7 +179,7 @@ class ProductsProvider extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, String>?> uploadImage(File file) async {
+  Future<Map<String, String>?> uploadImage(XFile file) async {
     try {
       return await _repo.uploadImage(file);
     } catch (e) {

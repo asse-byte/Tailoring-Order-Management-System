@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'dart:convert';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:http/http.dart' as http;
 import '../../../core/network/api_client.dart';
 import '../domain/product.dart';
@@ -82,24 +82,28 @@ class ProductsRepository {
     });
   }
 
-  /// Uploads product image using the REST upload API
-  Future<Map<String, String>> uploadImage(File file) async {
-    // We make a multipart request
+  /// Uploads a product image using the REST upload API.
+  /// Byte-based so it works on ALL platforms (web has no file paths).
+  Future<Map<String, String>> uploadImage(XFile file) async {
     const String path = '/api/upload';
     final Uri uri = Uri.parse('${ApiClient.baseUrl}$path');
     final String? jwt = await _api.token;
-    
-    final request = HttpMultipartRequestWrapper('POST', uri);
+
+    final request = http.MultipartRequest('POST', uri);
     if (jwt != null) {
       request.headers['Authorization'] = 'Bearer $jwt';
     }
-    request.files.add(await MultipartFileWrapper.fromPath('file', file.path));
-    
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      await file.readAsBytes(),
+      filename: file.name, // keeps the extension so the server accepts the type
+    ));
+
     final response = await request.send();
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, 'Échec du téléversement de l\'image.');
     }
-    
+
     final responseBody = await response.stream.bytesToString();
     final Map<String, dynamic> decoded = jsonDecode(responseBody) as Map<String, dynamic>;
     return {
@@ -107,21 +111,4 @@ class ProductsRepository {
       'thumb_url': (decoded['thumb_url'] as String?) ?? '',
     };
   }
-}
-
-
-
-class HttpMultipartRequestWrapper {
-  final http.MultipartRequest _request;
-  
-  HttpMultipartRequestWrapper(String method, Uri url) : _request = http.MultipartRequest(method, url);
-
-  Map<String, String> get headers => _request.headers;
-  List<http.MultipartFile> get files => _request.files;
-
-  Future<http.StreamedResponse> send() => _request.send();
-}
-
-class MultipartFileWrapper {
-  static Future<http.MultipartFile> fromPath(String field, String path) => http.MultipartFile.fromPath(field, path);
 }

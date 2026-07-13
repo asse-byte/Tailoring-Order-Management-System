@@ -745,75 +745,51 @@ class _StaffScreenState extends State<StaffScreen> {
                     Expanded(
                       child: loading
                           ? const Center(child: CircularProgressIndicator())
-                          : ListView.builder(
+                          : SingleChildScrollView(
                               controller: scrollCtrl,
-                              itemCount: 7,
-                              itemBuilder: (ctx, i) {
-                                final day = days[i];
-                                final entries = byDay[_ymd(day)] ??
-                                    const <WeeklyDetailEntry>[];
-                                final dayTotal = entries.fold<int>(
-                                    0, (s, e) => s + e.amount);
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(12),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: <Widget>[
-                                        Row(
-                                          children: <Widget>[
-                                            Text('${dayNames[i]} ${day.day}/${day.month}',
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.bold)),
-                                            const Spacer(),
-                                            Text(formatFcfa(dayTotal),
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    color: AppColors.success)),
-                                          ],
+                              child: Table(
+                                border:
+                                    TableBorder.all(color: AppColors.border),
+                                columnWidths: const <int, TableColumnWidth>{
+                                  0: FlexColumnWidth(1.7),
+                                  1: FlexColumnWidth(2.2),
+                                  2: FlexColumnWidth(1.0),
+                                  3: FlexColumnWidth(2.7),
+                                  4: FlexColumnWidth(2.0),
+                                },
+                                children: <TableRow>[
+                                  TableRow(
+                                    decoration: const BoxDecoration(
+                                        color: AppColors.primary),
+                                    children: <Widget>[
+                                      for (final h in const <String>[
+                                        'Jours',
+                                        'Nom client',
+                                        'Qté',
+                                        'Modèle',
+                                        'Montant'
+                                      ])
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 10),
+                                          child: Text(h,
+                                              style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12.5)),
                                         ),
-                                        if (entries.isEmpty)
-                                          Padding(
-                                            padding: const EdgeInsets.only(top: 4),
-                                            child: Text('—',
-                                                style: Theme.of(ctx).textTheme.bodySmall),
-                                          )
-                                        else ...[
-                                          const Divider(height: 14),
-                                          ...entries.map((e) => Padding(
-                                                padding: const EdgeInsets.symmetric(vertical: 3),
-                                                child: Row(
-                                                  children: <Widget>[
-                                                    Expanded(
-                                                      child: Text(
-                                                        '${e.garmentType.isEmpty ? 'Pièce' : e.garmentType}'
-                                                        ' × ${e.piecesCount}'
-                                                        '${e.clientName != null ? '  · ${e.clientName}' : ''}',
-                                                        style: Theme.of(ctx).textTheme.bodyMedium,
-                                                      ),
-                                                    ),
-                                                    Text(formatFcfa(e.amount)),
-                                                    IconButton(
-                                                      visualDensity: VisualDensity.compact,
-                                                      icon: const Icon(Icons.edit_note_rounded,
-                                                          size: 18, color: AppColors.warning),
-                                                      tooltip: 'Corriger',
-                                                      onPressed: () =>
-                                                          _correctWeeklyEntry(e, load),
-                                                    ),
-                                                  ],
-                                                ),
-                                              )),
-                                        ],
-                                      ],
-                                    ),
+                                    ],
                                   ),
-                                );
-                              },
+                                  for (int i = 0; i < 7; i++)
+                                    _tailorDayRow(
+                                      dayNames[i],
+                                      days[i],
+                                      byDay[_ymd(days[i])] ??
+                                          const <WeeklyDetailEntry>[],
+                                      (e) => _correctWeeklyEntry(e, load),
+                                    ),
+                                ],
+                              ),
                             ),
                     ),
                     const Divider(),
@@ -849,6 +825,88 @@ class _StaffScreenState extends State<StaffScreen> {
       ),
     );
     _loadData();
+  }
+
+  /// One TableCell with standard padding, vertically centered.
+  Widget _tcell(Widget child) => TableCell(
+        verticalAlignment: TableCellVerticalAlignment.middle,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: child,
+        ),
+      );
+
+  /// A single Monday→Sunday row of the tailor weekly table, matching the
+  /// requested layout: Jours | Nom client | Qté | Modèle(s) | Montant(s).
+  /// The Modèle and Montant cells stack one fixed-height line per entry so the
+  /// two columns stay aligned; each line is tappable to open a correction.
+  TableRow _tailorDayRow(
+      String dayName,
+      DateTime day,
+      List<WeeklyDetailEntry> entries,
+      void Function(WeeklyDetailEntry) onCorrect) {
+    const double lineH = 30;
+    final int qty = entries.fold<int>(0, (s, e) => s + e.piecesCount);
+    final String clients = <String>{
+      for (final e in entries)
+        if ((e.clientName ?? '').isNotEmpty) e.clientName!
+    }.join('\n');
+
+    return TableRow(
+      children: <Widget>[
+        _tcell(Text('$dayName\n${day.day}/${day.month}',
+            style:
+                const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+        _tcell(Text(clients.isEmpty ? '—' : clients,
+            style: const TextStyle(fontSize: 12.5))),
+        _tcell(Text(entries.isEmpty ? '—' : '$qty',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w600))),
+        _tcell(entries.isEmpty
+            ? const Text('—')
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  for (final e in entries)
+                    SizedBox(
+                      height: lineH,
+                      child: InkWell(
+                        onTap: () => onCorrect(e),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            '${e.garmentType.isEmpty ? 'Pièce' : e.garmentType}'
+                            '${e.piecesCount > 1 ? ' ×${e.piecesCount}' : ''}',
+                            style: const TextStyle(fontSize: 12.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              )),
+        _tcell(entries.isEmpty
+            ? const Text('—', textAlign: TextAlign.right)
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  for (final e in entries)
+                    SizedBox(
+                      height: lineH,
+                      child: InkWell(
+                        onTap: () => onCorrect(e),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(formatFcfa(e.amount),
+                              style: const TextStyle(fontSize: 12.5)),
+                        ),
+                      ),
+                    ),
+                ],
+              )),
+      ],
+    );
   }
 
   /// Small correction dialog for a weekly entry (pieces + mandatory reason).

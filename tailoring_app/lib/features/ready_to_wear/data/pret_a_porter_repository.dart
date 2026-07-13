@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'dart:convert';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:http/http.dart' as http;
 import '../../../core/network/api_client.dart';
 
@@ -150,18 +150,23 @@ class PretAPorterRepository {
     });
   }
 
-  /// Uploads media (images/videos) to the REST API
-  Future<Map<String, String>> uploadMedia(File file) async {
+  /// Uploads media (images/videos) to the REST API.
+  /// Byte-based so it works on ALL platforms (web has no file paths).
+  Future<Map<String, String>> uploadMedia(XFile file) async {
     const String path = '/api/upload';
     final Uri uri = Uri.parse('${ApiClient.baseUrl}$path');
     final String? jwt = await _api.token;
-    
+
     final request = http.MultipartRequest('POST', uri);
     if (jwt != null) {
       request.headers['Authorization'] = 'Bearer $jwt';
     }
-    request.files.add(await http.MultipartFile.fromPath('file', file.path));
-    
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      await file.readAsBytes(),
+      filename: file.name, // keeps the extension so the server accepts the type
+    ));
+
     final response = await request.send();
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, 'Échec du téléversement du média.');

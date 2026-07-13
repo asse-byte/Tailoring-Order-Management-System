@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -131,7 +131,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final costCtrl = TextEditingController(text: costPrice > 0 ? formatThousands(costPrice.toInt()) : '');
     final qtyCtrl = TextEditingController(text: product != null ? formatThousands(quantity) : '');
     final thresholdCtrl = TextEditingController(text: formatThousands(lowStockThreshold));
-    File? selectedImage;
+    XFile? selectedImage;
+    Uint8List? selectedBytes; // in-memory preview, works on web + mobile
     bool uploadingImage = false;
     final String? currentImageUrl = product?.images.isNotEmpty == true ? product!.images.first.url : null;
     final String? currentThumbUrl = product?.images.isNotEmpty == true ? product!.images.first.thumbUrl : null;
@@ -222,10 +223,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: Colors.grey[350]!),
                         ),
-                        child: selectedImage != null
+                        child: selectedBytes != null
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
-                                child: Image.file(selectedImage!, fit: BoxFit.cover),
+                                child: Image.memory(selectedBytes!, fit: BoxFit.cover),
                               )
                             : (currentImageUrl != null
                                 ? ClipRRect(
@@ -258,8 +259,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                         imageQuality: 85,
                                       );
                                       if (file != null) {
+                                        final bytes = await file.readAsBytes();
                                         setDlgState(() {
-                                          selectedImage = File(file.path);
+                                          selectedImage = file;
+                                          selectedBytes = bytes;
                                         });
                                       }
                                     },
