@@ -495,6 +495,18 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                                             ],
                                           )
                                         : ElevatedButton(
+                                            // The global theme forces buttons to
+                                            // full width (Size.fromHeight →
+                                            // infinite), which a ListTile trailing
+                                            // cannot lay out. Override to size to
+                                            // content so it fits in the trailing.
+                                            style: ElevatedButton.styleFrom(
+                                              minimumSize: const Size(0, 40),
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 16),
+                                              tapTargetSize: MaterialTapTargetSize
+                                                  .shrinkWrap,
+                                            ),
                                             onPressed: () =>
                                                 _recordPayment(member, i, year, load),
                                             child: const Text('Payer'),

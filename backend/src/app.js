@@ -38,6 +38,18 @@ function createApp() {
     return next();
   });
 
+  // CORS: auth is a Bearer header (no cookies), so a permissive policy is
+  // safe and lets Flutter Web (different dev origin) reach the API AND the
+  // /uploads images below (must come before the static mount so those
+  // cross-origin image requests get an Access-Control-Allow-Origin header).
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    return next();
+  });
+
   // Serve uploads statically. Extra hardening: even though only re-encoded
   // images and signature-checked videos are ever written here (see upload.js),
   // force nosniff + a sandbox CSP so a stored file can never be interpreted as
@@ -48,16 +60,6 @@ function createApp() {
       res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
     },
   }));
-
-  // CORS: auth is a Bearer header (no cookies), so a permissive policy is
-  // safe and lets Flutter Web (different dev origin) reach the API.
-  app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    if (req.method === 'OPTIONS') return res.sendStatus(204);
-    return next();
-  });
 
   // ==========================================================================
   // SECURITY MAP — deny by default.

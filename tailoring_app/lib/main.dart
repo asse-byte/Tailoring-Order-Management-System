@@ -76,7 +76,9 @@ class _AppViewState extends State<_AppView> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(brand: brand),
       darkTheme: AppTheme.dark(brand: brand),
-      themeMode: ThemeMode.system,
+      // Force light: the UI is light-first with many fixed dark-on-light
+      // colours, so following the OS to dark made hardcoded texts invisible.
+      themeMode: ThemeMode.light,
       routerConfig: _router,
       locale: lang.locale,
       localizationsDelegates: const [
