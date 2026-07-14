@@ -1,8 +1,10 @@
 # Couture Mali - Root Docker Compose configuration
-# Usage:
-#   cp .env.example .env   # edit variables
+# Usage (first run for a NEW shop):
+#   cp backend/.env.example .env   # edit variables (DB_PASSWORD, JWT_SECRET,
+#                                  # SEED_*, SHOP_NAME, DEFAULT_PIECE_RATE…)
 #   docker compose up -d --build
-#   docker compose exec api node scripts/seed.js # seed database (first run only)
+#   docker compose exec api npm run setup-shop  # migrate + 2 accounts + identity
+# See docs/DEPLOYMENT.md.
 
 services:
   db:
@@ -37,6 +39,10 @@ services:
       SEED_SECRETARY_USERNAME: ${SEED_SECRETARY_USERNAME:-}
       SEED_SECRETARY_PASSWORD: ${SEED_SECRETARY_PASSWORD:-}
       SEED_SECRETARY_NAME: ${SEED_SECRETARY_NAME:-}
+      # Shop identity for `npm run setup-shop` (per-shop branding).
+      SHOP_NAME: ${SHOP_NAME:-}
+      DEFAULT_PIECE_RATE: ${DEFAULT_PIECE_RATE:-0}
+      PROMO_GROUP_LINK: ${PROMO_GROUP_LINK:-}
     ports:
       - "3000:3000"
     volumes:
