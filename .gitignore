@@ -87,6 +87,16 @@ credentials.json
 *.key
 .credentials
 
+# Android release signing — NEVER commit. Leaking the keystore lets anyone sign
+# APKs as com.rayancouture.app; the repo is public. Keep the real keystore
+# OUTSIDE this folder entirely (see docs/DEPLOYMENT.md).
+*.jks
+*.keystore
+*.p12
+keystores/
+key.properties
+password.txt
+
 # Android and Kotlin build artifacts
 .kotlin/
 hs_err_pid*.log
