@@ -74,11 +74,15 @@ class AppTheme {
     );
   }
 
-  static ThemeData light() {
+  /// [brand] is the shop's per-instance colour (item 9); when null the house
+  /// Deep Teal is used. It drives the seed, buttons, focus ring and nav accent
+  /// so each resold instance feels bespoke without touching every widget.
+  static ThemeData light({Color? brand}) {
+    final Color primary = brand ?? AppColors.primary;
     final ColorScheme scheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
+      seedColor: primary,
       brightness: Brightness.light,
-      primary: AppColors.primary,
+      primary: primary,
       secondary: AppColors.accent,
       surface: AppColors.surface,
       error: AppColors.error,
@@ -115,10 +119,11 @@ class AppTheme {
         fill: AppColors.surface,
         border: AppColors.border,
         hint: AppColors.textMuted,
+        focus: primary,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: primary,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(46),
           shape: RoundedRectangleBorder(
@@ -133,9 +138,9 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: primary,
           minimumSize: const Size.fromHeight(46),
-          side: const BorderSide(color: AppColors.primary, width: 1.4),
+          side: BorderSide(color: primary, width: 1.4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -147,7 +152,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: primary,
           textStyle: GoogleFonts.poppins(
             fontWeight: FontWeight.w600,
           ),
@@ -173,7 +178,7 @@ class AppTheme {
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.surface,
-        selectedItemColor: AppColors.primary,
+        selectedItemColor: primary,
         unselectedItemColor: AppColors.textMuted,
         selectedLabelStyle: GoogleFonts.poppins(
           fontSize: 12,
@@ -189,11 +194,12 @@ class AppTheme {
     );
   }
 
-  static ThemeData dark() {
+  static ThemeData dark({Color? brand}) {
+    final Color primary = brand ?? AppColors.primaryLight;
     final ColorScheme scheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
+      seedColor: brand ?? AppColors.primary,
       brightness: Brightness.dark,
-      primary: AppColors.primaryLight,
+      primary: primary,
       secondary: AppColors.accent,
       surface: AppColors.darkSurface,
       error: AppColors.error,
@@ -248,9 +254,9 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primaryLight,
+          foregroundColor: primary,
           minimumSize: const Size.fromHeight(46),
-          side: const BorderSide(color: AppColors.primaryLight, width: 1.4),
+          side: BorderSide(color: primary, width: 1.4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -262,7 +268,7 @@ class AppTheme {
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.darkSurface,
-        selectedItemColor: AppColors.primaryLight,
+        selectedItemColor: primary,
         unselectedItemColor: AppColors.textMuted,
         selectedLabelStyle: GoogleFonts.poppins(
           fontSize: 12,
@@ -287,6 +293,7 @@ class AppTheme {
     required Color fill,
     required Color border,
     required Color hint,
+    Color focus = AppColors.primary,
   }) {
     OutlineInputBorder buildBorder(Color color, {double width = 1.2}) =>
         OutlineInputBorder(
@@ -310,7 +317,7 @@ class AppTheme {
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       border: buildBorder(border),
       enabledBorder: buildBorder(border),
-      focusedBorder: buildBorder(AppColors.primary, width: 1.6),
+      focusedBorder: buildBorder(focus, width: 1.6),
       errorBorder: buildBorder(AppColors.error),
       focusedErrorBorder: buildBorder(AppColors.error, width: 1.6),
     );

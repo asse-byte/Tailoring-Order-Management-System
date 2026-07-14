@@ -93,6 +93,27 @@ router.get('/weekly-detail', asyncH(async (req, res) => {
   res.json({ week_id: weekId, tailor_id: tailorId, items: rows, total });
 }));
 
+// Monthly totals per tailor, ranked highest-first — so the manager can see at
+// a glance who sewed the most this month (e.g. to reward the top worker).
+router.get('/monthly', asyncH(async (req, res) => {
+  const month = str(req.query.month);
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).json({ error: 'month requis au format YYYY-MM.' });
+  }
+  const firstDay = `${month}-01`;
+  const { rows } = await db.query(
+    `SELECT e.tailor_id, s.full_name AS tailor_name, s.active,
+            SUM(e.pieces_count)::int AS pieces_total,
+            SUM(e.amount)::int       AS amount_total,
+            COUNT(DISTINCT e.entry_date)::int AS days_worked
+     FROM tailor_entries_effective e JOIN staff s ON s.id = e.tailor_id
+     WHERE e.entry_date >= $1::date
+       AND e.entry_date <  ($1::date + INTERVAL '1 month')
+     GROUP BY e.tailor_id, s.full_name, s.active
+     ORDER BY amount_total DESC, s.full_name`, [firstDay]);
+  res.json({ month, items: rows });
+}));
+
 // Weekly totals per tailor — what gets paid every week.
 router.get('/weekly', asyncH(async (req, res) => {
   const weekId = str(req.query.week_id);

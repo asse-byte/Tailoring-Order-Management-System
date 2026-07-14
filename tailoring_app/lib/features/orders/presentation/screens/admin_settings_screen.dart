@@ -193,6 +193,62 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     }
   }
 
+  Future<void> _changeThemeColor(BuildContext context) async {
+    final provider = context.read<ShopSettingsProvider>();
+    const List<String> palette = <String>[
+      '#006D6D', '#6D28D9', '#1D4ED8', '#047857', '#BE123C',
+      '#C2410C', '#78350F', '#334155', '#B45309', '#DB2777',
+    ];
+    final String? chosen = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Couleur du thème'),
+        content: Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: palette.map((hex) {
+            final Color c =
+                Color(int.parse('FF${hex.substring(1)}', radix: 16));
+            final bool selected =
+                provider.themeColorHex.toUpperCase() == hex;
+            return GestureDetector(
+              onTap: () => Navigator.pop(ctx, hex),
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: c,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: selected ? AppColors.textPrimary : Colors.transparent,
+                      width: 3),
+                ),
+                child: selected
+                    ? const Icon(Icons.check_rounded, color: Colors.white)
+                    : null,
+              ),
+            );
+          }).toList(),
+        ),
+        actions: <Widget>[
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.loc.cancel)),
+        ],
+      ),
+    );
+    if (chosen != null) {
+      final ok = await provider.updateThemeColor(chosen);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ok ? 'Couleur du thème mise à jour.' : 'Échec de la mise à jour.'),
+          backgroundColor: ok ? AppColors.success : AppColors.error,
+        ));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -319,6 +375,22 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                 : shopSettings.promoGroupLink,
             color: AppColors.info,
             onTap: () => _changePromoLink(context),
+          ),
+          const SizedBox(height: 10),
+          _ActionTile(
+            icon: Icons.palette_rounded,
+            title: 'Couleur du thème',
+            subtitle: shopSettings.themeColorHex,
+            color: shopSettings.themeColor,
+            onTap: () => _changeThemeColor(context),
+          ),
+          const SizedBox(height: 10),
+          _ActionTile(
+            icon: Icons.assessment_rounded,
+            title: 'Rapport & statistiques',
+            subtitle: 'Rapport mensuel / annuel imprimable',
+            color: AppColors.primary,
+            onTap: () => context.push('/admin/reports'),
           ),
           const SizedBox(height: 16),
           const _LanguageSelector(),

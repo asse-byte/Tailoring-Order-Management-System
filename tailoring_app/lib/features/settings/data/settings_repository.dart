@@ -37,14 +37,16 @@ class SettingsRepository {
 
   /// Identité publique de la boutique (nom + logo) — lisible sans
   /// authentification : l'écran de connexion l'affiche.
-  Future<({String shopName, String? logoUrl, String promoGroupLink})>
+  Future<({String shopName, String? logoUrl, String promoGroupLink, String? themeColor})>
       publicSettings() async {
     final dynamic res = await _api.get('/api/settings/public');
     final String? logo = res['logo_url'] as String?;
+    final String? theme = res['theme_color'] as String?;
     return (
       shopName: (res['shop_name'] as String?) ?? 'Rayan Couture',
       logoUrl: (logo != null && logo.isNotEmpty) ? logo : null,
       promoGroupLink: (res['promo_group_link'] as String?) ?? '',
+      themeColor: (theme != null && theme.isNotEmpty) ? theme : null,
     );
   }
 
@@ -59,12 +61,14 @@ class SettingsRepository {
     String? logoUrl,
     int? defaultPieceRate,
     String? promoGroupLink,
+    String? themeColor,
   }) async {
     await _api.put('/api/settings/private', body: {
       if (shopName != null && shopName.isNotEmpty) 'shop_name': shopName,
       if (logoUrl != null) 'logo_url': logoUrl,
       if (defaultPieceRate != null) 'default_piece_rate': defaultPieceRate,
       if (promoGroupLink != null) 'promo_group_link': promoGroupLink,
+      if (themeColor != null) 'theme_color': themeColor,
     });
   }
 

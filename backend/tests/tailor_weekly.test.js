@@ -65,3 +65,32 @@ test('weekly-detail requires week_id and tailor_id', async () => {
   expect((await asM(request(app).get('/api/tailor-entries/weekly-detail'))).status)
     .toBe(400);
 });
+
+test('monthly ranking totals per tailor, highest-first', async () => {
+  // A second tailor with a smaller July total, so ordering is observable.
+  const t2 = (await asM(request(app).post('/api/staff'))
+    .send({ full_name: 'Bakary Coulibaly', phone: '76000011', type: 'couturier' })).body.id;
+  await asM(request(app).post('/api/tailor-entries')).send({
+    tailor_id: t2, entry_date: '2026-07-08', pieces_count: 1,
+    piece_rate: 3000, garment_type: 'Chemise',
+  });
+
+  const bad = await asM(request(app).get('/api/tailor-entries/monthly'));
+  expect(bad.status).toBe(400); // month is required
+
+  const res = await asM(request(app)
+    .get('/api/tailor-entries/monthly?month=2026-07'));
+  expect(res.status).toBe(200);
+  expect(res.body.month).toBe('2026-07');
+
+  const salif = res.body.items.find((r) => r.tailor_id === tailorId);
+  const bakary = res.body.items.find((r) => r.tailor_id === t2);
+  // Salif: 3×5000 + 2×4000 = 23,000 (July) ; Bakary: 1×3000 = 3,000.
+  expect(salif.amount_total).toBe(23000);
+  expect(salif.days_worked).toBe(1);
+  expect(bakary.amount_total).toBe(3000);
+  // Ranked highest-first → Salif appears before Bakary.
+  const iSalif = res.body.items.findIndex((r) => r.tailor_id === tailorId);
+  const iBakary = res.body.items.findIndex((r) => r.tailor_id === t2);
+  expect(iSalif).toBeLessThan(iBakary);
+});

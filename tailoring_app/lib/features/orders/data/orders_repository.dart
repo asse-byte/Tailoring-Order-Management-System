@@ -34,6 +34,9 @@ class OrdersRepository {
     String? clientId,
     DateTime? from,
     DateTime? to,
+    DateTime? plannedFrom,
+    DateTime? plannedTo,
+    bool unplanned = false,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -44,10 +47,22 @@ class OrdersRepository {
       if (clientId != null) 'client_id': clientId,
       if (from != null) 'from': _dateStr(from),
       if (to != null) 'to': _dateStr(to),
+      if (plannedFrom != null) 'planned_from': _dateStr(plannedFrom),
+      if (plannedTo != null) 'planned_to': _dateStr(plannedTo),
+      if (unplanned) 'unplanned': '1',
     });
     return (res['items'] as List)
         .map((e) => TailoringOrder.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Assign the planned execution day (the programme), or pass null to move
+  /// the order back to the waiting queue.
+  Future<TailoringOrder> setPlan(String orderId, DateTime? plannedDate) async {
+    final dynamic res = await _api.put('/api/orders/$orderId/plan', body: {
+      'planned_date': plannedDate == null ? null : _dateStr(plannedDate),
+    });
+    return TailoringOrder.fromJson(res as Map<String, dynamic>);
   }
 
   Future<TailoringOrder> getById(String id) async =>

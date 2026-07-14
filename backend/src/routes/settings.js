@@ -35,6 +35,13 @@ privateRouter.put('/', asyncH(async (req, res) => {
   if (req.body.promo_group_link !== undefined) {
     updates.push(['promo_group_link', JSON.stringify(str(req.body.promo_group_link) || '')]);
   }
+  if (req.body.theme_color !== undefined) {
+    const color = str(req.body.theme_color);
+    if (!color || !/^#[0-9a-fA-F]{6}$/.test(color)) {
+      return res.status(400).json({ error: 'theme_color invalide (format #RRGGBB).' });
+    }
+    updates.push(['theme_color', JSON.stringify(color.toUpperCase())]);
+  }
   if (!updates.length) return res.status(400).json({ error: 'Rien à mettre à jour.' });
   for (const [key, value] of updates) {
     await db.query('UPDATE settings SET value = $1 WHERE key = $2', [value, key]);

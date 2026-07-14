@@ -10,6 +10,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../orders/data/orders_repository.dart';
 import '../../../orders/domain/entities/order.dart';
 import '../../data/staff_repository.dart';
+import '../../data/salary_receipt_service.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 
 class StaffScreen extends StatefulWidget {
@@ -816,6 +817,15 @@ class _StaffScreenState extends State<StaffScreen> {
                       style: ElevatedButton.styleFrom(
                           minimumSize: const Size.fromHeight(46)),
                     ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: () => _printTailorWeekReceipt(
+                          member, weekStart, weekEnd, detail?.total ?? 0),
+                      icon: const Icon(Icons.receipt_long_rounded),
+                      label: const Text('Imprimer le reçu de la semaine'),
+                      style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(46)),
+                    ),
                   ],
                 ),
               ),
@@ -825,6 +835,35 @@ class _StaffScreenState extends State<StaffScreen> {
       ),
     );
     _loadData();
+  }
+
+  /// A printable weekly payment receipt for a tailor (documentation). Weekly
+  /// piece-rate wages are already tracked in the daily entries, so this only
+  /// prints — it does not create a separate ledger row.
+  Future<void> _printTailorWeekReceipt(
+      StaffPayInfo member, DateTime weekStart, DateTime weekEnd, int total) async {
+    final settings = context.read<ShopSettingsProvider>();
+    final DateTime now = DateTime.now();
+    try {
+      await SalaryReceiptService.shareReceipt(
+        shopName: settings.shopName,
+        staffName: member.fullName,
+        staffPhone: member.phone,
+        roleLabel: 'Couturier (à la pièce)',
+        periodLabel:
+            'Semaine du ${weekStart.day}/${weekStart.month} au ${weekEnd.day}/${weekEnd.month}/${weekEnd.year}',
+        amount: total,
+        paidAtLabel: '${now.day}/${now.month}/${now.year}',
+        receiptNo: _getWeekId(weekStart),
+        logoUrl: settings.logoUrl,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Erreur reçu: $e'),
+            backgroundColor: AppColors.error));
+      }
+    }
   }
 
   /// One TableCell with standard padding, vertically centered.
@@ -973,6 +1012,190 @@ class _StaffScreenState extends State<StaffScreen> {
     }
   }
 
+  static const List<String> _monthNames = <String>[
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet',
+    'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+  ];
+
+  static String _monthId(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}';
+
+  /// Ranking of tailors by amount earned in a month — so the manager can spot
+  /// (and reward) the one who worked the most. Manager-only.
+  Future<void> _openMonthlyRanking() async {
+    DateTime month = DateTime(DateTime.now().year, DateTime.now().month);
+    List<TailorMonthlyRank> ranks = <TailorMonthlyRank>[];
+    bool loading = true;
+    bool started = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          Future<void> load() async {
+            setSheet(() => loading = true);
+            try {
+              ranks = await _repo.monthlyRanking(_monthId(month));
+            } catch (_) {
+              ranks = <TailorMonthlyRank>[];
+            }
+            if (ctx.mounted) setSheet(() => loading = false);
+          }
+
+          if (!started) {
+            started = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) => load());
+          }
+
+          void shiftMonth(int delta) {
+            month = DateTime(month.year, month.month + delta);
+            load();
+          }
+
+          final int maxAmount = ranks.isEmpty ? 0 : ranks.first.amountTotal;
+
+          return SafeArea(
+            child: DraggableScrollableSheet(
+              initialChildSize: 0.8,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (ctx, scrollCtrl) => Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Center(
+                      child: Container(
+                        height: 4, width: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(children: <Widget>[
+                      const Icon(Icons.emoji_events_rounded, color: AppColors.accent),
+                      const SizedBox(width: 8),
+                      Text('Classement des tailleurs',
+                          style: Theme.of(ctx).textTheme.titleLarge),
+                    ]),
+                    const SizedBox(height: 8),
+                    Row(children: <Widget>[
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left_rounded),
+                        onPressed: () => shiftMonth(-1),
+                      ),
+                      Expanded(
+                        child: Text(
+                          '${_monthNames[month.month - 1]} ${month.year}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right_rounded),
+                        onPressed: () => shiftMonth(1),
+                      ),
+                    ]),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: loading
+                          ? const Center(child: CircularProgressIndicator())
+                          : ranks.isEmpty
+                              ? const Center(
+                                  child: Text('Aucune activité ce mois-ci.'))
+                              : ListView.separated(
+                                  controller: scrollCtrl,
+                                  itemCount: ranks.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: 8),
+                                  itemBuilder: (ctx, i) {
+                                    final TailorMonthlyRank r = ranks[i];
+                                    final String rank = i == 0
+                                        ? '🥇'
+                                        : i == 1
+                                            ? '🥈'
+                                            : i == 2
+                                                ? '🥉'
+                                                : '${i + 1}';
+                                    final double frac = maxAmount == 0
+                                        ? 0
+                                        : r.amountTotal / maxAmount;
+                                    return Card(
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(14)),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: Row(children: <Widget>[
+                                          SizedBox(
+                                            width: 34,
+                                            child: Text(rank,
+                                                style: const TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight:
+                                                        FontWeight.bold)),
+                                          ),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: <Widget>[
+                                                Text(r.tailorName,
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold)),
+                                                const SizedBox(height: 4),
+                                                ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                  child: LinearProgressIndicator(
+                                                    value: frac,
+                                                    minHeight: 6,
+                                                    backgroundColor:
+                                                        AppColors.border,
+                                                    color: i == 0
+                                                        ? AppColors.accent
+                                                        : AppColors.primary,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                    '${r.piecesTotal} pièces · ${r.daysWorked} j',
+                                                    style: const TextStyle(
+                                                        fontSize: 12,
+                                                        color: AppColors
+                                                            .textSecondary)),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(formatFcfa(r.amountTotal),
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  color: AppColors.primary)),
+                                        ]),
+                                      ),
+                                    );
+                                  },
+                                ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isSec = context.watch<AuthProvider>().isSecretary;
@@ -982,6 +1205,12 @@ class _StaffScreenState extends State<StaffScreen> {
       appBar: AppBar(
         title: Text('$shopName - Tailleurs'),
         actions: [
+          if (!isSec)
+            IconButton(
+              icon: const Icon(Icons.emoji_events_rounded),
+              tooltip: 'Classement du mois',
+              onPressed: _openMonthlyRanking,
+            ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadData,

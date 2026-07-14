@@ -41,22 +41,32 @@ function parseItems(raw) {
 }
 
 // Historique is simply ?status=livre — the same row, moved by status.
+// Scheduling (item 4): ?planned_from/?planned_to filter by the planned
+// execution day (the programme); ?unplanned=1 returns the waiting queue
+// (no planned_date, not yet delivered).
 router.get('/', asyncH(async (req, res) => {
   const { limit, offset } = pagination(req);
   const status = STATUSES.includes(req.query.status) ? req.query.status : null;
   const clientId = str(req.query.client_id);
   const from = dateStr(req.query.from);
   const to = dateStr(req.query.to);
+  const plannedFrom = dateStr(req.query.planned_from);
+  const plannedTo = dateStr(req.query.planned_to);
+  const unplanned = ['1', 'true', 'yes'].includes(String(req.query.unplanned));
   const { rows } = await db.query(
     `${ORDER_SELECT}
      WHERE ($1::text IS NULL OR o.status = $1)
        AND ($2::uuid IS NULL OR o.client_id = $2)
        AND ($3::date IS NULL OR COALESCE(o.delivered_date, o.created_at::date) >= $3)
        AND ($4::date IS NULL OR COALESCE(o.delivered_date, o.created_at::date) <= $4)
+       AND ($5::date IS NULL OR o.planned_date >= $5)
+       AND ($6::date IS NULL OR o.planned_date <= $6)
+       AND ($7::boolean IS NOT TRUE OR (o.planned_date IS NULL AND o.status <> 'livre'))
      ORDER BY CASE WHEN o.status = 'livre' THEN o.delivered_date END DESC,
+              o.planned_date ASC NULLS LAST,
               o.created_at DESC
-     LIMIT $5 OFFSET $6`,
-    [status, clientId, from, to, limit, offset]);
+     LIMIT $8 OFFSET $9`,
+    [status, clientId, from, to, plannedFrom, plannedTo, unplanned, limit, offset]);
   res.json({ items: rows, limit, offset });
 }));
 
@@ -142,6 +152,26 @@ router.put('/:id', asyncH(async (req, res) => {
     [str(req.body.tailor_id), str(req.body.fabric), advance,
       dateStr(req.body.expected_date), str(req.body.notes),
       status || null, req.params.id]);
+  if (!rows[0]) return res.status(404).json({ error: 'Commande introuvable.' });
+  const { rows: full } = await db.query(`${ORDER_SELECT} WHERE o.id = $1`, [req.params.id]);
+  res.json(full[0]);
+}));
+
+// Assign (or clear) the planned execution day — the programme. Send
+// planned_date: null to move the order back to the waiting queue. Both roles
+// (operational scheduling, not financial).
+router.put('/:id/plan', asyncH(async (req, res) => {
+  const raw = req.body.planned_date;
+  let planned = null;
+  if (raw !== null && raw !== undefined && raw !== '') {
+    planned = dateStr(raw);
+    if (!planned) {
+      return res.status(400).json({ error: 'planned_date invalide (YYYY-MM-DD) ou null.' });
+    }
+  }
+  const { rows } = await db.query(
+    'UPDATE orders SET planned_date = $1::date WHERE id = $2 RETURNING id',
+    [planned, req.params.id]);
   if (!rows[0]) return res.status(404).json({ error: 'Commande introuvable.' });
   const { rows: full } = await db.query(`${ORDER_SELECT} WHERE o.id = $1`, [req.params.id]);
   res.json(full[0]);

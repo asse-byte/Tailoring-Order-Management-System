@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../data/settings_repository.dart';
 
 /// Identité de la boutique (nom + logo), chargée depuis les réglages
@@ -18,6 +19,7 @@ class ShopSettingsProvider extends ChangeNotifier {
   String? _logoUrl;
   int _defaultPieceRate = 0;
   String _promoGroupLink = '';
+  String _themeColorHex = '#006D6D';
   bool _loaded = false;
 
   String get shopName => _shopName;
@@ -26,16 +28,40 @@ class ShopSettingsProvider extends ChangeNotifier {
   String get promoGroupLink => _promoGroupLink;
   bool get loaded => _loaded;
 
+  /// The shop's brand colour (item 9). Falls back to the house Deep Teal when
+  /// unset or malformed, so the UI always has a valid primary.
+  String get themeColorHex => _themeColorHex;
+  Color get themeColor => _parseHex(_themeColorHex) ?? AppColors.primary;
+
+  static Color? _parseHex(String? hex) {
+    if (hex == null) return null;
+    final m = RegExp(r'^#?([0-9a-fA-F]{6})$').firstMatch(hex.trim());
+    if (m == null) return null;
+    return Color(int.parse('FF${m.group(1)}', radix: 16));
+  }
+
   Future<void> refresh() async {
     try {
       final settings = await _repo.publicSettings();
       _shopName = settings.shopName;
       _logoUrl = settings.logoUrl;
       _promoGroupLink = settings.promoGroupLink;
+      if (settings.themeColor != null) _themeColorHex = settings.themeColor!;
       _loaded = true;
       notifyListeners();
     } catch (_) {
       // Serveur injoignable : on garde le nom par défaut
+    }
+  }
+
+  Future<bool> updateThemeColor(String hex) async {
+    try {
+      await _repo.updateSettings(themeColor: hex);
+      _themeColorHex = hex;
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

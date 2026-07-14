@@ -19,6 +19,9 @@ class DashboardScreen extends StatelessWidget {
 
     // Unified brand identity: every tile shares the same Deep Teal look so the
     // grid reads as one elegant system. Only the icon distinguishes a module.
+    // Owner-requested tile order:
+    // client · command · rendez-vous · tailleurs · staff · finance ·
+    // pret-à-porter · produits · historique · paramètres.
     final List<_DashboardItem> allItems = [
       _DashboardItem(
         title: context.loc.clients,
@@ -26,9 +29,14 @@ class DashboardScreen extends StatelessWidget {
         route: '/admin/customers',
       ),
       _DashboardItem(
-        title: context.loc.products,
-        icon: Icons.shopping_bag_rounded,
-        route: '/admin/products',
+        title: context.loc.command,
+        icon: Icons.receipt_long_rounded,
+        route: '/admin/orders',
+      ),
+      _DashboardItem(
+        title: context.loc.appointments,
+        icon: Icons.event_rounded,
+        route: '/admin/appointments',
       ),
       const _DashboardItem(
         title: 'Tailleurs',
@@ -53,14 +61,9 @@ class DashboardScreen extends StatelessWidget {
         route: '/admin/ready-to-wear',
       ),
       _DashboardItem(
-        title: context.loc.command,
-        icon: Icons.receipt_long_rounded,
-        route: '/admin/orders',
-      ),
-      _DashboardItem(
-        title: context.loc.appointments,
-        icon: Icons.event_rounded,
-        route: '/admin/appointments',
+        title: context.loc.products,
+        icon: Icons.shopping_bag_rounded,
+        route: '/admin/products',
       ),
       _DashboardItem(
         title: context.loc.history,

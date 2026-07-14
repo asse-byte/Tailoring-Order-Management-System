@@ -164,7 +164,13 @@ class _ClientsListScreenState extends State<ClientsListScreen> {
                   style: const TextStyle(fontWeight: FontWeight.w600)),
               subtitle: Text(client.phone),
               trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => context.push('/admin/clients/${client.id}'),
+              onTap: () async {
+                final ClientsProvider provider =
+                    context.read<ClientsProvider>();
+                final bool? changed =
+                    await context.push<bool>('/admin/clients/${client.id}');
+                if (changed == true && mounted) provider.refresh();
+              },
             ),
           );
         },

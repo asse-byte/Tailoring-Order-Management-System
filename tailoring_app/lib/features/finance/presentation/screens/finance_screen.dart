@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -351,6 +352,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
       appBar: AppBar(
         title: Text('$shopName - Comptabilité'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.assessment_rounded),
+            tooltip: 'Rapport & statistiques',
+            onPressed: () => context.push('/admin/reports'),
+          ),
           IconButton(
             icon: const Icon(Icons.date_range_rounded),
             tooltip: 'Filtrer les dates',

@@ -8,9 +8,11 @@ const productsRouter = require('./routes/products');
 const salesRouter = require('./routes/sales');
 const staffRouter = require('./routes/staff');
 const staffPayRouter = require('./routes/staffPay');
+const salaryPaymentsRouter = require('./routes/salaryPayments');
 const tailorEntriesRouter = require('./routes/tailorEntries');
 const expensesRouter = require('./routes/expenses');
 const financeRouter = require('./routes/finance');
+const reportsRouter = require('./routes/reports');
 const ordersRouter = require('./routes/orders');
 const appointmentsRouter = require('./routes/appointments');
 const pretAPorterRouter = require('./routes/pretAPorter');
@@ -21,10 +23,31 @@ const uploadRouter = require('./routes/upload');
 function createApp() {
   const app = express();
   app.set('trust proxy', 1); // behind nginx on the VPS
+  app.disable('x-powered-by'); // don't advertise Express
   app.use(express.json({ limit: '1mb' }));
-  
-  // Serve uploads statically
-  app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+  // Baseline security headers on every response (manual, like the CORS block
+  // below — the project keeps its dependency surface minimal). nosniff stops
+  // MIME-sniffing; DENY blocks clickjacking; the API returns only JSON so a
+  // strict CSP is safe.
+  app.use((req, res, next) => {
+    res.header('X-Content-Type-Options', 'nosniff');
+    res.header('X-Frame-Options', 'DENY');
+    res.header('Referrer-Policy', 'no-referrer');
+    res.header('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+    return next();
+  });
+
+  // Serve uploads statically. Extra hardening: even though only re-encoded
+  // images and signature-checked videos are ever written here (see upload.js),
+  // force nosniff + a sandbox CSP so a stored file can never be interpreted as
+  // an executable document by the browser.
+  app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+    setHeaders: (res) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+    },
+  }));
 
   // CORS: auth is a Bearer header (no cookies), so a permissive policy is
   // safe and lets Flutter Web (different dev origin) reach the API.
@@ -63,9 +86,11 @@ function createApp() {
 
   // -- [FINANCE] manager-only: the secretary gets 403 on every route ---------
   app.use('/api/staff-pay', managerOnly, staffPayRouter);
+  app.use('/api/salary-payments', managerOnly, salaryPaymentsRouter);
   app.use('/api/tailor-entries', managerOnly, tailorEntriesRouter);
   app.use('/api/expenses', managerOnly, expensesRouter);
   app.use('/api/finance', managerOnly, financeRouter);
+  app.use('/api/reports', managerOnly, reportsRouter);
   app.use('/api/settings/private', managerOnly, settings.privateRouter);
   app.use('/api/users', managerOnly, usersRouter);
 

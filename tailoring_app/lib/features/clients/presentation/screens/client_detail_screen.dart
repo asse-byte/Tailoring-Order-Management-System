@@ -74,6 +74,48 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     }
   }
 
+  Future<void> _deleteClient() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Supprimer le client'),
+        content: Text(
+          'Voulez-vous vraiment supprimer « ${_client?.fullName ?? ''} » ? '
+          'Cette action est irréversible.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await _repo.remove(widget.clientId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Client supprimé.')),
+      );
+      _changed = true;
+      context.pop(true); // back to the list, which refreshes on a true result
+    } catch (e) {
+      if (!mounted) return;
+      // A client with linked orders cannot be deleted (history is preserved):
+      // the API returns a clear French 409 message — surface it as-is.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+      );
+    }
+  }
+
   Future<void> _openMeasurements(String garmentType) async {
     final bool? changed = await context.push<bool>(
       '/admin/clients/${widget.clientId}/measurements/'
@@ -138,7 +180,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
             if (_client != null)
               IconButton(
                 icon: const Icon(Icons.edit_rounded),
+                tooltip: 'Modifier',
                 onPressed: _editClient,
+              ),
+            if (_client != null)
+              IconButton(
+                icon: const Icon(Icons.delete_outline_rounded),
+                tooltip: 'Supprimer',
+                onPressed: _deleteClient,
               ),
           ],
         ),

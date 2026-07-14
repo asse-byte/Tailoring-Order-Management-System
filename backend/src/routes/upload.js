@@ -15,6 +15,26 @@ const router = express.Router();
 const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
 const VIDEO_EXTS = ['.mp4', '.mov', '.webm', '.m4v'];
 
+/**
+ * Sniff the real media category from the file's magic bytes — the extension
+ * alone is attacker-controlled. Returns 'image' | 'video' | null. Images are
+ * additionally re-encoded by Jimp (a second validation); videos are stored
+ * as-is, so this signature check is their only content gate.
+ */
+function detectMediaKind(head) {
+  const b = head; // Buffer of the first bytes
+  if (b.length < 12) return null;
+  // ---- images ----
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image';            // JPEG
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image'; // PNG
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return 'image'; // GIF8
+  if (b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP') return 'image';
+  // ---- videos ----
+  if (b.toString('ascii', 4, 8) === 'ftyp') return 'video';                       // MP4/MOV/M4V
+  if (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return 'video'; // WebM/MKV
+  return null;
+}
+
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -40,6 +60,20 @@ router.post('/', upload.single('file'), asyncH(async (req, res) => {
     try { fs.unlinkSync(tempPath); } catch (_) { /* best effort */ }
     return res.status(400).json({
       error: `Type de fichier non autorisé (images: ${IMAGE_EXTS.join(', ')}; vidéos: ${VIDEO_EXTS.join(', ')}).`,
+    });
+  }
+
+  // Content must match the extension — a script renamed `.mp4` is rejected
+  // here (the video path stores the file as-is, so this is its only gate).
+  // Read just the first 16 bytes (magic numbers), never the whole video.
+  const head = Buffer.alloc(16);
+  const fd = fs.openSync(tempPath, 'r');
+  try { fs.readSync(fd, head, 0, 16, 0); } finally { fs.closeSync(fd); }
+  const sniffed = detectMediaKind(head);
+  if ((isImage && sniffed !== 'image') || (isVideo && sniffed !== 'video')) {
+    try { fs.unlinkSync(tempPath); } catch (_) { /* best effort */ }
+    return res.status(400).json({
+      error: 'Le contenu du fichier ne correspond pas à son extension.',
     });
   }
 

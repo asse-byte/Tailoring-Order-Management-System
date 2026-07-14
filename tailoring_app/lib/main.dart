@@ -67,13 +67,15 @@ class _AppViewState extends State<_AppView> {
   @override
   Widget build(BuildContext context) {
     final LanguageProvider lang = context.watch<LanguageProvider>();
-    final String shopName = context.watch<ShopSettingsProvider>().shopName;
+    final ShopSettingsProvider shop = context.watch<ShopSettingsProvider>();
+    final String shopName = shop.shopName;
+    final Color brand = shop.themeColor;
 
     return MaterialApp.router(
       title: shopName,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      theme: AppTheme.light(brand: brand),
+      darkTheme: AppTheme.dark(brand: brand),
       themeMode: ThemeMode.system,
       routerConfig: _router,
       locale: lang.locale,

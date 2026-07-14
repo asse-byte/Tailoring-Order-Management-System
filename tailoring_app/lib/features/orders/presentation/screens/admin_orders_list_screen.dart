@@ -61,6 +61,11 @@ class _AdminOrdersListScreenState extends State<AdminOrdersListScreen> {
       appBar: AppBar(
         title: const Text('Commandes'),
         actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.calendar_view_week_rounded),
+            tooltip: 'Programme (journalier / hebdo)',
+            onPressed: () => context.push('/admin/schedule'),
+          ),
           if (p.from != null ||
               p.to != null ||
               p.statusFilter != null ||

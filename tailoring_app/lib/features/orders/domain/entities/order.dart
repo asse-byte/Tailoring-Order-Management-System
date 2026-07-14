@@ -55,6 +55,7 @@ class TailoringOrder {
     this.startDate,
     this.expectedDate,
     this.deliveredDate,
+    this.plannedDate,
     this.createdAt,
   });
 
@@ -77,7 +78,12 @@ class TailoringOrder {
   final DateTime? startDate;
   final DateTime? expectedDate;
   final DateTime? deliveredDate;
+
+  /// Planned execution day (the programme). Null = still in the waiting queue.
+  final DateTime? plannedDate;
   final DateTime? createdAt;
+
+  bool get isPlanned => plannedDate != null;
 
   bool get isEnAttente => status == AppConstants.statusEnAttente;
   bool get isEnCours => status == AppConstants.statusEnCours;
@@ -122,6 +128,7 @@ class TailoringOrder {
       startDate: parseDate(m['start_date']),
       expectedDate: parseDate(m['expected_date']),
       deliveredDate: parseDate(m['delivered_date']),
+      plannedDate: parseDate(m['planned_date']),
       createdAt: parseDate(m['created_at']),
     );
   }

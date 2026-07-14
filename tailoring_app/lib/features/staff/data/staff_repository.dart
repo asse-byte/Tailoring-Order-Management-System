@@ -193,6 +193,35 @@ class WeeklyTailorSummary {
   }
 }
 
+/// A tailor's total for one month — used for the "who worked most" ranking.
+class TailorMonthlyRank {
+  final String tailorId;
+  final String tailorName;
+  final bool active;
+  final int piecesTotal;
+  final int amountTotal;
+  final int daysWorked;
+
+  const TailorMonthlyRank({
+    required this.tailorId,
+    required this.tailorName,
+    required this.active,
+    required this.piecesTotal,
+    required this.amountTotal,
+    required this.daysWorked,
+  });
+
+  factory TailorMonthlyRank.fromJson(Map<String, dynamic> json) =>
+      TailorMonthlyRank(
+        tailorId: json['tailor_id'] as String,
+        tailorName: json['tailor_name'] as String? ?? '',
+        active: json['active'] as bool? ?? true,
+        piecesTotal: json['pieces_total'] as int? ?? 0,
+        amountTotal: json['amount_total'] as int? ?? 0,
+        daysWorked: json['days_worked'] as int? ?? 0,
+      );
+}
+
 class StaffRepository {
   StaffRepository({ApiClient? client}) : _api = client ?? ApiClient.instance;
 
@@ -308,6 +337,15 @@ class StaffRepository {
     final dynamic res = await _api.get('/api/tailor-entries/weekly?week_id=$weekId');
     return (res['items'] as List)
         .map((e) => WeeklyTailorSummary.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Per-tailor totals for [month] ('YYYY-MM'), ranked highest-first.
+  Future<List<TailorMonthlyRank>> monthlyRanking(String month) async {
+    final dynamic res =
+        await _api.get('/api/tailor-entries/monthly?month=$month');
+    return (res['items'] as List)
+        .map((e) => TailorMonthlyRank.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 }

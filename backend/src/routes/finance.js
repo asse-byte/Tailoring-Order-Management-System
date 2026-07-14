@@ -5,11 +5,41 @@ const { asyncH, dateStr } = require('../util');
 // Mounted manager-only in app.js — THE financial screen's data source.
 const router = express.Router();
 
-/** Number of calendar months touched by [from, to] (for salary totals). */
+/** Number of calendar months touched by [from, to] (informational only). */
 function monthsTouched(from, to) {
   const [fy, fm] = from.split('-').map(Number);
   const [ty, tm] = to.split('-').map(Number);
   return Math.max((ty * 12 + tm) - (fy * 12 + fm) + 1, 1);
+}
+
+/**
+ * Fraction of a monthly salary owed for the inclusive window [from, to].
+ * Each calendar month contributes (days of it inside the window / its length),
+ * so a full month = 1.0, a full year = 12.0, and a single day = 1/daysInMonth.
+ * Fixed salaries are thus prorated to the period, keeping net profit honest for
+ * the Jour / Semaine presets (a whole month was previously charged to one day).
+ */
+function salaryMonthsFactor(from, to) {
+  const start = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return 0;
+  let factor = 0;
+  let y = start.getUTCFullYear();
+  let m = start.getUTCMonth(); // 0-based
+  while (y < end.getUTCFullYear() || (y === end.getUTCFullYear() && m <= end.getUTCMonth())) {
+    const daysInMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    const monthStart = Date.UTC(y, m, 1);
+    const monthEnd = Date.UTC(y, m, daysInMonth);
+    const overlapStart = Math.max(start.getTime(), monthStart);
+    const overlapEnd = Math.min(end.getTime(), monthEnd);
+    if (overlapEnd >= overlapStart) {
+      const overlapDays = Math.round((overlapEnd - overlapStart) / 86400000) + 1;
+      factor += overlapDays / daysInMonth;
+    }
+    m += 1;
+    if (m > 11) { m = 0; y += 1; }
+  }
+  return factor;
 }
 
 router.get('/summary', asyncH(async (req, res) => {
@@ -65,7 +95,9 @@ router.get('/summary', asyncH(async (req, res) => {
   const costOfSalesGoods = Number(salesCost.rows[0].v) + Number(ordersCost.rows[0].v);
   const wagesTotal = Number(wages.rows[0].v);
   const expensesTotal = Number(expenses.rows[0].v);
-  const salariesTotal = Number(salaries.rows[0].v) * months;
+  // Fixed monthly salaries are prorated to the selected window (FCFA has no
+  // decimals → round the fractional amount to the nearest whole franc).
+  const salariesTotal = Math.round(Number(salaries.rows[0].v) * salaryMonthsFactor(from, to));
   const revenue = salesTotal + ordersTotal;
   const costs = costOfSalesGoods + wagesTotal + salariesTotal + expensesTotal;
 

@@ -15,11 +15,13 @@ import '../../features/orders/presentation/screens/admin_settings_screen.dart';
 import '../../features/orders/presentation/screens/admin_shell.dart';
 import '../../features/orders/presentation/screens/history_orders_screen.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
+import '../../features/orders/presentation/screens/schedule_screen.dart';
 import '../../features/orders/presentation/screens/walk_in_order_screen.dart';
 import '../../features/products/presentation/screens/products_screen.dart';
 import '../../features/staff/presentation/screens/staff_screen.dart';
 import '../../features/staff/presentation/screens/monthly_staff_screen.dart';
 import '../../features/finance/presentation/screens/finance_screen.dart';
+import '../../features/reports/presentation/screens/reports_screen.dart';
 import '../../features/ready_to_wear/presentation/screens/ready_to_wear_screen.dart';
 import '../../features/appointments/presentation/screens/appointments_screen.dart';
 
@@ -96,6 +98,10 @@ class AppRouter {
               builder: (_, __) => const AdminOrdersListScreen(),
             ),
             GoRoute(
+              path: 'schedule',
+              builder: (_, __) => const ScheduleScreen(),
+            ),
+            GoRoute(
               path: 'settings',
               builder: (_, __) => const AdminSettingsScreen(),
             ),
@@ -114,6 +120,10 @@ class AppRouter {
             GoRoute(
               path: 'finance',
               builder: (_, __) => const FinanceScreen(),
+            ),
+            GoRoute(
+              path: 'reports',
+              builder: (_, __) => const ReportsScreen(),
             ),
             GoRoute(
               path: 'ready-to-wear',
@@ -153,11 +163,15 @@ class AppRouter {
         }
         if (loc == '/login' || loc == '/') return '/admin';
 
-        // Secretary cannot access financial/management routes — redirect to home.
+        // Secretary cannot access financial/management routes — redirect to
+        // home. (The server also returns 403 on the underlying endpoints; this
+        // is defence-in-depth so a deep link never even renders the screen.)
         if (auth.isSecretary &&
             (loc == '/admin/finance' ||
+                loc == '/admin/reports' ||
                 loc == '/admin/staff-pay' ||
-                loc == '/admin/monthly-staff')) {
+                loc == '/admin/monthly-staff' ||
+                loc == '/admin/settings')) {
           return '/admin';
         }
 
