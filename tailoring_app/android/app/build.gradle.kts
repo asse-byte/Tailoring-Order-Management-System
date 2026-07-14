@@ -29,7 +29,13 @@ android {
     defaultConfig {
         // Real, permanent app identity (was com.example.*). Do NOT change after
         // the first install — Android treats a new id as a different app.
-        applicationId = "com.rayancouture.app"
+        // Per-shop builds override it with -PappId (isolated instance per shop).
+        applicationId = (project.findProperty("appId") as String?)
+            ?: "com.rayancouture.app"
+        // Home-screen name. Each resold shop builds with its own:
+        //   flutter build apk --release -PappName="Atelier Diallo"
+        manifestPlaceholders["appName"] =
+            (project.findProperty("appName") as String?) ?: "Rayan Couture"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
