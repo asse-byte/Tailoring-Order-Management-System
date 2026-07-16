@@ -56,6 +56,23 @@ cd /srv/<shop>
 docker compose restart api
 ```
 
+## Update every shop at once (after `git push`)
+
+Once a feature/fix is pushed, roll it out to **all** shops on the VPS with one
+command. It backs up each shop first, pulls, rebuilds (migrations auto-run on
+boot), then health-checks — and keeps going if one shop fails:
+
+```bash
+SHOPS_DIR=/srv ./scripts/update-all.sh
+```
+
+- One shop failing does not stop the others; a summary lists updated vs FAILED,
+  and the script exits non-zero so cron can alert you.
+- The web build is separate: rebuild it (`flutter build web …`) and re-copy
+  `build/web` per shop only when the UI changed. The APK likewise is rebuilt and
+  redistributed only on UI/logic changes (same keystore, higher version).
+- Deploy order stays: server first (the API is backward-compatible), app after.
+
 ## Backing up the signing keystore (on your laptop, not the VPS)
 
 Losing `rayan-couture-release.jks` or its password means you can **never** ship
