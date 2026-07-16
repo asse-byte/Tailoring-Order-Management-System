@@ -149,13 +149,14 @@ class DashboardScreen extends StatelessWidget {
               // Responsive: keep tiles ~compact (~170px) on any screen, and
               // cap content width on large desktops so it never stretches ugly.
               final double maxW = constraints.maxWidth;
+              // Fewer columns → larger tiles (owner asked for bigger boxes).
               final int columns = maxW >= 1000
-                  ? 6
+                  ? 5
                   : maxW >= 760
-                      ? 5
+                      ? 4
                       : maxW >= 520
-                          ? 4
-                          : 3;
+                          ? 3
+                          : 2;
               return Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1200),
@@ -192,9 +193,9 @@ class DashboardScreen extends StatelessWidget {
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: columns,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
-                            childAspectRatio: 1.25,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 1.05,
                           ),
                           itemCount: allItems.length,
                           itemBuilder: (context, index) {
@@ -255,29 +256,29 @@ class _DashboardCard extends StatelessWidget {
               end: Alignment.bottomRight,
             ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          padding: const EdgeInsets.all(16),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(11),
                 decoration: BoxDecoration(
                   color: AppColors.accent.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(9),
+                  borderRadius: BorderRadius.circular(13),
                 ),
-                child: Icon(item.icon, color: AppColors.accent, size: 18),
+                child: Icon(item.icon, color: AppColors.accent, size: 28),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 12),
               Text(
                 item.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: Colors.white,
-                  height: 1.1,
+                  height: 1.15,
                 ),
               ),
             ],
