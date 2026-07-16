@@ -150,6 +150,32 @@ describe('SECRETARY — allowed daily operations', () => {
     expect(res.body.measures.poitrine).toBe(102);
   });
 
+  it('can edit the custom-garments catalog (INTENTIONAL — measurement workflow)', async () => {
+    // Deliberate design, twice questioned in review: while taking a client's
+    // measurements the secretary may create a new garment type on the spot
+    // (client_detail_screen → saveCustomGarments). The catalog is garment
+    // names + measurement fields — NOT financial data — so it is shared by
+    // both roles. Do not restrict this PUT to the manager without redesigning
+    // that workflow.
+    const catalog = {
+      homme: { 'Veste croisée': ['epaule', 'poitrine', 'manche'] },
+      femme: {},
+    };
+    const put = await asSec(
+      request(app).put('/api/clients/settings/custom-garments')).send(catalog);
+    expect(put.status).toBe(200);
+    const get = await asSec(
+      request(app).get('/api/clients/settings/custom-garments'));
+    expect(get.status).toBe(200);
+    expect(get.body.homme['Veste croisée']).toEqual(['epaule', 'poitrine', 'manche']);
+
+    // The guard that actually matters stays shut: private settings (finance,
+    // piece rates…) remain manager-only for every method.
+    expect((await asSec(request(app).get('/api/settings/private'))).status).toBe(403);
+    expect((await asSec(request(app).put('/api/settings/private'))
+      .send({ default_piece_rate: 1 })).status).toBe(403);
+  });
+
   it('can read products and prêt-à-porter (to sell at the counter)', async () => {
     expect((await asSec(request(app).get('/api/products'))).status).toBe(200);
     expect((await asSec(request(app).get('/api/pret-a-porter'))).status).toBe(200);
