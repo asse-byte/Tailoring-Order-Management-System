@@ -78,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         decoration: BoxDecoration(
                           color: Theme.of(context).cardTheme.color,
                           borderRadius: BorderRadius.circular(28),
-                          border: Border.all(color: AppColors.border, width: 2),
+                          border: Border.all(color: Theme.of(context).dividerColor, width: 2),
                           boxShadow: [
                             BoxShadow(
                               color: AppColors.primary.withValues(alpha: 0.08),

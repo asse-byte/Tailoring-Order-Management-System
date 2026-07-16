@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/localization/language_provider.dart';
+import '../../../../core/theme/theme_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
@@ -196,8 +197,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   Future<void> _changeThemeColor(BuildContext context) async {
     final provider = context.read<ShopSettingsProvider>();
     const List<String> palette = <String>[
-      '#006D6D', '#6D28D9', '#1D4ED8', '#047857', '#BE123C',
-      '#C2410C', '#78350F', '#334155', '#B45309', '#DB2777',
+      '#1E293B', '#0F172A', '#334155', '#475569', '#64748B',
+      '#94A3B8', '#000000', '#27272A', '#3F3F46', '#52525B',
     ];
     final String? chosen = await showDialog<String>(
       context: context,
@@ -284,7 +285,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             decoration: BoxDecoration(
               color: Theme.of(context).cardTheme.color,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: Theme.of(context).dividerColor),
             ),
             child: Row(
               children: <Widget>[
@@ -394,6 +395,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           ),
           const SizedBox(height: 16),
           const _LanguageSelector(),
+          const SizedBox(height: 16),
+          const _ThemeModeSelector(),
           const SizedBox(height: 24),
           OutlinedButton.icon(
             icon: const Icon(Icons.logout_rounded),
@@ -430,7 +433,7 @@ class _LanguageSelector extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButtonFormField<String>(
@@ -489,7 +492,7 @@ class _ActionTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: Theme.of(context).dividerColor),
           ),
           child: Row(
             children: <Widget>[
@@ -518,6 +521,52 @@ class _ActionTile extends StatelessWidget {
                   color: AppColors.textMuted),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeModeSelector extends StatelessWidget {
+  const _ThemeModeSelector();
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProv = context.watch<ThemeProvider>();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButtonFormField<ThemeMode>(
+          initialValue: themeProv.themeMode,
+          decoration: const InputDecoration(
+            labelText: "Mode d'affichage / Theme Mode",
+            prefixIcon: Icon(Icons.dark_mode_rounded, color: AppColors.primary),
+            border: InputBorder.none,
+          ),
+          items: const [
+            DropdownMenuItem(
+              value: ThemeMode.system,
+              child: Text('Système / System'),
+            ),
+            DropdownMenuItem(
+              value: ThemeMode.light,
+              child: Text('Clair / Light'),
+            ),
+            DropdownMenuItem(
+              value: ThemeMode.dark,
+              child: Text('Sombre / Dark'),
+            ),
+          ],
+          onChanged: (ThemeMode? val) {
+            if (val != null) {
+              themeProv.setThemeMode(val);
+            }
+          },
         ),
       ),
     );

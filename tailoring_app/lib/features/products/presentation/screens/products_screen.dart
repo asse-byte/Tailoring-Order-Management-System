@@ -11,6 +11,7 @@ import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/products_provider.dart';
 import '../../domain/product.dart';
+import '../../data/products_repository.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 
 class ProductsScreen extends StatefulWidget {
@@ -360,6 +361,124 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
+  Future<void> _showProductDetails(Product p) async {
+    final bool isManager = !context.read<AuthProvider>().isSecretary;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext ctx) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          p.name,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  _detailRow('Catégorie', _mapCategoryToFrench(p.category)),
+                  _detailRow('Prix de vente', formatFcfa(p.price.toInt())),
+                  _detailRow('Stock actuel', '${p.quantity} unités'),
+                  if (isManager) ...[
+                    _detailRow('Prix d\'achat', formatFcfa(p.costPrice.toInt())),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Statistiques de vente',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    FutureBuilder<Map<String, dynamic>>(
+                      future: ProductsRepository().getStats(p.id),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        }
+                        if (snapshot.hasError) {
+                          return Text(
+                            'Erreur: ${snapshot.error}',
+                            style: const TextStyle(color: AppColors.error),
+                          );
+                        }
+                        final stats = snapshot.data!;
+                        final int totalSold = stats['total_sold'] as int;
+                        final int totalRevenue = stats['total_revenue'] as int;
+                        final int totalProfit = stats['total_profit'] as int;
+
+                        return Column(
+                          children: [
+                            _detailRow('Quantité vendue', '$totalSold unités'),
+                            _detailRow('Ventes totales', formatFcfa(totalRevenue)),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Bénéfice/Perte total'),
+                                Text(
+                                  formatFcfa(totalProfit),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: totalProfit >= 0
+                                        ? AppColors.success
+                                        : AppColors.error,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: AppColors.textSecondary)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProductsProvider>();
@@ -469,9 +588,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             return Card(
                               margin: const EdgeInsets.only(bottom: 12),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Row(
+                              child: InkWell(
+                                onTap: () => _showProductDetails(p),
+                                borderRadius: BorderRadius.circular(15),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Row(
                                   children: [
                                     // Thumbnail Image
                                     Container(
@@ -609,6 +731,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       ],
                                     )
                                   ],
+                                  ),
                                 ),
                               ),
                             );

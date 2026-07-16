@@ -33,7 +33,7 @@ class OrderCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -5,6 +5,7 @@ class Client {
     required this.fullName,
     required this.phone,
     this.address,
+    required this.gender,
     this.createdAt,
   });
 
@@ -12,6 +13,7 @@ class Client {
   final String fullName;
   final String phone;
   final String? address;
+  final String gender; // 'homme' or 'femme'
   final DateTime? createdAt;
 
   factory Client.fromJson(Map<String, dynamic> json) => Client(
@@ -19,6 +21,7 @@ class Client {
         fullName: (json['full_name'] as String?) ?? '',
         phone: (json['phone'] as String?) ?? '',
         address: json['address'] as String?,
+        gender: (json['gender'] as String?) ?? 'homme',
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'] as String)
             : null,

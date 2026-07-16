@@ -26,6 +26,10 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   Client? _client;
   Map<String, Map<String, num>> _measurements = <String, Map<String, num>>{};
   List<ClientOrderSummary> _orders = <ClientOrderSummary>[];
+  Map<String, dynamic> _customGarments = <String, dynamic>{
+    'homme': <String, dynamic>{},
+    'femme': <String, dynamic>{}
+  };
   bool _loading = true;
   String? _error;
   bool _changed = false;
@@ -46,12 +50,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         _repo.getById(widget.clientId),
         _repo.measurements(widget.clientId),
         _repo.orders(widget.clientId),
+        _repo.getCustomGarments(),
       ]);
       if (!mounted) return;
       setState(() {
         _client = results[0] as Client;
         _measurements = results[1] as Map<String, Map<String, num>>;
         _orders = results[2] as List<ClientOrderSummary>;
+        _customGarments = results[3] as Map<String, dynamic>;
         _loading = false;
       });
     } catch (e) {
@@ -116,11 +122,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     }
   }
 
-  Future<void> _openMeasurements(String garmentType) async {
+  Future<void> _openMeasurements(String garmentType, {List<String>? suggestedFields}) async {
     final bool? changed = await context.push<bool>(
       '/admin/clients/${widget.clientId}/measurements/'
       '${Uri.encodeComponent(garmentType)}',
-      extra: _measurements[garmentType],
+      extra: <String, dynamic>{
+        'initial': _measurements[garmentType],
+        'suggestedFields': suggestedFields,
+      },
     );
     if (changed == true) {
       _changed = true;
@@ -129,12 +138,28 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   }
 
   Future<void> _pickGarmentType() async {
+    final String gender = _client?.gender ?? 'homme';
+    final List<String> standardList = gender == 'femme'
+        ? GarmentTypes.femaleGarments
+        : GarmentTypes.maleGarments;
+
+    final Map<String, dynamic> customForGender =
+        (_customGarments[gender] as Map<String, dynamic>?) ?? <String, dynamic>{};
+    final List<String> customList = customForGender.keys.toList();
+
+    // Union: standard models + custom models
+    final List<String> choices = <String>[
+      ...standardList.where((String x) => x != 'Autres'),
+      ...customList,
+      'Autres',
+    ];
+
     final String? type = await showModalBottomSheet<String>(
       context: context,
       builder: (BuildContext ctx) => SafeArea(
         child: ListView(
           shrinkWrap: true,
-          children: GarmentTypes.all
+          children: choices
               .map((String t) => ListTile(
                     leading: const Icon(Icons.straighten_rounded),
                     title: Text(t),
@@ -148,7 +173,99 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         ),
       ),
     );
-    if (type != null) _openMeasurements(type);
+
+    if (type == null) return;
+    if (!mounted) return;
+
+    if (type == 'Autres') {
+      final TextEditingController nameCtrl = TextEditingController();
+      final TextEditingController fieldsCtrl = TextEditingController(
+        text: gender == 'femme'
+            ? GarmentTypes.defaultFields['Robe']!.join(', ')
+            : GarmentTypes.defaultFields['Grand Boubou']!.join(', '),
+      );
+
+      final bool? confirm = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext ctx) => AlertDialog(
+          title: const Text('Nouveau modèle personnalisé'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              TextField(
+                controller: nameCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                    labelText: 'Nom du modèle (Ex: Gagny Lah)'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: fieldsCtrl,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Champs de mesure (séparés par des virgules)',
+                  helperText: 'Ex: LB, LM, TM, E, P',
+                ),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Annuler')),
+            TextButton(
+              onPressed: () {
+                if (nameCtrl.text.trim().isNotEmpty) {
+                  Navigator.pop(ctx, true);
+                }
+              },
+              child: const Text('Créer'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm == true) {
+        final String newName = nameCtrl.text.trim();
+        final List<String> newFields = fieldsCtrl.text
+            .split(',')
+            .map((String s) => s.trim())
+            .where((String s) => s.isNotEmpty)
+            .toList();
+
+        final Map<String, dynamic> customForGenderMutable =
+            Map<String, dynamic>.from(customForGender);
+        customForGenderMutable[newName] = newFields;
+        _customGarments[gender] = customForGenderMutable;
+
+        setState(() {
+          _loading = true;
+        });
+
+        try {
+          await _repo.saveCustomGarments(_customGarments);
+          await _load();
+          if (mounted) {
+            _openMeasurements(newName, suggestedFields: newFields);
+          }
+        } catch (e) {
+          if (mounted) {
+            setState(() {
+              _loading = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(e.toString()),
+              backgroundColor: AppColors.error,
+            ));
+          }
+        }
+      }
+    } else {
+      final List<String>? customFields = customList.contains(type)
+          ? List<String>.from(customForGender[type] as Iterable<dynamic>)
+          : null;
+      _openMeasurements(type, suggestedFields: customFields);
+    }
   }
 
   String _statusLabel(String status) => AppConstants.statusLabel(status);
@@ -287,7 +404,16 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                   .map((MapEntry<String, Map<String, num>> e) => ActionChip(
                         avatar: const Icon(Icons.straighten_rounded, size: 18),
                         label: Text('${e.key} (${e.value.length})'),
-                        onPressed: () => _openMeasurements(e.key),
+                        onPressed: () {
+                          final String gender = _client?.gender ?? 'homme';
+                          final Map<String, dynamic>? customForGender =
+                              _customGarments[gender] as Map<String, dynamic>?;
+                          final List<String>? customFields =
+                              customForGender?[e.key] != null
+                                  ? List<String>.from(customForGender![e.key] as Iterable<dynamic>)
+                                  : null;
+                          _openMeasurements(e.key, suggestedFields: customFields);
+                        },
                       ))
                   .toList(),
             ),

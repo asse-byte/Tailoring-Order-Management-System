@@ -73,18 +73,32 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
   final ClientsRepository _clientsRepo = ClientsRepository();
   final StaffRepository _staffRepo = StaffRepository();
 
+  Map<String, dynamic> _customGarments = <String, dynamic>{
+    'homme': <String, dynamic>{},
+    'femme': <String, dynamic>{}
+  };
+
   @override
   void initState() {
     super.initState();
+    _loadTailorsAndCustomGarments();
+  }
+
+  Future<void> _loadTailorsAndCustomGarments() async {
     _loadTailors();
+    try {
+      final Map<String, dynamic> custom = await _clientsRepo.getCustomGarments();
+      if (!mounted) return;
+      setState(() => _customGarments = custom);
+    } catch (_) {}
   }
 
   Future<void> _loadTailors() async {
     try {
-      final all = await _staffRepo.listContacts();
+      final List<StaffContact> all = await _staffRepo.listContacts();
       if (!mounted) return;
       setState(() => _tailors =
-          all.where((s) => s.type == 'couturier' && s.active).toList());
+          all.where((StaffContact s) => s.type == 'couturier' && s.active).toList());
     } catch (_) {/* tailor optional — ignore load errors */}
   }
 
@@ -252,6 +266,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
           : (await _clientsRepo.create(
               fullName: _newName.text.trim(),
               phone: _newPhone.text.trim(),
+              gender: 'homme',
             ))
               .id;
 
@@ -318,7 +333,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardTheme.color,
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: Theme.of(context).dividerColor),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
@@ -487,7 +502,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
       padding: const EdgeInsets.fromLTRB(12, 8, 8, 12),
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: Theme.of(context).dividerColor),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -499,8 +514,27 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                   initialValue: line.garment,
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Type'),
-                  items: GarmentTypes.all
-                      .map((g) =>
+                  items: () {
+                    final String gender = (_useExisting && _selectedClient != null)
+                        ? _selectedClient!.gender
+                        : 'homme';
+                    final List<String> standardList = gender == 'femme'
+                        ? GarmentTypes.femaleGarments
+                        : GarmentTypes.maleGarments;
+                    final Map<String, dynamic> customForGender =
+                        (_customGarments[gender] as Map<String, dynamic>?) ?? <String, dynamic>{};
+                    final List<String> customList = customForGender.keys.toList();
+
+                    final List<String> choices = <String>[
+                      ...standardList.where((String x) => x != 'Autres'),
+                      ...customList,
+                    ];
+                    if (!choices.contains(line.garment)) {
+                      choices.add(line.garment);
+                    }
+                    return choices;
+                  }()
+                      .map((String g) =>
                           DropdownMenuItem<String>(value: g, child: Text(g)))
                       .toList(growable: false),
                   onChanged: (v) =>
@@ -595,7 +629,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                   height: 4,
                   width: 40,
                   decoration: BoxDecoration(
-                    color: AppColors.border,
+                    color: Theme.of(context).dividerColor,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),

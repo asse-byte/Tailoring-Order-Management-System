@@ -29,11 +29,13 @@ class ClientsRepository {
     required String fullName,
     required String phone,
     String? address,
+    required String gender,
   }) async {
     final dynamic res = await _api.post('/api/clients', body: {
       'full_name': fullName,
       'phone': phone,
       'address': address,
+      'gender': gender,
     });
     return Client.fromJson(res as Map<String, dynamic>);
   }
@@ -43,14 +45,24 @@ class ClientsRepository {
     required String fullName,
     required String phone,
     String? address,
+    required String gender,
   }) async {
     final dynamic res = await _api.put('/api/clients/$id', body: {
       'full_name': fullName,
       'phone': phone,
       'address': address,
+      'gender': gender,
     });
     return Client.fromJson(res as Map<String, dynamic>);
   }
+
+  Future<Map<String, dynamic>> getCustomGarments() async {
+    final dynamic res = await _api.get('/api/clients/settings/custom-garments');
+    return res as Map<String, dynamic>;
+  }
+
+  Future<void> saveCustomGarments(Map<String, dynamic> custom) =>
+      _api.put('/api/clients/settings/custom-garments', body: custom);
 
   Future<void> remove(String id) => _api.delete('/api/clients/$id');
 

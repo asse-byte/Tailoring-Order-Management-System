@@ -681,7 +681,7 @@ class _StaffScreenState extends State<StaffScreen> {
                       child: Container(
                         height: 4, width: 40,
                         decoration: BoxDecoration(
-                          color: AppColors.border,
+                          color: Theme.of(context).dividerColor,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -750,7 +750,7 @@ class _StaffScreenState extends State<StaffScreen> {
                               controller: scrollCtrl,
                               child: Table(
                                 border:
-                                    TableBorder.all(color: AppColors.border),
+                                    TableBorder.all(color: Theme.of(context).dividerColor),
                                 columnWidths: const <int, TableColumnWidth>{
                                   0: FlexColumnWidth(1.7),
                                   1: FlexColumnWidth(2.2),
@@ -1073,7 +1073,7 @@ class _StaffScreenState extends State<StaffScreen> {
                       child: Container(
                         height: 4, width: 40,
                         decoration: BoxDecoration(
-                          color: AppColors.border,
+                          color: Theme.of(ctx).dividerColor,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -1159,7 +1159,7 @@ class _StaffScreenState extends State<StaffScreen> {
                                                     value: frac,
                                                     minHeight: 6,
                                                     backgroundColor:
-                                                        AppColors.border,
+                                                        Theme.of(ctx).brightness == Brightness.dark ? AppColors.darkSurfaceAlt : AppColors.surfaceAlt,
                                                     color: i == 0
                                                         ? AppColors.accent
                                                         : AppColors.primary,

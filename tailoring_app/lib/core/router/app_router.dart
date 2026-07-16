@@ -72,12 +72,16 @@ class AppRouter {
             ),
             GoRoute(
               path: 'clients/:id/measurements/:type',
-              builder: (_, state) => MeasurementsScreen(
-                clientId: state.pathParameters['id']!,
-                garmentType:
-                    Uri.decodeComponent(state.pathParameters['type']!),
-                initial: state.extra as Map<String, num>?,
-              ),
+              builder: (_, state) {
+                final Map<String, dynamic>? extra = state.extra as Map<String, dynamic>?;
+                return MeasurementsScreen(
+                  clientId: state.pathParameters['id']!,
+                  garmentType:
+                      Uri.decodeComponent(state.pathParameters['type']!),
+                  initial: extra?['initial'] as Map<String, num>?,
+                  suggestedFields: extra?['suggestedFields'] as List<String>?,
+                );
+              },
             ),
             GoRoute(
               path: 'clients/:id',

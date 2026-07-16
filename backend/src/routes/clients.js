@@ -26,9 +26,11 @@ router.get('/', asyncH(async (req, res) => {
 router.post('/', asyncH(async (req, res) => {
   const fullName = str(req.body.full_name);
   if (!fullName) return res.status(400).json({ error: 'Nom complet requis.' });
+  const gender = str(req.body.gender) || 'homme';
+  if (!['homme', 'femme'].includes(gender)) return res.status(400).json({ error: 'Genre invalide.' });
   const { rows } = await db.query(
-    `INSERT INTO clients (full_name, phone, address) VALUES ($1, $2, $3) RETURNING *`,
-    [fullName, str(req.body.phone) || '', str(req.body.address)]);
+    `INSERT INTO clients (full_name, phone, address, gender) VALUES ($1, $2, $3, $4) RETURNING *`,
+    [fullName, str(req.body.phone) || '', str(req.body.address), gender]);
   res.status(201).json(rows[0]);
 }));
 
@@ -41,10 +43,12 @@ router.get('/:id', asyncH(async (req, res) => {
 router.put('/:id', asyncH(async (req, res) => {
   const fullName = str(req.body.full_name);
   if (!fullName) return res.status(400).json({ error: 'Nom complet requis.' });
+  const gender = str(req.body.gender) || 'homme';
+  if (!['homme', 'femme'].includes(gender)) return res.status(400).json({ error: 'Genre invalide.' });
   const { rows } = await db.query(
-    `UPDATE clients SET full_name = $1, phone = $2, address = $3
-     WHERE id = $4 RETURNING *`,
-    [fullName, str(req.body.phone) || '', str(req.body.address), req.params.id]);
+    `UPDATE clients SET full_name = $1, phone = $2, address = $3, gender = $4
+     WHERE id = $5 RETURNING *`,
+    [fullName, str(req.body.phone) || '', str(req.body.address), gender, req.params.id]);
   if (!rows[0]) return res.status(404).json({ error: 'Client introuvable.' });
   res.json(rows[0]);
 }));
@@ -99,6 +103,25 @@ router.get('/:id/orders', asyncH(async (req, res) => {
      ORDER BY o.created_at DESC LIMIT $2 OFFSET $3`,
     [req.params.id, limit, offset]);
   res.json({ items: rows, limit, offset });
+}));
+
+// ---- custom garments settings (shared by both roles) ----
+
+router.get('/settings/custom-garments', asyncH(async (req, res) => {
+  const { rows } = await db.query("SELECT value FROM settings WHERE key = 'custom_garments'");
+  res.json(rows[0] ? rows[0].value : { homme: {}, femme: {} });
+}));
+
+router.put('/settings/custom-garments', asyncH(async (req, res) => {
+  const custom = req.body;
+  if (typeof custom !== 'object' || custom === null) {
+    return res.status(400).json({ error: 'custom_garments doit être un objet.' });
+  }
+  await db.query(
+    "UPDATE settings SET value = $1 WHERE key = 'custom_garments'",
+    [JSON.stringify(custom)]
+  );
+  res.json({ ok: true });
 }));
 
 module.exports = router;

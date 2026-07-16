@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/web_helper.dart';
 import '../../data/settings_repository.dart';
 
 /// Identité de la boutique (nom + logo), chargée depuis les réglages
@@ -19,7 +20,7 @@ class ShopSettingsProvider extends ChangeNotifier {
   String? _logoUrl;
   int _defaultPieceRate = 0;
   String _promoGroupLink = '';
-  String _themeColorHex = '#006D6D';
+  String _themeColorHex = '#1E293B';
   bool _loaded = false;
 
   String get shopName => _shopName;
@@ -40,6 +41,10 @@ class ShopSettingsProvider extends ChangeNotifier {
     return Color(int.parse('FF${m.group(1)}', radix: 16));
   }
 
+  void _updateWebTab() {
+    updateWebTabFaviconAndTitle(_logoUrl, _shopName);
+  }
+
   Future<void> refresh() async {
     try {
       final settings = await _repo.publicSettings();
@@ -49,6 +54,7 @@ class ShopSettingsProvider extends ChangeNotifier {
       if (settings.themeColor != null) _themeColorHex = settings.themeColor!;
       _loaded = true;
       notifyListeners();
+      _updateWebTab();
     } catch (_) {
       // Serveur injoignable : on garde le nom par défaut
     }
@@ -91,6 +97,7 @@ class ShopSettingsProvider extends ChangeNotifier {
       await _repo.updateSettings(shopName: name);
       _shopName = name;
       notifyListeners();
+      _updateWebTab();
       return true;
     } catch (_) {
       return false;
@@ -103,6 +110,7 @@ class ShopSettingsProvider extends ChangeNotifier {
       await _repo.updateSettings(logoUrl: logoUrl);
       _logoUrl = logoUrl;
       notifyListeners();
+      _updateWebTab();
       return true;
     } catch (_) {
       return false;

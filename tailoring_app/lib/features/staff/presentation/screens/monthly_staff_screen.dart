@@ -402,7 +402,7 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                       child: Container(
                         height: 4, width: 40,
                         decoration: BoxDecoration(
-                          color: AppColors.border,
+                          color: Theme.of(ctx).dividerColor,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),

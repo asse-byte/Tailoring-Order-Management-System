@@ -76,6 +76,13 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refreshSession() async {
+    try {
+      _user = await _repo.restoreSession();
+      notifyListeners();
+    } catch (_) {}
+  }
+
   void clearError() {
     if (_error != null) {
       _error = null;

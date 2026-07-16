@@ -15,11 +15,13 @@ class MeasurementsScreen extends StatefulWidget {
     required this.clientId,
     required this.garmentType,
     this.initial,
+    this.suggestedFields,
   });
 
   final String clientId;
   final String garmentType;
   final Map<String, num>? initial;
+  final List<String>? suggestedFields;
 
   @override
   State<MeasurementsScreen> createState() => _MeasurementsScreenState();
@@ -34,7 +36,7 @@ class _MeasurementsScreenState extends State<MeasurementsScreen> {
   void initState() {
     super.initState();
     // Union: suggested fields for this garment type + already-saved keys.
-    final List<String> suggested =
+    final List<String> suggested = widget.suggestedFields ??
         GarmentTypes.defaultFields[widget.garmentType] ?? <String>[];
     for (final String field in suggested) {
       _fields[field] = TextEditingController(

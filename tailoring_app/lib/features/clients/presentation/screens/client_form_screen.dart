@@ -25,7 +25,16 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
       TextEditingController(text: widget.client?.phone ?? '');
   late final TextEditingController _addressCtrl =
       TextEditingController(text: widget.client?.address ?? '');
+  String _gender = 'homme';
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.client != null) {
+      _gender = widget.client!.gender;
+    }
+  }
 
   @override
   void dispose() {
@@ -47,6 +56,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
           address: _addressCtrl.text.trim().isEmpty
               ? null
               : _addressCtrl.text.trim(),
+          gender: _gender,
         );
       } else {
         await repo.update(
@@ -56,6 +66,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
           address: _addressCtrl.text.trim().isEmpty
               ? null
               : _addressCtrl.text.trim(),
+          gender: _gender,
         );
       }
       if (mounted) context.pop(true);
@@ -112,6 +123,34 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
                 hint: 'Quartier, ville…',
                 prefixIcon: Icons.location_on_outlined,
                 textInputAction: TextInputAction.done,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Genre du client',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                segments: const <ButtonSegment<String>>[
+                  ButtonSegment<String>(
+                    value: 'homme',
+                    label: Text('Homme / Homme'),
+                    icon: Icon(Icons.male_rounded),
+                  ),
+                  ButtonSegment<String>(
+                    value: 'femme',
+                    label: Text('Femme / Femme'),
+                    icon: Icon(Icons.female_rounded),
+                  ),
+                ],
+                selected: <String>{_gender},
+                onSelectionChanged: (Set<String> sel) {
+                  setState(() => _gender = sel.first);
+                },
               ),
               const SizedBox(height: 28),
               PrimaryButton(

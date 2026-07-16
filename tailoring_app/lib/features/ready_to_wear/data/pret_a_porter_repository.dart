@@ -136,6 +136,11 @@ class PretAPorterRepository {
     return PretAPorterModel.fromJson(res as Map<String, dynamic>);
   }
 
+  Future<Map<String, dynamic>> getStats(String id) async {
+    final dynamic res = await _api.get('/api/pret-a-porter/$id/stats');
+    return res as Map<String, dynamic>;
+  }
+
   Future<void> delete(String id) => _api.delete('/api/pret-a-porter/$id');
 
   /// Sells a model from the counter

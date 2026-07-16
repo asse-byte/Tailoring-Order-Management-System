@@ -18,6 +18,8 @@ import '../../../settings/presentation/providers/shop_settings_provider.dart';
 import '../../../staff/data/staff_repository.dart';
 import '../../data/invoice_service.dart';
 import '../../data/orders_repository.dart';
+import '../../../clients/domain/client.dart';
+import '../../../clients/data/clients_repository.dart';
 import '../../domain/entities/order.dart';
 
 /// Détail d'une commande + actions (statut, prix/avance/notes, suppression
@@ -33,7 +35,13 @@ class OrderDetailScreen extends StatefulWidget {
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
   final OrdersRepository _repo = OrdersRepository();
   final StaffRepository _staffRepo = StaffRepository();
+
   TailoringOrder? _order;
+  Client? _client;
+  Map<String, dynamic> _customGarments = <String, dynamic>{
+    'homme': <String, dynamic>{},
+    'femme': <String, dynamic>{}
+  };
   List<StaffContact> _tailors = <StaffContact>[];
   bool _loading = true;
   String? _error;
@@ -47,10 +55,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Future<void> _loadTailors() async {
     try {
-      final all = await _staffRepo.listContacts();
+      final List<StaffContact> all = await _staffRepo.listContacts();
       if (!mounted) return;
       setState(() => _tailors =
-          all.where((s) => s.type == 'couturier' && s.active).toList());
+          all.where((StaffContact s) => s.type == 'couturier' && s.active).toList());
     } catch (_) {/* optional */}
   }
 
@@ -61,6 +69,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     });
     try {
       _order = await _repo.getById(widget.orderId);
+      final ClientsRepository clientsRepo = ClientsRepository();
+      final List<dynamic> results = await Future.wait(<Future<dynamic>>[
+        clientsRepo.getById(_order!.clientId),
+        clientsRepo.getCustomGarments(),
+      ]);
+      _client = results[0] as Client;
+      _customGarments = results[1] as Map<String, dynamic>;
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -258,14 +273,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   // ---- line items (append-only corrections) --------------------------------
 
   Future<void> _addLine() async {
-    final formKey = GlobalKey<FormState>();
-    String garment = GarmentTypes.all.first;
-    final qtyCtrl = TextEditingController(text: '1');
-    final priceCtrl = TextEditingController();
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+    final String gender = _client?.gender ?? 'homme';
+    final List<String> standardList = gender == 'femme'
+        ? GarmentTypes.femaleGarments
+        : GarmentTypes.maleGarments;
+    String garment = standardList.first;
+    final TextEditingController qtyCtrl = TextEditingController(text: '1');
+    final TextEditingController priceCtrl = TextEditingController();
 
     final bool? ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (BuildContext ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Ajouter un article'),
         content: Form(
@@ -277,10 +296,23 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 initialValue: garment,
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Type'),
-                items: GarmentTypes.all
-                    .map((g) => DropdownMenuItem<String>(value: g, child: Text(g)))
+                items: () {
+                  final Map<String, dynamic> customForGender =
+                      (_customGarments[gender] as Map<String, dynamic>?) ?? <String, dynamic>{};
+                  final List<String> customList = customForGender.keys.toList();
+
+                  final List<String> choices = <String>[
+                    ...standardList.where((String x) => x != 'Autres'),
+                    ...customList,
+                  ];
+                  if (!choices.contains(garment)) {
+                    choices.add(garment);
+                  }
+                  return choices;
+                }()
+                    .map((String g) => DropdownMenuItem<String>(value: g, child: Text(g)))
                     .toList(growable: false),
-                onChanged: (v) => garment = v ?? garment,
+                onChanged: (String? v) => garment = v ?? garment,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -552,7 +584,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         children: <Widget>[
@@ -662,7 +694,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         children: <Widget>[
@@ -700,9 +732,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
+        color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkSurfaceAlt : AppColors.surfaceAlt,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
     );
@@ -724,11 +756,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             .map<Widget>((e) => Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardTheme.color,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
-                  ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardTheme.color,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Theme.of(context).dividerColor),
+                    ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
@@ -758,7 +790,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

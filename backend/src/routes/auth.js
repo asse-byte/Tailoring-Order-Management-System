@@ -52,22 +52,51 @@ router.get('/me', authenticate, (req, res) => {
   res.json({ user: req.user });
 });
 
-// Self-service password change, both roles (requires the current password).
+// Self-service profile update (username and/or password, requires the current password).
 router.post('/change-password', authenticate, asyncH(async (req, res) => {
   const current = typeof req.body.current_password === 'string'
     ? req.body.current_password : '';
   const next = typeof req.body.new_password === 'string'
     ? req.body.new_password : '';
-  if (next.length < 8) {
-    return res.status(400).json({ error: 'Nouveau mot de passe: 8 caractères minimum.' });
+  const newUsername = typeof req.body.new_username === 'string'
+    ? req.body.new_username.trim() : null;
+
+  if (!next && !newUsername) {
+    return res.status(400).json({ error: "Aucune modification fournie." });
   }
+
   const { rows } = await db.query(
-    'SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    'SELECT username, password_hash FROM users WHERE id = $1', [req.user.id]);
   if (!bcrypt.compareSync(current, rows[0].password_hash)) {
     return res.status(401).json({ error: 'Mot de passe actuel incorrect.' });
   }
-  await db.query('UPDATE users SET password_hash = $1 WHERE id = $2',
-    [bcrypt.hashSync(next, 10), req.user.id]);
+
+  if (newUsername && newUsername.length < 3) {
+    return res.status(400).json({ error: "Nom d'utilisateur: 3 caractères minimum." });
+  }
+
+  if (newUsername && newUsername.toLowerCase() !== rows[0].username.toLowerCase()) {
+    const { rows: taken } = await db.query(
+      'SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [newUsername]);
+    if (taken.length > 0) {
+      return res.status(409).json({ error: "Ce nom d'utilisateur est déjà pris." });
+    }
+  }
+
+  if (next && next.length < 8) {
+    return res.status(400).json({ error: 'Nouveau mot de passe: 8 caractères minimum.' });
+  }
+
+  if (newUsername) {
+    // Store lowercase: login lower-cases its input and compares exactly, so a
+    // mixed-case username would lock the account out permanently.
+    await db.query('UPDATE users SET username = $1 WHERE id = $2',
+      [newUsername.toLowerCase(), req.user.id]);
+  }
+  if (next) {
+    await db.query('UPDATE users SET password_hash = $1 WHERE id = $2',
+      [bcrypt.hashSync(next, 10), req.user.id]);
+  }
   return res.json({ ok: true });
 }));
 

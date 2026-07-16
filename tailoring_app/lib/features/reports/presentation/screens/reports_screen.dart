@@ -311,9 +311,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Row(
         children: <Widget>[

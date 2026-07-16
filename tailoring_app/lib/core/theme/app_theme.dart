@@ -92,6 +92,7 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       brightness: Brightness.light,
+      dividerColor: AppColors.border,
       scaffoldBackgroundColor: AppColors.background,
       textTheme: _textTheme(Brightness.light),
       appBarTheme: AppBarTheme(
@@ -209,6 +210,7 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       brightness: Brightness.dark,
+      dividerColor: AppColors.darkBorder,
       scaffoldBackgroundColor: AppColors.darkBackground,
       textTheme: _textTheme(Brightness.dark),
       appBarTheme: AppBarTheme(
@@ -236,11 +238,12 @@ class AppTheme {
         fill: AppColors.darkSurface,
         border: AppColors.darkBorder,
         hint: AppColors.textMuted,
+        focus: Colors.white,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
           minimumSize: const Size.fromHeight(46),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -254,9 +257,9 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primary,
+          foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(46),
-          side: BorderSide(color: primary, width: 1.4),
+          side: const BorderSide(color: Colors.white, width: 1.4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -266,9 +269,30 @@ class AppTheme {
           ),
         ),
       ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: Colors.white,
+          textStyle: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.darkSurfaceAlt,
+        labelStyle: GoogleFonts.poppins(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: AppColors.darkTextPrimary,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: AppColors.darkBorder),
+        ),
+        side: BorderSide.none,
+      ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.darkSurface,
-        selectedItemColor: primary,
+        selectedItemColor: Colors.white,
         unselectedItemColor: AppColors.textMuted,
         selectedLabelStyle: GoogleFonts.poppins(
           fontSize: 12,

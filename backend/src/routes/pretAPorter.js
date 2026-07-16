@@ -90,4 +90,28 @@ router.delete('/:id', managerOnly, asyncH(async (req, res) => {
   res.status(204).end();
 }));
 
+router.get('/:id/stats', managerOnly, asyncH(async (req, res) => {
+  const { rows: stats } = await db.query(
+    `SELECT COALESCE(SUM(qty), 0)::int AS total_sold,
+            COALESCE(SUM(total), 0)::int AS total_revenue
+     FROM sales_effective
+     WHERE item_id = $1 AND kind = 'pret_a_porter' AND voided = false`,
+    [req.params.id]
+  );
+  const { rows: model } = await db.query('SELECT cost_price FROM pret_a_porter_models WHERE id = $1', [req.params.id]);
+  if (!model[0]) return res.status(404).json({ error: 'Modèle introuvable.' });
+
+  const totalSold = stats[0].total_sold;
+  const totalRevenue = stats[0].total_revenue;
+  const costPrice = model[0].cost_price || 0;
+  const totalCost = totalSold * costPrice;
+  const totalProfit = totalRevenue - totalCost;
+
+  res.json({
+    total_sold: totalSold,
+    total_revenue: totalRevenue,
+    total_profit: totalProfit
+  });
+}));
+
 module.exports = router;

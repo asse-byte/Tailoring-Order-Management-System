@@ -82,6 +82,11 @@ class ProductsRepository {
     });
   }
 
+  Future<Map<String, dynamic>> getStats(String id) async {
+    final dynamic res = await _api.get('/api/products/$id/stats');
+    return res as Map<String, dynamic>;
+  }
+
   /// Uploads a product image using the REST upload API.
   /// Byte-based so it works on ALL platforms (web has no file paths).
   Future<Map<String, String>> uploadImage(XFile file) async {

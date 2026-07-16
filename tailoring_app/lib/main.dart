@@ -7,6 +7,7 @@ import 'core/localization/app_localizations.dart';
 import 'core/localization/language_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_provider.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/clients/presentation/providers/clients_provider.dart';
 import 'features/orders/presentation/providers/admin_orders_provider.dart';
@@ -33,6 +34,7 @@ class TailoringApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider<ThemeProvider>(create: (_) => ThemeProvider()),
         ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
         ChangeNotifierProvider<LanguageProvider>(
             create: (_) => LanguageProvider()),
@@ -68,6 +70,7 @@ class _AppViewState extends State<_AppView> {
   Widget build(BuildContext context) {
     final LanguageProvider lang = context.watch<LanguageProvider>();
     final ShopSettingsProvider shop = context.watch<ShopSettingsProvider>();
+    final ThemeProvider theme = context.watch<ThemeProvider>();
     final String shopName = shop.shopName;
     final Color brand = shop.themeColor;
 
@@ -76,9 +79,7 @@ class _AppViewState extends State<_AppView> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(brand: brand),
       darkTheme: AppTheme.dark(brand: brand),
-      // Force light: the UI is light-first with many fixed dark-on-light
-      // colours, so following the OS to dark made hardcoded texts invisible.
-      themeMode: ThemeMode.light,
+      themeMode: theme.themeMode,
       routerConfig: _router,
       locale: lang.locale,
       localizationsDelegates: const [

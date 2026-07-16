@@ -5,39 +5,78 @@
 class GarmentTypes {
   GarmentTypes._();
 
+  static const List<String> maleGarments = <String>[
+    'Grand Boubou',
+    'Complet normal',
+    'Chemise',
+    'Veste',
+    'Autres',
+  ];
+
+  static const List<String> femaleGarments = <String>[
+    'Robe',
+    'Jupe',
+    'Autres',
+  ];
+
   static const List<String> all = <String>[
     'Grand Boubou',
     'Complet',
+    'Complet normal',
     'Chemise',
-    'Création',
+    'Veste',
     'Robe',
     'Jupe',
-    'Veste',
     'Autre',
+    'Autres',
   ];
 
   static const Map<String, List<String>> defaultFields =
       <String, List<String>>{
     'Grand Boubou': <String>[
-      'Épaule', 'Poitrine', 'Longueur totale', 'Longueur manche',
-      'Tour de cou', 'Poignet',
+      'LB', 'LM', 'TM', 'E', 'P (1)', 'P (2)', 'LP', 'Cou', 'Cuisse',
+      'Ceinture', 'B', 'Poignet Machette', 'Manche courte', 'Avant bras',
+      'HBS', 'Mollet', 'Poignet ouvert', 'LGB', 'LGM'
+    ],
+    'Complet normal': <String>[
+      'LB', 'LM', 'TM', 'E', 'P (1)', 'P (2)', 'LP', 'Cou', 'Cuisse',
+      'Ceinture', 'B', 'Poignet Machette', 'Manche courte', 'Avant bras',
+      'HBS', 'Mollet', 'Poignet ouvert', 'LGB', 'LGM'
     ],
     'Complet': <String>[
-      'Épaule', 'Poitrine', 'Taille', 'Longueur veste', 'Longueur manche',
-      'Tour de cou', 'Ceinture', 'Cuisse', 'Longueur pantalon', 'Bas pantalon',
+      'LB', 'LM', 'TM', 'E', 'P (1)', 'P (2)', 'LP', 'Cou', 'Cuisse',
+      'Ceinture', 'B', 'Poignet Machette', 'Manche courte', 'Avant bras',
+      'HBS', 'Mollet', 'Poignet ouvert', 'LGB', 'LGM'
     ],
     'Chemise': <String>[
-      'Épaule', 'Poitrine', 'Taille', 'Longueur', 'Longueur manche',
-      'Tour de cou', 'Poignet',
+      'LB', 'LM', 'TM', 'E', 'P (1)', 'P (2)', 'LP', 'Cou', 'Cuisse',
+      'Ceinture', 'B', 'Poignet Machette', 'Manche courte', 'Avant bras',
+      'HBS', 'Mollet', 'Poignet ouvert', 'LGB', 'LGM'
     ],
-    'Création': <String>[],
-    'Robe': <String>[
-      'Épaule', 'Poitrine', 'Taille', 'Bassin', 'Longueur', 'Longueur manche',
-    ],
-    'Jupe': <String>['Ceinture', 'Bassin', 'Longueur'],
     'Veste': <String>[
-      'Épaule', 'Poitrine', 'Taille', 'Longueur', 'Longueur manche',
+      'LB', 'LM', 'TM', 'E', 'P (1)', 'P (2)', 'P (3)', 'LP', 'Cou', 'Cuisse',
+      'Ceinture', 'B', 'Poignet Machette', 'Manche courte', 'Avant bras',
+      'HBS', 'Mollet', 'Poignet ouvert', 'LGB', 'LGM'
     ],
-    'Autre': <String>[],
+    'Autres': <String>[
+      'LB', 'LM', 'TM', 'E', 'P (1)', 'P (2)', 'LP', 'Cou', 'Cuisse',
+      'Ceinture', 'B', 'Poignet Machette', 'Manche courte', 'Avant bras',
+      'HBS', 'Mollet', 'Poignet ouvert', 'LGB', 'LGM'
+    ],
+    'Autre': <String>[
+      'LB', 'LM', 'TM', 'E', 'P (1)', 'P (2)', 'LP', 'Cou', 'Cuisse',
+      'Ceinture', 'B', 'Poignet Machette', 'Manche courte', 'Avant bras',
+      'HBS', 'Mollet', 'Poignet ouvert', 'LGB', 'LGM'
+    ],
+    'Robe': <String>[
+      'Shoulder', 'Shoulder to under burst', 'Half cut', 'Burst', 'Tommy',
+      'Waist', 'Hip', 'Arm', 'Sleeve length', 'Blouse length', 'Skirt length',
+      'Full length'
+    ],
+    'Jupe': <String>[
+      'Shoulder', 'Shoulder to under burst', 'Half cut', 'Burst', 'Tommy',
+      'Waist', 'Hip', 'Arm', 'Sleeve length', 'Blouse length', 'Skirt length',
+      'Full length'
+    ],
   };
 }

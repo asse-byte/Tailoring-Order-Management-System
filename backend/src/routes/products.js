@@ -125,4 +125,28 @@ router.delete('/:id', managerOnly, asyncH(async (req, res) => {
   res.status(204).end();
 }));
 
+router.get('/:id/stats', managerOnly, asyncH(async (req, res) => {
+  const { rows: stats } = await db.query(
+    `SELECT COALESCE(SUM(qty), 0)::int AS total_sold,
+            COALESCE(SUM(total), 0)::int AS total_revenue
+     FROM sales_effective
+     WHERE item_id = $1 AND kind = 'produit' AND voided = false`,
+    [req.params.id]
+  );
+  const { rows: prod } = await db.query('SELECT cost_price FROM products WHERE id = $1', [req.params.id]);
+  if (!prod[0]) return res.status(404).json({ error: 'Produit introuvable.' });
+
+  const totalSold = stats[0].total_sold;
+  const totalRevenue = stats[0].total_revenue;
+  const costPrice = prod[0].cost_price || 0;
+  const totalCost = totalSold * costPrice;
+  const totalProfit = totalRevenue - totalCost;
+
+  res.json({
+    total_sold: totalSold,
+    total_revenue: totalRevenue,
+    total_profit: totalProfit
+  });
+}));
+
 module.exports = router;

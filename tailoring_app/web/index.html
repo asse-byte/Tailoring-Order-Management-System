@@ -30,6 +30,18 @@
   <link rel="icon" type="image/png" href="favicon.png">
 
   <title>RAYAN COUTURE</title>
+  <script>
+    window.changeFavicon = function(src) {
+      var link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+      link.type = 'image/png';
+      link.rel = 'shortcut icon';
+      link.href = src;
+      document.getElementsByTagName('head')[0].appendChild(link);
+    };
+    window.changeTitle = function(title) {
+      document.title = title;
+    };
+  </script>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>

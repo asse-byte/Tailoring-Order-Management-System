@@ -459,6 +459,60 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                     ),
                   ),
                 ),
+                _detailRow('Prix d\'achat unitaire', formatFcfa(m.costPrice.toInt())),
+                const SizedBox(height: 16),
+                const Text(
+                  'Statistiques de vente',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                FutureBuilder<Map<String, dynamic>>(
+                  future: _repo.getStats(m.id),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+                    }
+                    if (snapshot.hasError) {
+                      return Text(
+                        'Erreur: ${snapshot.error}',
+                        style: const TextStyle(color: AppColors.error),
+                      );
+                    }
+                    final stats = snapshot.data!;
+                    final int totalSold = stats['total_sold'] as int;
+                    final int totalRevenue = stats['total_revenue'] as int;
+                    final int totalProfit = stats['total_profit'] as int;
+
+                    return Column(
+                      children: [
+                        _detailRow('Quantité vendue', '$totalSold unités'),
+                        _detailRow('Ventes totales', formatFcfa(totalRevenue)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Bénéfice/Perte total'),
+                            Text(
+                              formatFcfa(totalProfit),
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: totalProfit >= 0
+                                      ? AppColors.success
+                                      : AppColors.error),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ],
               const SizedBox(height: 8),
               Chip(
@@ -659,6 +713,19 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
               backgroundColor: AppColors.primary,
               child: const Icon(Icons.add_rounded, color: Colors.white),
             ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: AppColors.textSecondary)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 }

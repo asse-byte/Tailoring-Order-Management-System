@@ -49,12 +49,14 @@ class AuthRepository {
 
   Future<void> changePassword({
     required String currentPassword,
-    required String newPassword,
+    String? newPassword,
+    String? newUsername,
   }) async {
     try {
       await _api.post('/api/auth/change-password', body: {
         'current_password': currentPassword,
-        'new_password': newPassword,
+        if (newPassword != null && newPassword.isNotEmpty) 'new_password': newPassword,
+        if (newUsername != null && newUsername.isNotEmpty) 'new_username': newUsername,
       });
     } on ApiException catch (e) {
       throw AuthFailure(e.message);
