@@ -1,5 +1,9 @@
 # Livraison & déploiement — Rayan Couture
 
+> **Version de référence : `DEPLOYMENT_AR.md` (arabe)** — plus complète
+> (multi-salons via sous-domaines, port par salon `API_PORT`, sauvegardes
+> hors VPS, checklist de livraison). Ce document reste un résumé français.
+
 Guide de mise en production pour livrer l'app à un salon qui l'utilisera sur
 **téléphones Android + iPhone + ordinateur portable**.
 

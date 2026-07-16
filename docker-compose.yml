@@ -44,7 +44,9 @@ services:
       DEFAULT_PIECE_RATE: ${DEFAULT_PIECE_RATE:-0}
       PROMO_GROUP_LINK: ${PROMO_GROUP_LINK:-}
     ports:
-      - "3000:3000"
+      # Host port is per-shop (multi-shop on one VPS): set API_PORT in .env
+      # (3001, 3002, …). Inside the container the API always listens on 3000.
+      - "${API_PORT:-3000}:3000"
     volumes:
       - uploads_data:/app/uploads
 
