@@ -87,7 +87,7 @@ router.get('/weekly-detail', asyncH(async (req, res) => {
   }
   const { rows } = await db.query(
     `SELECT e.id, e.entry_date, e.garment_type, e.pieces_count, e.piece_rate,
-            e.amount, e.order_id, e.corrected,
+            e.amount, e.order_id, e.corrected, e.voided,
             COALESCE(c.full_name, o.client_name_snapshot) AS client_name
      FROM tailor_entries_effective e
      LEFT JOIN orders o ON o.id = e.order_id
@@ -140,21 +140,41 @@ router.get('/weekly', asyncH(async (req, res) => {
 
 // ---- correction log (the ONLY way to change a number) ----
 
+// A correction may change the quantity, the garment type (model) and/or the
+// price-per-piece (which drives the montant), or VOID the entry (counts 0).
+// Any omitted field keeps its current effective value. Mandatory reason; a new
+// append-only row — never an in-place edit. Amount stays pieces × rate.
 router.post('/:id/corrections', asyncH(async (req, res) => {
-  const newPieces = intOrNull(req.body.new_pieces);
   const reason = str(req.body.reason);
-  if (newPieces == null) return res.status(400).json({ error: 'new_pieces requis (entier ≥ 0).' });
   if (!reason) {
     return res.status(400).json({ error: 'Le motif de la correction est obligatoire.' });
   }
-  // Snapshot the currently-effective value as old_pieces.
+  // Snapshot the currently-effective values as the correction baseline.
   const { rows: current } = await db.query(
-    'SELECT pieces_count FROM tailor_entries_effective WHERE id = $1', [req.params.id]);
+    `SELECT pieces_count, piece_rate, garment_type
+     FROM tailor_entries_effective WHERE id = $1`, [req.params.id]);
   if (!current[0]) return res.status(404).json({ error: 'Saisie introuvable.' });
+
+  const voided = typeof req.body.voided === 'boolean' ? req.body.voided : false;
+  const newPieces = req.body.new_pieces === undefined
+    ? current[0].pieces_count : intOrNull(req.body.new_pieces);
+  const newRate = req.body.new_piece_rate === undefined
+    ? current[0].piece_rate : intOrNull(req.body.new_piece_rate);
+  const newGarment = req.body.new_garment_type === undefined
+    ? current[0].garment_type : str(req.body.new_garment_type);
+  if (newPieces == null || newPieces === undefined) {
+    return res.status(400).json({ error: 'new_pieces invalide (entier ≥ 0).' });
+  }
+  if (newRate == null || newRate === undefined) {
+    return res.status(400).json({ error: 'new_piece_rate invalide (entier ≥ 0).' });
+  }
   const { rows } = await db.query(
-    `INSERT INTO entry_corrections (entry_id, old_pieces, new_pieces, reason, corrected_by)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [req.params.id, current[0].pieces_count, newPieces, reason, req.user.id]);
+    `INSERT INTO entry_corrections
+       (entry_id, old_pieces, new_pieces, new_piece_rate, new_garment_type,
+        voided, reason, corrected_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    [req.params.id, current[0].pieces_count, newPieces, newRate, newGarment,
+      voided, reason, req.user.id]);
   res.status(201).json(rows[0]);
 }));
 

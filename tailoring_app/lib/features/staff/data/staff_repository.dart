@@ -115,6 +115,7 @@ class WeeklyDetailEntry {
   final int amount;
   final String? clientName;
   final String? orderId;
+  final bool voided;
 
   const WeeklyDetailEntry({
     required this.id,
@@ -125,6 +126,7 @@ class WeeklyDetailEntry {
     required this.amount,
     this.clientName,
     this.orderId,
+    this.voided = false,
   });
 
   factory WeeklyDetailEntry.fromJson(Map<String, dynamic> json) =>
@@ -137,6 +139,7 @@ class WeeklyDetailEntry {
         amount: json['amount'] as int? ?? 0,
         clientName: json['client_name'] as String?,
         orderId: json['order_id'] as String?,
+        voided: json['voided'] as bool? ?? false,
       );
 }
 
@@ -328,13 +331,22 @@ class StaffRepository {
     return WeeklyDetail.fromJson(res as Map<String, dynamic>);
   }
 
+  /// Append-only correction of a daily entry. Any of quantity, garment type
+  /// (model) or price-per-piece may be changed; [voided] cancels the entry
+  /// (counts 0). Omitted fields keep their current value. Reason is mandatory.
   Future<void> correctTailorEntry(
     String entryId, {
-    required int newPieces,
+    int? newPieces,
+    int? newPieceRate,
+    String? newGarmentType,
+    bool? voided,
     required String reason,
   }) async {
     await _api.post('/api/tailor-entries/$entryId/corrections', body: {
-      'new_pieces': newPieces,
+      if (newPieces != null) 'new_pieces': newPieces,
+      if (newPieceRate != null) 'new_piece_rate': newPieceRate,
+      if (newGarmentType != null) 'new_garment_type': newGarmentType,
+      if (voided != null) 'voided': voided,
       'reason': reason,
     });
   }

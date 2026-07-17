@@ -947,13 +947,24 @@ class _StaffScreenState extends State<StaffScreen> {
                       height: lineH,
                       child: InkWell(
                         onTap: () => onCorrect(e),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            '${e.garmentType.isEmpty ? 'Pièce' : e.garmentType}'
-                            '${e.piecesCount > 1 ? ' ×${e.piecesCount}' : ''}',
-                            style: const TextStyle(fontSize: 12.5),
-                          ),
+                        child: Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Text(
+                                '${e.garmentType.isEmpty ? 'Pièce' : e.garmentType}'
+                                '${e.piecesCount > 1 ? ' ×${e.piecesCount}' : ''}',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  decoration: e.voided
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  color: e.voided ? AppColors.textSecondary : null,
+                                ),
+                              ),
+                            ),
+                            Icon(Icons.edit_outlined,
+                                size: 13, color: AppColors.primary.withValues(alpha: 0.55)),
+                          ],
                         ),
                       ),
                     ),
@@ -972,8 +983,14 @@ class _StaffScreenState extends State<StaffScreen> {
                         onTap: () => onCorrect(e),
                         child: Align(
                           alignment: Alignment.centerRight,
-                          child: Text(formatFcfa(e.amount),
-                              style: const TextStyle(fontSize: 12.5)),
+                          child: Text(
+                            e.voided ? 'Annulé' : formatFcfa(e.amount),
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: e.voided ? AppColors.textSecondary : null,
+                              fontStyle: e.voided ? FontStyle.italic : null,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -983,59 +1000,37 @@ class _StaffScreenState extends State<StaffScreen> {
     );
   }
 
-  /// Small correction dialog for a weekly entry (pieces + mandatory reason).
+  /// Edit dialog for a weekly entry — quantity, model (garment type) AND
+  /// price-per-piece are all editable, with a live montant (qty × prix). Also
+  /// offers "Annuler cette entrée" (a void correction → counts 0). Every change
+  /// goes through the append-only correction log with a mandatory reason; the
+  /// entry itself is never edited or deleted in place.
   Future<void> _correctWeeklyEntry(
       WeeklyDetailEntry e, Future<void> Function() reload) async {
     final formKey = GlobalKey<FormState>();
-    int newPieces = e.piecesCount;
+    // Ensure the current garment type is selectable even if not in the constant.
+    final List<String> garmentChoices = <String>[
+      if (e.garmentType.isNotEmpty && !GarmentTypes.all.contains(e.garmentType))
+        e.garmentType,
+      ...GarmentTypes.all,
+    ];
+    String garment = e.garmentType.isEmpty ? garmentChoices.first : e.garmentType;
+    int pieces = e.piecesCount;
+    int rate = e.pieceRate;
     String reason = '';
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Corriger : ${e.garmentType}'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              TextFormField(
-                initialValue: e.piecesCount.toString(),
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Nombre de pièces'),
-                validator: (v) {
-                  final n = int.tryParse(v ?? '');
-                  return (n == null || n < 0) ? 'Quantité invalide' : null;
-                },
-                onSaved: (v) => newPieces = int.tryParse(v ?? '') ?? 0,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Motif (obligatoire)'),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Motif requis' : null,
-                onSaved: (v) => reason = v?.trim() ?? '',
-              ),
-            ],
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                formKey.currentState!.save();
-                Navigator.pop(ctx, true);
-              }
-            },
-            child: const Text('Corriger'),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) {
+    final piecesCtrl = TextEditingController(text: e.piecesCount.toString());
+    final rateCtrl = TextEditingController(text: formatThousands(e.pieceRate));
+
+    Future<void> submit(bool voided) async {
       try {
-        await _repo.correctTailorEntry(e.id, newPieces: newPieces, reason: reason);
+        await _repo.correctTailorEntry(
+          e.id,
+          newPieces: voided ? null : pieces,
+          newPieceRate: voided ? null : rate,
+          newGarmentType: voided ? null : garment,
+          voided: voided ? true : null,
+          reason: reason,
+        );
         await reload();
       } catch (err) {
         if (mounted) {
@@ -1045,6 +1040,99 @@ class _StaffScreenState extends State<StaffScreen> {
         }
       }
     }
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Modifier la saisie'),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  DropdownButtonFormField<String>(
+                    initialValue: garment,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Modèle'),
+                    items: garmentChoices
+                        .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                        .toList(),
+                    onChanged: (v) => setDlg(() => garment = v ?? garment),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: piecesCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Quantité (pièces)'),
+                    validator: (v) {
+                      final n = int.tryParse(v ?? '');
+                      return (n == null || n < 1) ? 'Quantité invalide' : null;
+                    },
+                    onChanged: (v) => setDlg(() => pieces = int.tryParse(v) ?? pieces),
+                  ),
+                  const SizedBox(height: 12),
+                  FormattedNumberField(
+                    controller: rateCtrl,
+                    label: 'Prix par pièce (FCFA)',
+                    validator: (v) => (v == null || v < 1) ? 'Prix invalide' : null,
+                    onChanged: (v) => setDlg(() => rate = v ?? rate),
+                  ),
+                  const SizedBox(height: 10),
+                  // Live montant = quantité × prix.
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Montant : ${formatFcfa(pieces * rate)}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, color: AppColors.primary),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Motif (obligatoire)'),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Motif requis' : null,
+                    onSaved: (v) => reason = v?.trim() ?? '',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: <Widget>[
+            // Cancel-entry (void): keeps the audit trail, contributes 0.
+            TextButton.icon(
+              icon: const Icon(Icons.block_rounded, color: AppColors.error, size: 18),
+              label: const Text('Annuler cette entrée',
+                  style: TextStyle(color: AppColors.error)),
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                formKey.currentState!.save();
+                Navigator.pop(ctx);
+                submit(true);
+              },
+            ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+            ElevatedButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                formKey.currentState!.save();
+                Navigator.pop(ctx);
+                submit(false);
+              },
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   static const List<String> _monthNames = <String>[
