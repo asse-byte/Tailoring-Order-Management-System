@@ -215,8 +215,14 @@ say "[4/7] setup-shop (migrations + comptes + identité)…"
 ( cd "$dir" && docker compose exec -T api npm run setup-shop )
 
 say "[5/7] nginx pour $api_domain + $app_domain"
-mkdir -p "$web_root"
+# install -d sets the mode explicitly (755) regardless of root's umask, so
+# nginx (www-data) can always traverse the web root. A plain `mkdir -p` would
+# inherit a 077 umask → 700 → nginx gets 403/HTML for every asset.
+install -d -m 755 "$web_root"
 [ -f "$web_root/index.html" ] || printf '<h1>%s</h1><p>Application en cours d&#39;installation…</p>\n' "$shop_name" > "$web_root/index.html"
+# Ensure everything already under the web root is world-readable/traversable
+# (harmless when empty; corrects perms after a future upload runs through here).
+chmod -R o+rX "$web_root"
 printf '%s\n' "$nginx_conf" > "$NGINX_AVAIL/$slug"
 ln -sf "$NGINX_AVAIL/$slug" "$NGINX_ENABLED/$slug"
 nginx -t
@@ -268,8 +274,10 @@ $csv_line
   1. Builder web + APK pour ce salon :
      .\\scripts\\build-shop-app.ps1 -ShopSlug $slug -AppId $app_id_suggestion \`
         -AppName "$shop_name" -ApiUrl https://$api_domain
-  2. Copier la build web :
-     scp -r dist/$slug/web/* root@$server_ip:$web_root/
+  2. Copier la build web SANS wildcard (tar évite tout fichier oublié) :
+     tar -czf - -C dist/$slug/web . | ssh root@$server_ip "tar -xzf - -C $web_root && chmod -R o+rX $web_root"
+     # Le chmod final est OBLIGATOIRE : une archive peut arriver en 700 et
+     # nginx (www-data) renverrait alors du HTML pour chaque fichier.
   3. Tester la restauration une fois: cd $dir && ./scripts/restore.sh backups/db_*.sql.gz
      puis passer backup_ok=yes dans le registre.
   4. Configurer la copie HORS-SITE dans scripts/backup.sh (rclone/scp).
