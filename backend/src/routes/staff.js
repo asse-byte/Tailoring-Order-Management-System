@@ -41,9 +41,11 @@ router.put('/:id', managerOnly, asyncH(async (req, res) => {
   res.json(rows[0]);
 }));
 
-// Staff with wage history cannot be hard-deleted (FK RESTRICT on
-// tailor_daily_entries) — deactivate instead; the error handler maps the
-// FK violation to a 409 with that hint.
+// Full hard-delete (manager only). Since migration 012 the financial history
+// (tailor_daily_entries, staff_pay_history, salary_payments) keeps a name
+// snapshot and no FK to staff, so wage totals are unaffected; staff_pay
+// cascades away and orders.tailor_id is set null (the order keeps its tailor
+// name snapshot). Deactivating (active=false) via PUT remains available too.
 router.delete('/:id', managerOnly, asyncH(async (req, res) => {
   const { rowCount } = await db.query('DELETE FROM staff WHERE id = $1', [req.params.id]);
   if (!rowCount) return res.status(404).json({ error: 'Employé introuvable.' });
