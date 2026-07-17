@@ -6,6 +6,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -673,22 +674,16 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                                               padding: const EdgeInsets.all(4),
                                               icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 18),
                                               onPressed: () async {
-                                                final confirm = await showDialog<bool>(
-                                                  context: context,
-                                                  builder: (ctx) => AlertDialog(
-                                                    title: const Text('Supprimer modèle ?'),
-                                                    content: Text('Voulez-vous supprimer "${m.name}" ?'),
-                                                    actions: [
-                                                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-                                                      ElevatedButton(
-                                                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-                                                        onPressed: () => Navigator.pop(ctx, true),
-                                                        child: const Text('Supprimer'),
-                                                      ),
-                                                    ],
-                                                  ),
+                                                final confirm = await confirmDeleteByTyping(
+                                                  context,
+                                                  itemName: m.name,
+                                                  itemLabel: 'ce modèle',
+                                                  historyNote: 'Les ventes déjà '
+                                                      'enregistrées de ce modèle restent '
+                                                      'conservées dans les Finances (au nom '
+                                                      'et prix mémorisés).',
                                                 );
-                                                if (confirm == true) {
+                                                if (confirm) {
                                                   await _repo.delete(m.id);
                                                   _loadModels();
                                                 }

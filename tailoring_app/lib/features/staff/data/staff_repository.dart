@@ -270,6 +270,12 @@ class StaffRepository {
     return StaffContact.fromJson(res as Map<String, dynamic>);
   }
 
+  /// Full hard-delete of a staff member (manager only). Wage/salary history is
+  /// preserved server-side via name snapshots (migration 012).
+  Future<void> deleteStaff(String id) async {
+    await _api.delete('/api/staff/$id');
+  }
+
   Future<void> updatePay(
     String staffId, {
     int? pieceRate,

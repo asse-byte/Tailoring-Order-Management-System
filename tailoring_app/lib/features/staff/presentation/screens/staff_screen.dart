@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/garment_types.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -164,7 +165,41 @@ class _StaffScreenState extends State<StaffScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Modifier Infos Contact'),
+          title: Row(
+            children: [
+              const Expanded(child: Text('Modifier Infos Contact')),
+              IconButton(
+                tooltip: 'Supprimer définitivement',
+                icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                onPressed: () async {
+                  final bool ok = await confirmDeleteByTyping(
+                    ctx,
+                    itemName: member.fullName,
+                    itemLabel: 'ce couturier',
+                    historyNote: 'Les salaires et pièces déjà enregistrés de ce '
+                        'couturier restent conservés dans les rapports financiers '
+                        '(au nom mémorisé, marqué « ancien »). Seule sa fiche est '
+                        'supprimée.',
+                  );
+                  if (!ok) return;
+                  try {
+                    await _repo.deleteStaff(member.staffId);
+                    if (!ctx.mounted) return;
+                    Navigator.pop(ctx);
+                    _loadData();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Couturier supprimé.')),
+                    );
+                  } catch (e) {
+                    if (!ctx.mounted) return;
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
           content: Form(
             key: formKey,
             child: Column(

@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/products_provider.dart';
@@ -705,22 +706,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                 constraints: const BoxConstraints(),
                                                 padding: const EdgeInsets.all(4),
                                                 onPressed: () async {
-                                                  final confirm = await showDialog<bool>(
-                                                    context: context,
-                                                    builder: (ctx) => AlertDialog(
-                                                      title: const Text('Supprimer produit ?'),
-                                                      content: Text('Voulez-vous supprimer "${p.name}" ?'),
-                                                      actions: [
-                                                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-                                                        ElevatedButton(
-                                                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-                                                          onPressed: () => Navigator.pop(ctx, true),
-                                                          child: const Text('Supprimer'),
-                                                        ),
-                                                      ],
-                                                    ),
+                                                  final confirm = await confirmDeleteByTyping(
+                                                    context,
+                                                    itemName: p.name,
+                                                    itemLabel: 'ce produit',
+                                                    historyNote: 'Les ventes déjà '
+                                                        'enregistrées de ce produit restent '
+                                                        'conservées dans les Finances (au nom '
+                                                        'et prix mémorisés).',
                                                   );
-                                                  if (confirm == true) {
+                                                  if (confirm) {
                                                     await provider.deleteProduct(p.id);
                                                   }
                                                 },

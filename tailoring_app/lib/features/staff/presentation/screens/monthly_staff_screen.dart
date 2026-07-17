@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 import '../../data/salary_payments_repository.dart';
@@ -119,7 +120,35 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Salaire — ${member.fullName}'),
+        title: Row(
+          children: <Widget>[
+            Expanded(child: Text('Salaire — ${member.fullName}')),
+            IconButton(
+              tooltip: 'Supprimer définitivement',
+              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+              onPressed: () async {
+                final bool ok = await confirmDeleteByTyping(
+                  ctx,
+                  itemName: member.fullName,
+                  itemLabel: 'cet employé',
+                  historyNote: 'Les paiements de salaire déjà enregistrés '
+                      'restent conservés dans le registre (au nom mémorisé). '
+                      'Seule sa fiche est supprimée.',
+                );
+                if (!ok) return;
+                try {
+                  await _repo.deleteStaff(member.staffId);
+                  if (!ctx.mounted) return;
+                  Navigator.pop(ctx);
+                  _load();
+                  _toast('Employé supprimé.');
+                } catch (e) {
+                  if (ctx.mounted) _toast('Erreur: $e', error: true);
+                }
+              },
+            ),
+          ],
+        ),
         content: Form(
           key: formKey,
           child: Column(

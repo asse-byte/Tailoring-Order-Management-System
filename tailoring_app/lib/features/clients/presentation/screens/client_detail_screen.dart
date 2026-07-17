@@ -6,6 +6,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/garment_types.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../data/clients_repository.dart';
 import '../../domain/client.dart';
@@ -81,29 +82,15 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   }
 
   Future<void> _deleteClient() async {
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Supprimer le client'),
-        content: Text(
-          'Voulez-vous vraiment supprimer « ${_client?.fullName ?? ''} » ? '
-          'Cette action est irréversible.',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+    final bool confirm = await confirmDeleteByTyping(
+      context,
+      itemName: _client?.fullName ?? '',
+      itemLabel: 'ce client',
+      historyNote: 'Les commandes déjà livrées de ce client restent '
+          'conservées dans l\'Historique (au nom mémorisé), même après '
+          'la suppression de sa fiche.',
     );
-    if (confirm != true) return;
+    if (!confirm) return;
     try {
       await _repo.remove(widget.clientId);
       if (!mounted) return;
