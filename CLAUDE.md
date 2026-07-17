@@ -165,6 +165,47 @@ Large batch of owner-requested changes, executed one tested commit per item
   based on those numbers should be revisited. Proven by
   `backend/tests/finance_calculations.test.js`.
 
+## Master-data deletion — Type A vs Type B (NON-NEGOTIABLE, added 2026-07-17)
+
+The manager (never the secretary) has **full edit + hard-delete** of
+**Type-A master/identity data** — but Type-B financial history stays
+append-only forever. This distinction is not up for debate:
+
+- **Type A (master data): direct full edit + hard delete, allowed.**
+  `staff` (couturiers + monthly), `clients`, `products`,
+  `pret_a_porter_models`, garment catalogue, public settings. Every
+  Type-A `DELETE` is `managerOnly` (verified in
+  `backend/tests/master_data_delete.test.js`).
+- **Type B (historical financial records): append-only forever, NO direct
+  delete.** `tailor_daily_entries`, `sales`, `expenses`, `salary_payments`,
+  `staff_pay_history` and all their `*_corrections`. Triggers still block
+  UPDATE/DELETE; a correction row is the only way to change a number.
+
+**How a Type-A hard delete keeps Type-B history intact (migration 012):**
+deleting a tailor/client/product must never lose or alter one franc of past
+history. Mechanism = **name SNAPSHOT on the historical row + no restricting
+FK** (exactly the pre-existing `sales.item_id` + `item_name` pattern):
+- `tailor_daily_entries.tailor_name_snapshot`,
+  `staff_pay_history.staff_name_snapshot`,
+  `salary_payments.staff_name_snapshot` — snapshot written at insert; the FK
+  to `staff` was **dropped** (NOT `ON DELETE SET NULL`, because a cascaded
+  UPDATE would fire the append-only trigger and abort the delete).
+- `orders.client_name_snapshot` / `orders.tailor_name_snapshot` — orders is
+  NOT append-only, so it keeps a real FK switched to `ON DELETE SET NULL` +
+  snapshot; delivered orders stay in Historique after the client is deleted.
+- Reports read `COALESCE(live.full_name, row.snapshot)` and expose a
+  `*_deleted` flag so old data shows with an "ancien/supprimé" marker.
+- Wage/finance TOTALS never join `staff`, so a delete changes no total (the
+  weekly-total-unchanged invariant is a test).
+
+Flutter: every Type-A delete uses `confirmDeleteByTyping` (the manager must
+TYPE the exact name — not a yes/no — because this is irreversible), with a
+French note that historical data is preserved.
+
+**Security fix shipped in the same batch (independent of the feature):**
+`DELETE /api/clients` was NOT `managerOnly` — the secretary could delete
+clients. Fixed + regression test ("secretary DELETE /clients → 403").
+
 ## Architecture decisions (FINAL — closed 2026-07-05, do not reopen)
 
 - **Backend: Node.js + Express + PostgreSQL** in `backend/`. JWT auth
