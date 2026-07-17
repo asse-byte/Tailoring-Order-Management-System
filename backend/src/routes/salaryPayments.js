@@ -16,9 +16,10 @@ router.get('/', asyncH(async (req, res) => {
     return res.status(400).json({ error: 'year invalide (YYYY).' });
   }
   const { rows } = await db.query(
-    `SELECT sp.*, s.full_name AS staff_name, s.type AS staff_type
+    `SELECT sp.*, COALESCE(s.full_name, sp.staff_name_snapshot) AS staff_name,
+            s.type AS staff_type, (s.id IS NULL) AS staff_deleted
      FROM salary_payments_effective sp
-     JOIN staff s ON s.id = sp.staff_id
+     LEFT JOIN staff s ON s.id = sp.staff_id
      WHERE ($1::uuid IS NULL OR sp.staff_id = $1)
        AND ($2::text IS NULL OR sp.period LIKE $2 || '%')
      ORDER BY sp.period DESC, s.full_name`,
@@ -43,9 +44,12 @@ router.post('/', asyncH(async (req, res) => {
   if (!okPeriod) {
     return res.status(400).json({ error: 'Format de période invalide.' });
   }
+  // Snapshot the staff name so this payment record survives the staff deletion.
   const { rows } = await db.query(
-    `INSERT INTO salary_payments (staff_id, period, kind, amount, paid_at, note, created_by)
-     VALUES ($1, $2, $3, $4, COALESCE($5::date, CURRENT_DATE), $6, $7) RETURNING *`,
+    `INSERT INTO salary_payments
+       (staff_id, staff_name_snapshot, period, kind, amount, paid_at, note, created_by)
+     VALUES ($1, (SELECT full_name FROM staff WHERE id = $1),
+             $2, $3, $4, COALESCE($5::date, CURRENT_DATE), $6, $7) RETURNING *`,
     [staffId, period, kind, amount, dateStr(req.body.paid_at), str(req.body.note),
       req.user.id]);
   res.status(201).json(rows[0]);

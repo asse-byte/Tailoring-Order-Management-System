@@ -88,12 +88,14 @@ router.get('/summary', asyncH(async (req, res) => {
          AND sold_at >= $1::date AND sold_at < $2::date + 1`, [from, to]),
     // Top tailors by amount earned in the window.
     db.query(
-      `SELECT e.tailor_id, s.full_name AS tailor_name,
+      `SELECT e.tailor_id,
+              COALESCE(s.full_name, MAX(e.tailor_name_snapshot)) AS tailor_name,
+              (s.id IS NULL) AS tailor_deleted,
               SUM(e.pieces_count)::int AS pieces_total,
               SUM(e.amount)::int       AS amount_total
-       FROM tailor_entries_effective e JOIN staff s ON s.id = e.tailor_id
+       FROM tailor_entries_effective e LEFT JOIN staff s ON s.id = e.tailor_id
        WHERE e.entry_date BETWEEN $1::date AND $2::date
-       GROUP BY e.tailor_id, s.full_name
+       GROUP BY e.tailor_id, s.full_name, s.id
        ORDER BY amount_total DESC LIMIT 10`, [from, to]),
   ]);
 

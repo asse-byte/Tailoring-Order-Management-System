@@ -9,12 +9,14 @@ const STATUSES = ['en_attente', 'en_cours', 'termine', 'livre'];
 // Every list/detail row carries its line items (effective view) and the
 // derived total, so the client never computes money itself.
 const ORDER_SELECT = `
-  SELECT o.*, c.full_name AS client_name, c.phone AS client_phone,
-         s.full_name AS tailor_name,
+  SELECT o.*,
+         COALESCE(c.full_name, o.client_name_snapshot) AS client_name,
+         c.phone AS client_phone, (c.id IS NULL) AS client_deleted,
+         COALESCE(s.full_name, o.tailor_name_snapshot) AS tailor_name,
          COALESCE(it.total, 0) AS total,
          COALESCE(it.items, '[]') AS items
   FROM orders o
-  JOIN clients c ON c.id = o.client_id
+  LEFT JOIN clients c ON c.id = o.client_id
   LEFT JOIN staff s ON s.id = o.tailor_id
   LEFT JOIN LATERAL (
     SELECT SUM(line_total)::int AS total,
@@ -96,11 +98,17 @@ router.post('/', asyncH(async (req, res) => {
   }
 
   const order = await db.withTransaction(async (tx) => {
+    // Snapshot client + tailor names so a delivered order stays complete in
+    // Historique even after the client or tailor is deleted (FKs are ON DELETE
+    // SET NULL — see migration 012).
     const { rows } = await tx.query(
-      `INSERT INTO orders (client_id, tailor_id, garment_type, fabric,
+      `INSERT INTO orders (client_id, tailor_id, client_name_snapshot,
+                           tailor_name_snapshot, garment_type, fabric,
                            measurements_snapshot, price, advance,
                            start_date, expected_date, status, notes)
-       VALUES ($1, $2, $3, $4, $5, 0, $6,
+       VALUES ($1, $2, (SELECT full_name FROM clients WHERE id = $1),
+               (SELECT full_name FROM staff WHERE id = $2),
+               $3, $4, $5, 0, $6,
                COALESCE($7::date, CURRENT_DATE), $8::date,
                COALESCE($9, 'en_attente'), $10)
        RETURNING id`,
@@ -139,6 +147,9 @@ router.put('/:id', asyncH(async (req, res) => {
   const { rows } = await db.query(
     `UPDATE orders SET
        tailor_id      = COALESCE($1::uuid, tailor_id),
+       tailor_name_snapshot = CASE WHEN $1::uuid IS NOT NULL
+         THEN (SELECT full_name FROM staff WHERE id = $1::uuid)
+         ELSE tailor_name_snapshot END,
        fabric         = COALESCE($2, fabric),
        advance        = COALESCE($3, advance),
        expected_date  = COALESCE($4::date, expected_date),

@@ -41,11 +41,14 @@ router.post('/', asyncH(async (req, res) => {
   // name is derived from it at read time — never re-typed here.
   const garmentType = str(req.body.garment_type);
   const orderId = str(req.body.order_id);
+  // Snapshot the tailor's name onto the row so the wage history survives even
+  // if the tailor is later deleted (there is no FK any more — see migration 012).
   const { rows } = await db.query(
     `INSERT INTO tailor_daily_entries
-       (tailor_id, entry_date, pieces_count, piece_rate, week_id, created_by,
-        garment_type, order_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::uuid) RETURNING *`,
+       (tailor_id, tailor_name_snapshot, entry_date, pieces_count, piece_rate,
+        week_id, created_by, garment_type, order_id)
+     VALUES ($1, (SELECT full_name FROM staff WHERE id = $1),
+             $2, $3, $4, $5, $6, $7, $8::uuid) RETURNING *`,
     [tailorId, entryDate, piecesCount, rate, isoWeekId(entryDate), req.user.id,
       garmentType, orderId]);
   res.status(201).json(rows[0]);
@@ -58,10 +61,11 @@ router.get('/', asyncH(async (req, res) => {
   const from = dateStr(req.query.from);
   const to = dateStr(req.query.to);
   const { rows } = await db.query(
-    `SELECT e.*, s.full_name AS tailor_name,
-            c.full_name AS client_name
+    `SELECT e.*, COALESCE(s.full_name, e.tailor_name_snapshot) AS tailor_name,
+            (s.id IS NULL) AS tailor_deleted,
+            COALESCE(c.full_name, o.client_name_snapshot) AS client_name
      FROM tailor_entries_effective e
-     JOIN staff s ON s.id = e.tailor_id
+     LEFT JOIN staff s ON s.id = e.tailor_id
      LEFT JOIN orders o ON o.id = e.order_id
      LEFT JOIN clients c ON c.id = o.client_id
      WHERE ($1::text IS NULL OR e.week_id = $1)
@@ -83,7 +87,8 @@ router.get('/weekly-detail', asyncH(async (req, res) => {
   }
   const { rows } = await db.query(
     `SELECT e.id, e.entry_date, e.garment_type, e.pieces_count, e.piece_rate,
-            e.amount, e.order_id, e.corrected, c.full_name AS client_name
+            e.amount, e.order_id, e.corrected,
+            COALESCE(c.full_name, o.client_name_snapshot) AS client_name
      FROM tailor_entries_effective e
      LEFT JOIN orders o ON o.id = e.order_id
      LEFT JOIN clients c ON c.id = o.client_id
@@ -102,15 +107,17 @@ router.get('/monthly', asyncH(async (req, res) => {
   }
   const firstDay = `${month}-01`;
   const { rows } = await db.query(
-    `SELECT e.tailor_id, s.full_name AS tailor_name, s.active,
+    `SELECT e.tailor_id,
+            COALESCE(s.full_name, MAX(e.tailor_name_snapshot)) AS tailor_name,
+            COALESCE(s.active, false) AS active, (s.id IS NULL) AS tailor_deleted,
             SUM(e.pieces_count)::int AS pieces_total,
             SUM(e.amount)::int       AS amount_total,
             COUNT(DISTINCT e.entry_date)::int AS days_worked
-     FROM tailor_entries_effective e JOIN staff s ON s.id = e.tailor_id
+     FROM tailor_entries_effective e LEFT JOIN staff s ON s.id = e.tailor_id
      WHERE e.entry_date >= $1::date
        AND e.entry_date <  ($1::date + INTERVAL '1 month')
-     GROUP BY e.tailor_id, s.full_name, s.active
-     ORDER BY amount_total DESC, s.full_name`, [firstDay]);
+     GROUP BY e.tailor_id, s.full_name, s.active, s.id
+     ORDER BY amount_total DESC, tailor_name`, [firstDay]);
   res.json({ month, items: rows });
 }));
 
@@ -119,13 +126,15 @@ router.get('/weekly', asyncH(async (req, res) => {
   const weekId = str(req.query.week_id);
   if (!weekId) return res.status(400).json({ error: 'week_id requis (ex: 2026-W27).' });
   const { rows } = await db.query(
-    `SELECT e.tailor_id, s.full_name AS tailor_name,
+    `SELECT e.tailor_id,
+            COALESCE(s.full_name, MAX(e.tailor_name_snapshot)) AS tailor_name,
+            (s.id IS NULL) AS tailor_deleted,
             SUM(e.pieces_count)::int AS pieces_total,
             SUM(e.amount)::int AS amount_total,
             COUNT(*)::int AS days_worked
-     FROM tailor_entries_effective e JOIN staff s ON s.id = e.tailor_id
+     FROM tailor_entries_effective e LEFT JOIN staff s ON s.id = e.tailor_id
      WHERE e.week_id = $1
-     GROUP BY e.tailor_id, s.full_name ORDER BY s.full_name`, [weekId]);
+     GROUP BY e.tailor_id, s.full_name, s.id ORDER BY tailor_name`, [weekId]);
   res.json({ week_id: weekId, items: rows });
 }));
 

@@ -44,9 +44,10 @@ router.put('/:staffId', asyncH(async (req, res) => {
     if (oldPieceRate !== pieceRate || oldSalary !== monthlySalary) {
       await tx.query(
         `INSERT INTO staff_pay_history
-           (staff_id, old_piece_rate, new_piece_rate,
+           (staff_id, staff_name_snapshot, old_piece_rate, new_piece_rate,
             old_monthly_salary, new_monthly_salary, changed_by)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+         VALUES ($1, (SELECT full_name FROM staff WHERE id = $1),
+                 $2, $3, $4, $5, $6)`,
         [req.params.staffId, oldPieceRate, pieceRate, oldSalary, monthlySalary,
           req.user.id]);
     }
