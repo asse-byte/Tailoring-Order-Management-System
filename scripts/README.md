@@ -1,4 +1,17 @@
-# Ops scripts — backup & restore (per shop)
+# Ops scripts — provisioning, backup & restore (per shop)
+
+## Provision a whole new shop in one command
+
+```bash
+./scripts/new-shop.sh                  # interactive: port, secrets, clone, .env,
+                                       # docker, setup-shop, nginx, HTTPS, cron, CSV
+./scripts/new-shop.sh --delete <slug>  # tear a test shop down
+NEW_SHOP_DRY_RUN=1 ./scripts/new-shop.sh   # rehearse without touching anything
+```
+
+Then on the dev machine: `.\scripts\build-shop-app.ps1` builds branded web + APK
+for that shop in one command (and restores `gradle.properties` afterwards).
+Full flow: `docs/ONBOARDING_NEW_SHOP.md`.
 
 These run **on the VPS**, from a shop's deploy directory (where its
 `docker-compose.yml` and `.env` live), e.g. `/srv/rayan-couture`.

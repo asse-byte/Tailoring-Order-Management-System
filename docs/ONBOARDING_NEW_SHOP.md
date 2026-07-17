@@ -27,7 +27,43 @@ groupé → placeholder « R ». Un salon a donc toujours un logo sur ses factur
 
 ---
 
-## Mettre en service un nouveau salon (5 étapes)
+## Mettre en service un nouveau salon — AUTOMATISÉ (voie normale)
+
+Deux commandes, c'est tout :
+
+1. **Sur le VPS** (en root) — provisionne tout : port unique auto-détecté,
+   secrets forts générés (JWT + DB + mots de passe des 2 comptes), clone,
+   `.env`, Docker, `setup-shop`, bloc nginx, certificat HTTPS, cron de
+   sauvegarde, et imprime la ligne CSV prête pour le registre :
+
+   ```bash
+   cd /srv/<un-salon-existant> && ./scripts/new-shop.sh
+   ```
+
+   Il pose 4-5 questions simples (nom, domaine…) et propose des défauts
+   sensés partout. Il refuse de toucher un salon existant (dossier, port ou
+   secret déjà pris ⇒ erreur). Test à blanc possible : `NEW_SHOP_DRY_RUN=1`.
+   Suppression d'un salon de test : `./scripts/new-shop.sh --delete <slug>`.
+
+2. **Sur votre machine de dev** — builde web + APK brandés pour ce salon en
+   une commande (règle `gradle.properties`, builde, puis le RESTAURE) :
+
+   ```powershell
+   .\scripts\build-shop-app.ps1 -ShopSlug rayan-couture -AppId com.rayancouture.app `
+       -AppName "Rayan Couture" -ApiUrl https://api.rayan-couture.<domaine>
+   # sorties: dist\<slug>\web\  +  dist\<slug>\<slug>-v<version>.apk
+   ```
+
+   Puis copier la build web vers le VPS (`scp -r dist/<slug>/web/* root@…:/var/www/<slug>-web/`)
+   et envoyer l'APK au client. Fin.
+
+Après coup : coller la ligne CSV imprimée dans `docs/shops-registry-template.csv`,
+tester une restauration (`./scripts/restore.sh backups/db_*.sql.gz`), et
+configurer la copie hors-site dans `scripts/backup.sh`.
+
+---
+
+## Plan B — procédure MANUELLE (si le script échoue)
 
 1. **Provisionner l'hébergement** : un déploiement Docker Compose + une base
    PostgreSQL vide dédiée à ce salon (même VPS si les ressources suffisent,
