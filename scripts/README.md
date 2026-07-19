@@ -1,4 +1,42 @@
-# Ops scripts — provisioning, backup & restore (per shop)
+# Ops scripts — provisioning, deployment, backup & restore (per shop)
+
+## Deploy the web app to EVERY shop in one command (dev machine)
+
+```powershell
+$env:COUTURE_SERVER = 'root@<IP>'          # set once per session
+
+.\scripts\deploy-all-web.ps1                    # build + deploy web to ALL shops
+.\scripts\deploy-all-web.ps1 -IncludeBackend    # ALSO run update-all.sh first
+.\scripts\deploy-all-web.ps1 -ShopSlug rayan-couture   # just one shop
+.\scripts\deploy-all-web.ps1 -DryRun            # discover + report, change nothing
+```
+
+For each shop it: builds the web (branded with that shop's name + API), tars it,
+verifies the archive is non-empty, `scp`s it as a real file, then in ONE remote
+command extracts it, applies `chmod -R o+rX`, counts the files and deletes the
+temp archive — finally checking over real HTTPS that `version.json` and
+`icons/Icon-192.png` actually answer. One shop failing does not stop the others;
+a final summary lists successes and failures (exit code 1 if any failed).
+
+**Shop discovery is read from the SERVER, never from a hand-written list.**
+It scans `/srv/*/` for real deployments, reads `SHOP_NAME` + `API_PORT` from each
+`.env`, and finds that shop's nginx site by grepping for `127.0.0.1:<its port>`
+— the port is unique per shop, so this works even when the nginx file is named
+differently or the domains do not follow the usual pattern (the demo's don't).
+`docs/shops-registry-template.csv` is intentionally NOT the source: it is a
+template and has already drifted from reality.
+
+> **This updates the WEB (PWA) for every shop. Updating the Android APK stays a
+> separate, manual, per-shop operation** — only needed for shops whose users
+> installed a real APK rather than adding the PWA to their home screen. Build it
+> with `build-shop-app.ps1` (without `-SkipApk`) and distribute the file.
+
+Why `scp` a file instead of `tar | ssh`: with an interactive SSH password the
+piped stream got corrupted (`gzip: not in gzip format`) on this project. The
+script uses a real file transfer and a per-shop, timestamped archive name so two
+runs can never collide.
+
+
 
 ## Provision a whole new shop in one command
 
