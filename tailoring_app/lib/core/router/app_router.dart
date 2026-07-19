@@ -167,14 +167,15 @@ class AppRouter {
         }
         if (loc == '/login' || loc == '/') return '/admin';
 
-        // Secretary cannot access financial/management routes — redirect to
-        // home. (The server also returns 403 on the underlying endpoints; this
-        // is defence-in-depth so a deep link never even renders the screen.)
+        // Secretary cannot access financial routes — redirect to home. (The
+        // server also returns 403 on the underlying endpoints; this is
+        // defence-in-depth so a deep link never even renders the screen.)
+        // NOTE: /admin/monthly-staff is allowed — the screen itself renders a
+        // roster-only (salary-free) view for the secretary.
         if (auth.isSecretary &&
             (loc == '/admin/finance' ||
                 loc == '/admin/reports' ||
                 loc == '/admin/staff-pay' ||
-                loc == '/admin/monthly-staff' ||
                 loc == '/admin/settings')) {
           return '/admin';
         }

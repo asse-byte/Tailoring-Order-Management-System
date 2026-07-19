@@ -153,12 +153,21 @@ class _StaffScreenState extends State<StaffScreen> {
     );
   }
 
-  Future<void> _editStaffContact(StaffPayInfo member) async {
+  // Roster edit — contact fields only, no pay. Used by BOTH roles (takes
+  // primitives so the secretary's StaffContact and the manager's StaffPayInfo
+  // both feed it).
+  Future<void> _editStaffContact({
+    required String staffId,
+    required String fullName,
+    required String phone,
+    required String type,
+    required bool active,
+  }) async {
     final formKey = GlobalKey<FormState>();
-    String name = member.fullName;
-    String phone = member.phone;
-    bool active = member.active;
-    String type = member.type;
+    String name = fullName;
+    String phoneVal = phone;
+    bool activeVal = active;
+    String typeVal = type;
 
     await showDialog(
       context: context,
@@ -174,7 +183,7 @@ class _StaffScreenState extends State<StaffScreen> {
                 onPressed: () async {
                   final bool ok = await confirmDeleteByTyping(
                     ctx,
-                    itemName: member.fullName,
+                    itemName: fullName,
                     itemLabel: 'ce couturier',
                     historyNote: 'Les salaires et pièces déjà enregistrés de ce '
                         'couturier restent conservés dans les rapports financiers '
@@ -183,7 +192,7 @@ class _StaffScreenState extends State<StaffScreen> {
                   );
                   if (!ok) return;
                   try {
-                    await _repo.deleteStaff(member.staffId);
+                    await _repo.deleteStaff(staffId);
                     if (!ctx.mounted) return;
                     Navigator.pop(ctx);
                     _loadData();
@@ -213,26 +222,26 @@ class _StaffScreenState extends State<StaffScreen> {
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
-                  initialValue: phone,
+                  initialValue: phoneVal,
                   decoration: const InputDecoration(labelText: 'Téléphone'),
                   keyboardType: TextInputType.phone,
-                  onSaved: (v) => phone = v ?? '',
+                  onSaved: (v) => phoneVal = v ?? '',
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: type,
+                  initialValue: typeVal,
                   decoration: const InputDecoration(labelText: 'Rôle'),
                   items: const [
                     DropdownMenuItem(value: 'couturier', child: Text('Couturier (À la pièce)')),
                     DropdownMenuItem(value: 'autre', child: Text('Autre (Mensuel)')),
                   ],
-                  onChanged: (v) => setDlgState(() => type = v ?? 'couturier'),
+                  onChanged: (v) => setDlgState(() => typeVal = v ?? 'couturier'),
                 ),
                 const SizedBox(height: 12),
                 SwitchListTile(
                   title: const Text('Actif / En poste'),
-                  value: active,
-                  onChanged: (v) => setDlgState(() => active = v),
+                  value: activeVal,
+                  onChanged: (v) => setDlgState(() => activeVal = v),
                 ),
               ],
             ),
@@ -244,7 +253,7 @@ class _StaffScreenState extends State<StaffScreen> {
                 if (formKey.currentState!.validate()) {
                   formKey.currentState!.save();
                   try {
-                    await _repo.updateStaff(member.staffId, fullName: name, phone: phone, type: type, active: active);
+                    await _repo.updateStaff(staffId, fullName: name, phone: phoneVal, type: typeVal, active: activeVal);
                     if (!ctx.mounted) return;
                     Navigator.pop(ctx);
                     _loadData();
@@ -556,12 +565,32 @@ class _StaffScreenState extends State<StaffScreen> {
                           subtitle: Text(
                             c.type == 'couturier' ? 'Couturier' : 'Autre personnel',
                           ),
-                          trailing: c.phone.isNotEmpty
-                              ? IconButton(
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (c.phone.isNotEmpty)
+                                IconButton(
                                   icon: const Icon(Icons.phone_rounded, color: AppColors.success),
+                                  constraints: const BoxConstraints(),
+                                  padding: const EdgeInsets.all(4),
                                   onPressed: () => _callPhone(c.phone),
-                                )
-                              : null,
+                                ),
+                              // Roster management (no pay data) — allowed for the secretary.
+                              IconButton(
+                                icon: const Icon(Icons.edit_rounded, color: Colors.blue),
+                                tooltip: 'Modifier',
+                                constraints: const BoxConstraints(),
+                                padding: const EdgeInsets.all(4),
+                                onPressed: () => _editStaffContact(
+                                  staffId: c.id,
+                                  fullName: c.fullName,
+                                  phone: c.phone,
+                                  type: c.type,
+                                  active: c.active,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },
@@ -630,7 +659,13 @@ class _StaffScreenState extends State<StaffScreen> {
                           IconButton(
                             icon: const Icon(Icons.edit_rounded, color: Colors.blue),
                             tooltip: 'Modifier Contact',
-                            onPressed: () => _editStaffContact(m),
+                            onPressed: () => _editStaffContact(
+                              staffId: m.staffId,
+                              fullName: m.fullName,
+                              phone: m.phone,
+                              type: m.type,
+                              active: m.active,
+                            ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.monetization_on_rounded, color: AppColors.success),
@@ -1340,14 +1375,14 @@ class _StaffScreenState extends State<StaffScreen> {
           )
         ],
       ),
-      floatingActionButton: isSec
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: _addStaffMember,
-              backgroundColor: AppColors.primary,
-              icon: const Icon(Icons.add_rounded, color: Colors.white),
-              label: const Text('Tailleur', style: TextStyle(color: Colors.white)),
-            ),
+      // Roster management (add a tailor) is open to both roles; wages stay
+      // manager-only (the secretary's view never shows rates/entries).
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addStaffMember,
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: const Text('Tailleur', style: TextStyle(color: Colors.white)),
+      ),
       // Single view: the tailor list. Tap a tailor for everything (week
       // detail, entries, add-entry, rate) in one sheet.
       body: isSec

@@ -5,14 +5,17 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 import '../../data/salary_payments_repository.dart';
 import '../../data/salary_receipt_service.dart';
 import '../../data/staff_repository.dart';
 
 /// "Staff" — monthly (non-tailor) employees only: secretary, guard, cleaner…
-/// Manager-only (salary data). Tailors live in the separate "Tailleurs"
-/// screen and are always paid per piece.
+/// The MANAGER sees and manages salaries + payments. The SECRETARY may manage
+/// the roster (add/edit/delete the person, name, phone) but never sees any
+/// salary or payment (financial isolation — CLAUDE.md rule 1). Tailors live in
+/// the separate "Tailleurs" screen and are always paid per piece.
 class MonthlyStaffScreen extends StatefulWidget {
   const MonthlyStaffScreen({super.key});
 
@@ -23,7 +26,9 @@ class MonthlyStaffScreen extends StatefulWidget {
 class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
   final StaffRepository _repo = StaffRepository();
   final SalaryPaymentsRepository _payRepo = SalaryPaymentsRepository();
-  List<StaffPayInfo> _staff = <StaffPayInfo>[];
+  List<StaffPayInfo> _staff = <StaffPayInfo>[];      // manager (with salary)
+  List<StaffContact> _contacts = <StaffContact>[];   // secretary (roster only)
+  bool _isSec = false;
   bool _loading = true;
   String? _error;
 
@@ -39,18 +44,107 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
   }
 
   Future<void> _load() async {
+    _isSec = context.read<AuthProvider>().isSecretary;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final all = await _repo.listPayInfo();
-      setState(() => _staff = all.where((s) => s.type == 'autre').toList());
+      if (_isSec) {
+        // Roster only — no pay endpoint (that would be a 403 anyway).
+        final all = await _repo.listContacts();
+        setState(() => _contacts = all.where((s) => s.type == 'autre').toList());
+      } else {
+        final all = await _repo.listPayInfo();
+        setState(() => _staff = all.where((s) => s.type == 'autre').toList());
+      }
     } catch (e) {
       _error = e.toString();
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// Roster edit for the secretary — name + phone + delete, no salary.
+  Future<void> _editContact(StaffContact c) async {
+    final formKey = GlobalKey<FormState>();
+    String name = c.fullName;
+    String phone = c.phone;
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: <Widget>[
+            const Expanded(child: Text('Modifier l\'employé')),
+            IconButton(
+              tooltip: 'Supprimer définitivement',
+              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+              onPressed: () async {
+                final bool ok = await confirmDeleteByTyping(
+                  ctx,
+                  itemName: c.fullName,
+                  itemLabel: 'cet employé',
+                  historyNote: 'Les paiements de salaire déjà enregistrés '
+                      'restent conservés dans le registre (au nom mémorisé). '
+                      'Seule sa fiche est supprimée.',
+                );
+                if (!ok) return;
+                try {
+                  await _repo.deleteStaff(c.id);
+                  if (!ctx.mounted) return;
+                  Navigator.pop(ctx);
+                  _load();
+                  _toast('Employé supprimé.');
+                } catch (e) {
+                  if (ctx.mounted) _toast('Erreur: $e', error: true);
+                }
+              },
+            ),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              TextFormField(
+                initialValue: name,
+                decoration: const InputDecoration(labelText: 'Nom complet'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                onSaved: (v) => name = v?.trim() ?? '',
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                initialValue: phone,
+                decoration: const InputDecoration(labelText: 'Téléphone'),
+                keyboardType: TextInputType.phone,
+                onSaved: (v) => phone = v?.trim() ?? '',
+              ),
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              formKey.currentState!.save();
+              try {
+                await _repo.updateStaff(c.id,
+                    fullName: name, phone: phone, type: 'autre', active: c.active);
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                _load();
+              } catch (e) {
+                if (ctx.mounted) _toast('Erreur: $e', error: true);
+              }
+            },
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _toast(String msg, {bool error = false}) {
@@ -555,6 +649,43 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
     );
   }
 
+  /// Secretary roster list — name + phone only, with edit/delete. No salary,
+  /// no payment sheet (financial isolation).
+  Widget _buildSecretaryList() {
+    if (_contacts.isEmpty) {
+      return const Center(child: Text('Aucun employé mensuel.'));
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _contacts.length,
+        itemBuilder: (context, i) {
+          final c = _contacts[i];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                child: const Icon(Icons.person_rounded, color: AppColors.primary),
+              ),
+              title: Text(c.fullName,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('Tél: ${c.phone}'),
+              onTap: () => _editContact(c),
+              trailing: IconButton(
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Modifier',
+                onPressed: () => _editContact(c),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -563,7 +694,9 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(child: Text('Erreur: $_error'))
-              : _staff.isEmpty
+              : _isSec
+                  ? _buildSecretaryList()
+                  : _staff.isEmpty
                   ? const Center(child: Text('Aucun employé mensuel.'))
                   : RefreshIndicator(
                       onRefresh: _load,

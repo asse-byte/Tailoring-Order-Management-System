@@ -43,12 +43,13 @@ class DashboardScreen extends StatelessWidget {
         icon: Icons.content_cut_rounded,
         route: '/admin/staff',
       ),
-      if (!isSec)
-        const _DashboardItem(
-          title: 'Staff',
-          icon: Icons.badge_rounded,
-          route: '/admin/monthly-staff',
-        ),
+      // Both roles: the secretary manages the monthly-staff roster (the screen
+      // hides all salary/payment data for her).
+      const _DashboardItem(
+        title: 'Staff',
+        icon: Icons.badge_rounded,
+        route: '/admin/monthly-staff',
+      ),
       if (!isSec)
         _DashboardItem(
           title: context.loc.finance,

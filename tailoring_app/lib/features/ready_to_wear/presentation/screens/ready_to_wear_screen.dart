@@ -112,6 +112,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
   }
 
   Future<void> _addOrEditModel([PretAPorterModel? existing]) async {
+    final bool isManager = !context.read<AuthProvider>().isSecretary;
     final formKey = GlobalKey<FormState>();
     String name = existing?.name ?? '';
     String fabric = existing?.fabricType ?? '';
@@ -163,24 +164,27 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                     validator: (v) => v == null ? 'Invalide' : null,
                     onChanged: (v) => setDlgState(() => price = (v ?? 0).toDouble()),
                   ),
-                  const SizedBox(height: 12),
-                  FormattedNumberField(
-                    controller: costCtrl,
-                    label: 'Prix d\'achat (FCFA)',
-                    validator: (v) => v == null ? 'Invalide' : null,
-                    onChanged: (v) => setDlgState(() => costPrice = (v ?? 0).toDouble()),
-                  ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Bénéfice unitaire: ${formatFcfa((price - costPrice).toInt())}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: (price - costPrice) >= 0 ? AppColors.success : AppColors.error,
+                  // Prix d'achat + profit = financial data, manager only.
+                  if (isManager) ...[
+                    const SizedBox(height: 12),
+                    FormattedNumberField(
+                      controller: costCtrl,
+                      label: 'Prix d\'achat (FCFA)',
+                      validator: (v) => v == null ? 'Invalide' : null,
+                      onChanged: (v) => setDlgState(() => costPrice = (v ?? 0).toDouble()),
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Bénéfice unitaire: ${formatFcfa((price - costPrice).toInt())}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: (price - costPrice) >= 0 ? AppColors.success : AppColors.error,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                   const SizedBox(height: 12),
                   TextFormField(
                     initialValue: description,
@@ -662,34 +666,33 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                                             tooltip: 'Vendre',
                                             onPressed: () => _recordSale(m),
                                           ),
-                                          if (!isSec) ...[
-                                            IconButton(
-                                              constraints: const BoxConstraints(),
-                                              padding: const EdgeInsets.all(4),
-                                              icon: const Icon(Icons.edit_rounded, color: Colors.blue, size: 18),
-                                              onPressed: () => _addOrEditModel(m),
-                                            ),
-                                            IconButton(
-                                              constraints: const BoxConstraints(),
-                                              padding: const EdgeInsets.all(4),
-                                              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 18),
-                                              onPressed: () async {
-                                                final confirm = await confirmDeleteByTyping(
-                                                  context,
-                                                  itemName: m.name,
-                                                  itemLabel: 'ce modèle',
-                                                  historyNote: 'Les ventes déjà '
-                                                      'enregistrées de ce modèle restent '
-                                                      'conservées dans les Finances (au nom '
-                                                      'et prix mémorisés).',
-                                                );
-                                                if (confirm) {
-                                                  await _repo.delete(m.id);
-                                                  _loadModels();
-                                                }
-                                              },
-                                            ),
-                                          ],
+                                          // Catalog edits: both roles.
+                                          IconButton(
+                                            constraints: const BoxConstraints(),
+                                            padding: const EdgeInsets.all(4),
+                                            icon: const Icon(Icons.edit_rounded, color: Colors.blue, size: 18),
+                                            onPressed: () => _addOrEditModel(m),
+                                          ),
+                                          IconButton(
+                                            constraints: const BoxConstraints(),
+                                            padding: const EdgeInsets.all(4),
+                                            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 18),
+                                            onPressed: () async {
+                                              final confirm = await confirmDeleteByTyping(
+                                                context,
+                                                itemName: m.name,
+                                                itemLabel: 'ce modèle',
+                                                historyNote: 'Les ventes déjà '
+                                                    'enregistrées de ce modèle restent '
+                                                    'conservées dans les Finances (au nom '
+                                                    'et prix mémorisés).',
+                                              );
+                                              if (confirm) {
+                                                await _repo.delete(m.id);
+                                                _loadModels();
+                                              }
+                                            },
+                                          ),
                                         ],
                                       )
                                     ],
@@ -701,13 +704,12 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                         );
                       },
                     ),
-      floatingActionButton: isSec
-          ? null
-          : FloatingActionButton(
-              onPressed: () => _addOrEditModel(),
-              backgroundColor: AppColors.primary,
-              child: const Icon(Icons.add_rounded, color: Colors.white),
-            ),
+      // Catalog management is open to both roles (cost_price/profit stay hidden).
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _addOrEditModel(),
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add_rounded, color: Colors.white),
+      ),
     );
   }
 

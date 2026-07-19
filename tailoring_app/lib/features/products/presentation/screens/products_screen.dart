@@ -122,6 +122,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   Future<void> _openProductForm({Product? product}) async {
+    final bool isManager = !context.read<AuthProvider>().isSecretary;
     final formKey = GlobalKey<FormState>();
     String name = product?.name ?? '';
     String category = product?.category ?? 'parfum';
@@ -178,24 +179,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     validator: (v) => v == null ? 'Prix invalide' : null,
                     onChanged: (v) => setDlgState(() => price = (v ?? 0).toDouble()),
                   ),
-                  const SizedBox(height: 12),
-                  FormattedNumberField(
-                    controller: costCtrl,
-                    label: 'Prix d\'achat (FCFA)',
-                    validator: (v) => v == null ? 'Prix d\'achat invalide' : null,
-                    onChanged: (v) => setDlgState(() => costPrice = (v ?? 0).toDouble()),
-                  ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Bénéfice unitaire: ${formatFcfa((price - costPrice).toInt())}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: (price - costPrice) >= 0 ? AppColors.success : AppColors.error,
+                  // Prix d'achat + profit = financial data, manager only.
+                  if (isManager) ...[
+                    const SizedBox(height: 12),
+                    FormattedNumberField(
+                      controller: costCtrl,
+                      label: 'Prix d\'achat (FCFA)',
+                      validator: (v) => v == null ? 'Prix d\'achat invalide' : null,
+                      onChanged: (v) => setDlgState(() => costPrice = (v ?? 0).toDouble()),
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Bénéfice unitaire: ${formatFcfa((price - costPrice).toInt())}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: (price - costPrice) >= 0 ? AppColors.success : AppColors.error,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                   const SizedBox(height: 12),
                   FormattedNumberField(
                     controller: qtyCtrl,
@@ -504,13 +508,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
           )
         ],
       ),
-      floatingActionButton: isSec
-          ? null // Writes are manager-only
-          : FloatingActionButton(
-              onPressed: () => _openProductForm(),
-              backgroundColor: AppColors.primary,
-              child: const Icon(Icons.add_rounded, color: Colors.white),
-            ),
+      // Catalog management is open to both roles; only cost_price/profit stay
+      // manager-only (hidden in the form + card).
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _openProductForm(),
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add_rounded, color: Colors.white),
+      ),
       body: Column(
         children: [
           // Search & Filter header
@@ -693,34 +697,32 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                 onPressed: () => _recordSale(p),
                                               ),
                                             
-                                            // Manager-only edits
-                                            if (!isSec) ...[
-                                              IconButton(
-                                                icon: const Icon(Icons.edit_rounded, color: Colors.blue),
-                                                constraints: const BoxConstraints(),
-                                                padding: const EdgeInsets.all(4),
-                                                onPressed: () => _openProductForm(product: p),
-                                              ),
-                                              IconButton(
-                                                icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
-                                                constraints: const BoxConstraints(),
-                                                padding: const EdgeInsets.all(4),
-                                                onPressed: () async {
-                                                  final confirm = await confirmDeleteByTyping(
-                                                    context,
-                                                    itemName: p.name,
-                                                    itemLabel: 'ce produit',
-                                                    historyNote: 'Les ventes déjà '
-                                                        'enregistrées de ce produit restent '
-                                                        'conservées dans les Finances (au nom '
-                                                        'et prix mémorisés).',
-                                                  );
-                                                  if (confirm) {
-                                                    await provider.deleteProduct(p.id);
-                                                  }
-                                                },
-                                              ),
-                                            ],
+                                            // Catalog edits: both roles.
+                                            IconButton(
+                                              icon: const Icon(Icons.edit_rounded, color: Colors.blue),
+                                              constraints: const BoxConstraints(),
+                                              padding: const EdgeInsets.all(4),
+                                              onPressed: () => _openProductForm(product: p),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                                              constraints: const BoxConstraints(),
+                                              padding: const EdgeInsets.all(4),
+                                              onPressed: () async {
+                                                final confirm = await confirmDeleteByTyping(
+                                                  context,
+                                                  itemName: p.name,
+                                                  itemLabel: 'ce produit',
+                                                  historyNote: 'Les ventes déjà '
+                                                      'enregistrées de ce produit restent '
+                                                      'conservées dans les Finances (au nom '
+                                                      'et prix mémorisés).',
+                                                );
+                                                if (confirm) {
+                                                  await provider.deleteProduct(p.id);
+                                                }
+                                              },
+                                            ),
                                           ],
                                         )
                                       ],
