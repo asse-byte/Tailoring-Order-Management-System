@@ -1,0 +1,267 @@
+###############################################################################
+# CouturePro API — runnable requests (VS Code "REST Client" or IntelliJ HTTP).
+#
+# HOW TO USE
+#   1. Install the "REST Client" extension (humao.rest-client) in VS Code.
+#   2. Set @baseUrl below (local dev, or a live shop).
+#   3. Run "login (MANAGER)" first — it captures the token into @mgrToken.
+#      Run "login (SECRETARY)" to capture @secToken for the 403 checks.
+#   4. Click "Send Request" above any block. Blocks reuse captured ids/tokens,
+#      so run them roughly top-to-bottom the first time.
+#
+# This file doubles as living documentation and a manual smoke test. For the
+# automated, always-green suite see backend/tests/ (npm test).
+###############################################################################
+
+@baseUrl = http://localhost:3000
+# @baseUrl = https://api.rayan-couture.couturepro.app
+
+@managerUser = gerant
+@managerPass = Admin@1234
+@secretaryUser = secretaire
+@secretaryPass = Secretary@1234
+
+### ── PUBLIC ──────────────────────────────────────────────────────────────
+# Shop identity for the login screen (no token).
+GET {{baseUrl}}/api/settings/public
+
+### login (MANAGER) — captures @mgrToken
+# @name loginMgr
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "{{managerUser}}", "password": "{{managerPass}}" }
+
+###
+@mgrToken = {{loginMgr.response.body.token}}
+
+### login (SECRETARY) — captures @secToken
+# @name loginSec
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "{{secretaryUser}}", "password": "{{secretaryPass}}" }
+
+###
+@secToken = {{loginSec.response.body.token}}
+
+### current user (fresh role from DB)
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{mgrToken}}
+
+### wrong password → 401
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "{{managerUser}}", "password": "wrong" }
+
+### ── CLIENTS (both roles) ────────────────────────────────────────────────
+### create a client — captures @clientId
+# @name newClient
+POST {{baseUrl}}/api/clients
+Authorization: Bearer {{mgrToken}}
+Content-Type: application/json
+
+{ "full_name": "Awa Sow", "phone": "76001122", "gender": "femme" }
+
+###
+@clientId = {{newClient.response.body.id}}
+
+### search clients (debounced name/phone)
+GET {{baseUrl}}/api/clients?q=awa&limit=20
+Authorization: Bearer {{mgrToken}}
+
+### set measurements for a garment type
+PUT {{baseUrl}}/api/clients/{{clientId}}/measurements/Grand%20Boubou
+Authorization: Bearer {{mgrToken}}
+Content-Type: application/json
+
+{ "measures": { "epaule": 45, "longueur": 150, "poitrine": 100 } }
+
+### SECURITY: secretary CANNOT delete a client → 403
+DELETE {{baseUrl}}/api/clients/{{clientId}}
+Authorization: Bearer {{secToken}}
+
+### ── STAFF (read both, writes manager) ───────────────────────────────────
+### create a tailor — captures @tailorId
+# @name newTailor
+POST {{baseUrl}}/api/staff
+Authorization: Bearer {{mgrToken}}
+Content-Type: application/json
+
+{ "full_name": "Aboubacar", "phone": "76009000", "type": "couturier" }
+
+###
+@tailorId = {{newTailor.response.body.id}}
+
+### SECURITY: secretary CANNOT create staff → 403
+POST {{baseUrl}}/api/staff
+Authorization: Bearer {{secToken}}
+Content-Type: application/json
+
+{ "full_name": "X", "type": "couturier" }
+
+### set the tailor's piece rate [FINANCE → manager only]
+PUT {{baseUrl}}/api/staff-pay/{{tailorId}}
+Authorization: Bearer {{mgrToken}}
+Content-Type: application/json
+
+{ "piece_rate": 4000 }
+
+### SECURITY: secretary CANNOT see pay data → 403
+GET {{baseUrl}}/api/staff-pay
+Authorization: Bearer {{secToken}}
+
+### ── TAILOR ENTRIES [FINANCE, append-only] ───────────────────────────────
+### log a daily entry — captures @entryId (amount = pieces × rate)
+# @name newEntry
+POST {{baseUrl}}/api/tailor-entries
+Authorization: Bearer {{mgrToken}}
+Content-Type: application/json
+
+{ "tailor_id": "{{tailorId}}", "entry_date": "2026-07-13",
+  "pieces_count": 2, "piece_rate": 4000, "garment_type": "Complet normal" }
+
+###
+@entryId = {{newEntry.response.body.id}}
+@weekId = {{newEntry.response.body.week_id}}
+
+### the tailor's full week + total
+GET {{baseUrl}}/api/tailor-entries/weekly-detail?week_id={{weekId}}&tailor_id={{tailorId}}
+Authorization: Bearer {{mgrToken}}
+
+### CORRECT quantity + model + price at once (append-only, reason required)
+POST {{baseUrl}}/api/tailor-entries/{{entryId}}/corrections
+Authorization: Bearer {{mgrToken}}
+Content-Type: application/json
+
+{ "new_pieces": 3, "new_piece_rate": 5000,
+  "new_garment_type": "Grand Boubou", "reason": "Erreur de saisie" }
+
+### VOID an entry (counts 0, stays in the log)
+POST {{baseUrl}}/api/tailor-entries/{{entryId}}/corrections
+Authorization: Bearer {{mgrToken}}
+Content-Type: application/json
+
+{ "voided": true, "reason": "Saisie en double" }
+
+### correction WITHOUT a reason → 400
+POST {{baseUrl}}/api/tailor-entries/{{entryId}}/corrections
+Authorization: Bearer {{mgrToken}}
+Content-Type: application/json
+
+{ "new_pieces": 9 }
+
+### SECURITY: secretary CANNOT touch tailor entries → 403
+GET {{baseUrl}}/api/tailor-entries?tailor_id={{tailorId}}
+Authorization: Bearer {{secToken}}
+
+### ── PRODUCTS & SALES ────────────────────────────────────────────────────
+### create a product — captures @productId (writes = manager)
+# @name newProduct
+POST {{baseUrl}}/api/products
+Authorization: Bearer {{mgrToken}}
+Content-Type: application/json
+
+{ "category": "parfum", "name": "Oud Royal", "price": 15000,
+  "quantity": 10, "cost_price": 9000 }
+
+###
+@productId = {{newProduct.response.body.id}}
+
+### sell it (server-priced, decrements stock). Secretary MAY create a sale.
+POST {{baseUrl}}/api/sales
+Authorization: Bearer {{secToken}}
+Content-Type: application/json
+
+{ "kind": "produit", "item_id": "{{productId}}", "qty": 2 }
+
+### SECURITY: secretary CANNOT read the sales ledger → 403
+GET {{baseUrl}}/api/sales
+Authorization: Bearer {{secToken}}
+
+### manager reads the effective sales ledger
+GET {{baseUrl}}/api/sales
+Authorization: Bearer {{mgrToken}}
+
+### ── ORDERS (both roles; total derived from line items) ──────────────────
+### create an order — captures @orderId
+# @name newOrder
+POST {{baseUrl}}/api/orders
+Authorization: Bearer {{mgrToken}}
+Content-Type: application/json
+
+{ "client_id": "{{clientId}}", "tailor_id": "{{tailorId}}",
+  "advance": 5000, "expected_date": "2026-07-25",
+  "items": [ { "garment_type": "Grand Boubou", "quantity": 1, "unit_price": 20000 } ] }
+
+###
+@orderId = {{newOrder.response.body.id}}
+
+### order detail
+GET {{baseUrl}}/api/orders/{{orderId}}
+Authorization: Bearer {{mgrToken}}
+
+### merged appointments calendar (manual ∪ order delivery dates)
+GET {{baseUrl}}/api/appointments
+Authorization: Bearer {{mgrToken}}
+
+### ── EXPENSES [FINANCE] ──────────────────────────────────────────────────
+### record an expense — captures @expenseId
+# @name newExpense
+POST {{baseUrl}}/api/expenses
+Authorization: Bearer {{mgrToken}}
+Content-Type: application/json
+
+{ "reason": "Achat fil", "amount": 12000, "spent_at": "2026-07-13" }
+
+###
+@expenseId = {{newExpense.response.body.id}}
+
+### correct an expense (append-only)
+POST {{baseUrl}}/api/expenses/{{expenseId}}/corrections
+Authorization: Bearer {{mgrToken}}
+Content-Type: application/json
+
+{ "new_amount": 10000, "reason": "Montant corrigé" }
+
+### SECURITY: secretary CANNOT see expenses → 403
+GET {{baseUrl}}/api/expenses
+Authorization: Bearer {{secToken}}
+
+### ── FINANCE & REPORTS [FINANCE] ─────────────────────────────────────────
+### month-to-date summary (net_profit = revenue.total − costs.total)
+GET {{baseUrl}}/api/finance/summary?from=2026-07-01&to=2026-07-31
+Authorization: Bearer {{mgrToken}}
+
+### SECURITY: secretary CANNOT see finance → 403
+GET {{baseUrl}}/api/finance/summary
+Authorization: Bearer {{secToken}}
+
+### richer report breakdown
+GET {{baseUrl}}/api/reports/summary?from=2026-07-01&to=2026-07-31
+Authorization: Bearer {{mgrToken}}
+
+### ── SETTINGS [private = manager] ────────────────────────────────────────
+### read all settings
+GET {{baseUrl}}/api/settings/private
+Authorization: Bearer {{mgrToken}}
+
+### update shop identity / theme
+PUT {{baseUrl}}/api/settings/private
+Authorization: Bearer {{mgrToken}}
+Content-Type: application/json
+
+{ "shop_name": "Rayan Couture", "default_piece_rate": 4000, "theme_color": "#0F766E" }
+
+### SECURITY: secretary CANNOT read private settings → 403
+GET {{baseUrl}}/api/settings/private
+Authorization: Bearer {{secToken}}
+
+### ── APPEND-ONLY proof (via API) ─────────────────────────────────────────
+# There is deliberately NO endpoint to UPDATE or DELETE a tailor entry / sale /
+# expense. The only path to change a number is a correction (above). A direct
+# DELETE is a 404 (route does not exist); a raw SQL UPDATE/DELETE is blocked by
+# a DB trigger (409) — proven in backend/tests/security.test.js.
+DELETE {{baseUrl}}/api/tailor-entries/{{entryId}}
+Authorization: Bearer {{mgrToken}}
