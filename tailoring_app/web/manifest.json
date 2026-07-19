@@ -1,11 +1,11 @@
 {
-    "name": "tailoring_app",
-    "short_name": "tailoring_app",
+    "name": "CouturePro",
+    "short_name": "CouturePro",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0F766E",
+    "theme_color": "#0F766E",
+    "description": "CouturePro",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

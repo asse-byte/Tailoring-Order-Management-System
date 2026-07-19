@@ -36,9 +36,17 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $appDir   = Join-Path $repoRoot 'tailoring_app'
 $gradle   = Join-Path $appDir 'android\gradle.properties'
 if (-not (Test-Path $gradle)) { throw "introuvable: $gradle" }
+# PWA identity: what the web app is called once "Added to home screen".
+$manifest = Join-Path $appDir 'web\manifest.json'
+$indexTpl = Join-Path $appDir 'web\index.html'
+foreach ($f in @($manifest, $indexTpl)) {
+    if (-not (Test-Path $f)) { throw "introuvable: $f" }
+}
 
 $distDir  = Join-Path $repoRoot "dist\$ShopSlug"
-$original = [IO.File]::ReadAllText($gradle)
+$original     = [IO.File]::ReadAllText($gradle)
+$origManifest = [IO.File]::ReadAllText($manifest)
+$origIndex    = [IO.File]::ReadAllText($indexTpl)
 
 # Version from pubspec.yaml (e.g. "version: 1.0.0+1" -> 1.0.0)
 $pubspec = Get-Content (Join-Path $appDir 'pubspec.yaml')
@@ -61,10 +69,28 @@ if ($branded -notmatch "(?m)^appId=$([regex]::Escape($AppId))$") {
     throw "échec du remplacement appId dans gradle.properties"
 }
 
+# --- brand the PWA (name shown once installed on the home screen) -----------
+# JSON-escape the shop name for manifest.json, HTML-escape it for index.html.
+$jsonName = $AppName -replace '\\', '\\\\' -replace '"', '\"'
+$htmlName = $AppName -replace '&', '&amp;' -replace '<', '&lt;' -replace '>', '&gt;'
+$brandedManifest = $origManifest `
+    -replace '"name"\s*:\s*"[^"]*"',        "`"name`": `"$jsonName`"" `
+    -replace '"short_name"\s*:\s*"[^"]*"',  "`"short_name`": `"$jsonName`"" `
+    -replace '"description"\s*:\s*"[^"]*"', "`"description`": `"$jsonName`"" `
+    -replace '"background_color"\s*:\s*"[^"]*"', '"background_color": "#0F766E"' `
+    -replace '"theme_color"\s*:\s*"[^"]*"',      '"theme_color": "#0F766E"'
+$brandedIndex = $origIndex `
+    -replace '<title>[^<]*</title>', "<title>$htmlName</title>" `
+    -replace '(<meta name="apple-mobile-web-app-title" content=")[^"]*(">)', "`${1}$htmlName`${2}" `
+    -replace '(<meta name="description" content=")[^"]*(">)', "`${1}$htmlName`${2}"
+
 $failed = $false
 try {
     [IO.File]::WriteAllText($gradle, $branded)
     Write-Host "gradle.properties -> appName='$AppName', appId='$AppId'" -ForegroundColor Yellow
+    [IO.File]::WriteAllText($manifest, $brandedManifest)
+    [IO.File]::WriteAllText($indexTpl, $brandedIndex)
+    Write-Host "PWA (manifest.json + index.html) -> '$AppName'" -ForegroundColor Yellow
 
     if ($DryRun) {
         Write-Host "(dry-run) builds sautés." -ForegroundColor Yellow
@@ -95,7 +121,9 @@ try {
 catch { $failed = $true; throw }
 finally {
     [IO.File]::WriteAllText($gradle, $original)
-    Write-Host "gradle.properties restauré a l'identique." -ForegroundColor Yellow
+    [IO.File]::WriteAllText($manifest, $origManifest)
+    [IO.File]::WriteAllText($indexTpl, $origIndex)
+    Write-Host "gradle.properties + manifest.json + index.html restaures a l'identique." -ForegroundColor Yellow
     if ($failed) { Write-Host "BUILD EN ECHEC — aucun artefact fiable produit." -ForegroundColor Red }
 }
 
