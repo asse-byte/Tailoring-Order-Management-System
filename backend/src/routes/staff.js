@@ -1,12 +1,13 @@
 const express = require('express');
 const db = require('../db');
-const { managerOnly } = require('../middleware/auth');
 const { asyncH, str } = require('../util');
 
 const router = express.Router();
 
-// Contact info only — safe for the secretary (she coordinates with staff
-// daily). Pay data lives behind /api/staff-pay, manager-only.
+// The staff roster (name, phone, type, active) carries NO financial data — pay
+// lives behind /api/staff-pay and wages behind /api/tailor-entries, both
+// manager-only. So both roles may fully manage the roster (create/edit/delete);
+// the secretary still never reaches any rate/wage/salary. See CLAUDE.md rule 1.
 router.get('/', asyncH(async (req, res) => {
   const { rows } = await db.query(
     `SELECT id, full_name, phone, type, joined_at, active
@@ -14,7 +15,7 @@ router.get('/', asyncH(async (req, res) => {
   res.json({ items: rows });
 }));
 
-router.post('/', managerOnly, asyncH(async (req, res) => {
+router.post('/', asyncH(async (req, res) => {
   const fullName = str(req.body.full_name);
   if (!fullName || !['couturier', 'autre'].includes(req.body.type)) {
     return res.status(400).json({ error: 'Nom et type (couturier|autre) requis.' });
@@ -26,7 +27,7 @@ router.post('/', managerOnly, asyncH(async (req, res) => {
   res.status(201).json(rows[0]);
 }));
 
-router.put('/:id', managerOnly, asyncH(async (req, res) => {
+router.put('/:id', asyncH(async (req, res) => {
   const fullName = str(req.body.full_name);
   if (!fullName || !['couturier', 'autre'].includes(req.body.type)) {
     return res.status(400).json({ error: 'Champs invalides.' });
@@ -41,12 +42,13 @@ router.put('/:id', managerOnly, asyncH(async (req, res) => {
   res.json(rows[0]);
 }));
 
-// Full hard-delete (manager only). Since migration 012 the financial history
-// (tailor_daily_entries, staff_pay_history, salary_payments) keeps a name
-// snapshot and no FK to staff, so wage totals are unaffected; staff_pay
-// cascades away and orders.tailor_id is set null (the order keeps its tailor
-// name snapshot). Deactivating (active=false) via PUT remains available too.
-router.delete('/:id', managerOnly, asyncH(async (req, res) => {
+// Full hard-delete (both roles — roster management, no financial data). Since
+// migration 012 the financial history (tailor_daily_entries, staff_pay_history,
+// salary_payments) keeps a name snapshot and no FK to staff, so wage totals are
+// unaffected; staff_pay cascades away and orders.tailor_id is set null (the
+// order keeps its tailor name snapshot). Deactivating (active=false) via PUT
+// remains available too.
+router.delete('/:id', asyncH(async (req, res) => {
   const { rowCount } = await db.query('DELETE FROM staff WHERE id = $1', [req.params.id]);
   if (!rowCount) return res.status(404).json({ error: 'Employé introuvable.' });
   res.status(204).end();

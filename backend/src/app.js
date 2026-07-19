@@ -80,10 +80,10 @@ function createApp() {
   app.use('/api/clients', staffOnly, clientsRouter);
   app.use('/api/orders', staffOnly, ordersRouter);            // DELETE: manager (in router)
   app.use('/api/appointments', staffOnly, appointmentsRouter);
-  app.use('/api/products', staffOnly, productsRouter);        // writes: manager (in router)
-  app.use('/api/pret-a-porter', staffOnly, pretAPorterRouter); // writes: manager (in router)
+  app.use('/api/products', staffOnly, productsRouter);        // CRUD both; cost_price + /stats manager-only
+  app.use('/api/pret-a-porter', staffOnly, pretAPorterRouter); // CRUD both; cost_price + /stats manager-only
   app.use('/api/sales', staffOnly, salesRouter);              // GET: manager (in router)
-  app.use('/api/staff', staffOnly, staffRouter);              // writes: manager (in router)
+  app.use('/api/staff', staffOnly, staffRouter);              // CRUD both (roster; pay stays manager-only)
   app.use('/api/upload', staffOnly, uploadRouter);
 
   // -- [FINANCE] manager-only: the secretary gets 403 on every route ---------

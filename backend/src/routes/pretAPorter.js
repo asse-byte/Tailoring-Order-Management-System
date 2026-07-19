@@ -43,10 +43,13 @@ async function insertMedia(tx, modelId, media) {
   return inserted;
 }
 
-router.post('/', managerOnly, asyncH(async (req, res) => {
+// Catalog management is open to both roles, BUT cost_price (profit margin)
+// stays manager-only: the secretary can never set or read it.
+router.post('/', asyncH(async (req, res) => {
+  const isManager = req.user.role === 'MANAGER';
   const name = str(req.body.name);
   const price = intOrNull(req.body.price);
-  const costPrice = intOrNull(req.body.cost_price) ?? 0;
+  const costPrice = isManager ? (intOrNull(req.body.cost_price) ?? 0) : 0;
   if (!name || price == null) {
     return res.status(400).json({ error: 'Nom et prix (entier ≥ 0) requis.' });
   }
@@ -58,13 +61,17 @@ router.post('/', managerOnly, asyncH(async (req, res) => {
     rows[0].media = await insertMedia(tx, rows[0].id, req.body.media);
     return rows[0];
   });
+  if (!isManager) delete model.cost_price; // financial isolation
   res.status(201).json(model);
 }));
 
-router.put('/:id', managerOnly, asyncH(async (req, res) => {
+router.put('/:id', asyncH(async (req, res) => {
+  const isManager = req.user.role === 'MANAGER';
   const name = str(req.body.name);
   const price = intOrNull(req.body.price);
-  const costPrice = req.body.cost_price !== undefined ? intOrNull(req.body.cost_price) : null;
+  // Secretary writes never touch cost_price → null keeps the existing value.
+  const costPrice = isManager && req.body.cost_price !== undefined
+    ? intOrNull(req.body.cost_price) : null;
   if (!name || price == null) return res.status(400).json({ error: 'Champs invalides.' });
   const model = await db.withTransaction(async (tx) => {
     const { rows } = await tx.query(
@@ -80,10 +87,11 @@ router.put('/:id', managerOnly, asyncH(async (req, res) => {
     return rows[0];
   });
   if (!model) return res.status(404).json({ error: 'Modèle introuvable.' });
+  if (!isManager) delete model.cost_price; // financial isolation
   res.json(model);
 }));
 
-router.delete('/:id', managerOnly, asyncH(async (req, res) => {
+router.delete('/:id', asyncH(async (req, res) => {
   const { rowCount } = await db.query(
     'DELETE FROM pret_a_porter_models WHERE id = $1', [req.params.id]);
   if (!rowCount) return res.status(404).json({ error: 'Modèle introuvable.' });

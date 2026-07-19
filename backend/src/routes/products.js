@@ -34,10 +34,13 @@ router.get('/', asyncH(async (req, res) => {
 
 // Catalog writes are manager-only. Stock is never edited directly by the
 // secretary — it only moves inside the sale transaction (see sales.js).
-router.post('/', managerOnly, asyncH(async (req, res) => {
+// Catalog management is open to both roles, BUT cost_price (which reveals the
+// profit margin) stays manager-only: the secretary can never set or read it.
+router.post('/', asyncH(async (req, res) => {
+  const isManager = req.user.role === 'MANAGER';
   const name = str(req.body.name);
   const price = intOrNull(req.body.price);
-  const costPrice = intOrNull(req.body.cost_price) ?? 0;
+  const costPrice = isManager ? (intOrNull(req.body.cost_price) ?? 0) : 0;
   const quantity = intOrNull(req.body.quantity) ?? 0;
   if (!name || !CATEGORIES.includes(req.body.category) || price == null || quantity === undefined) {
     return res.status(400).json({ error: 'Nom, catégorie et prix valides requis.' });
@@ -69,13 +72,17 @@ router.post('/', managerOnly, asyncH(async (req, res) => {
     return prod;
   });
 
+  if (!isManager) delete product.cost_price; // financial isolation
   res.status(201).json(product);
 }));
 
-router.put('/:id', managerOnly, asyncH(async (req, res) => {
+router.put('/:id', asyncH(async (req, res) => {
+  const isManager = req.user.role === 'MANAGER';
   const name = str(req.body.name);
   const price = intOrNull(req.body.price);
-  const costPrice = req.body.cost_price !== undefined ? intOrNull(req.body.cost_price) : null;
+  // Secretary writes never touch cost_price → null keeps the existing value.
+  const costPrice = isManager && req.body.cost_price !== undefined
+    ? intOrNull(req.body.cost_price) : null;
   const quantity = intOrNull(req.body.quantity);
   if (!name || !CATEGORIES.includes(req.body.category) || price == null || quantity == null) {
     return res.status(400).json({ error: 'Champs invalides.' });
@@ -116,10 +123,11 @@ router.put('/:id', managerOnly, asyncH(async (req, res) => {
   });
 
   if (!product) return res.status(404).json({ error: 'Produit introuvable.' });
+  if (!isManager) delete product.cost_price; // financial isolation
   res.json(product);
 }));
 
-router.delete('/:id', managerOnly, asyncH(async (req, res) => {
+router.delete('/:id', asyncH(async (req, res) => {
   const { rowCount } = await db.query('DELETE FROM products WHERE id = $1', [req.params.id]);
   if (!rowCount) return res.status(404).json({ error: 'Produit introuvable.' });
   res.status(204).end();

@@ -108,9 +108,13 @@ test('deleting a product keeps its past sales intact (name + total)', async () =
   expect(row.total).toBe(24000); // 2 × 12,000, unchanged after product delete
 });
 
-// ---- Security: every Type-A delete is manager-only (403 for the secretary) ---
+// ---- Access rules for Type-A deletes --------------------------------------
+// Clients stay manager-only. Staff/products/prêt-à-porter roster+catalog
+// management is open to BOTH roles (owner decision, interpretation A) — the
+// financial figures (pay, wages, salaries, cost_price) stay manager-only and
+// are covered in security.test.js.
 
-describe('secretary is forbidden (403) from deleting any master data', () => {
+describe('Type-A delete access', () => {
   let clientId; let staffId; let productId; let modelId;
   beforeAll(async () => {
     clientId = (await asM(request(app).post('/api/clients'))
@@ -124,6 +128,7 @@ describe('secretary is forbidden (403) from deleting any master data', () => {
   });
 
   // SECURITY FIX (separate from the feature): DELETE /clients was unprotected.
+  // Clients were NOT part of the secretary-CRUD grant → still manager-only.
   test('DELETE /api/clients with a secretary token → 403', async () => {
     const res = await asSec(request(app).delete(`/api/clients/${clientId}`));
     expect(res.status).toBe(403);
@@ -131,13 +136,13 @@ describe('secretary is forbidden (403) from deleting any master data', () => {
     expect((await asM(request(app).get(`/api/clients/${clientId}`))).status).toBe(200);
   });
 
-  test('DELETE /api/staff with a secretary token → 403', async () => {
-    expect((await asSec(request(app).delete(`/api/staff/${staffId}`))).status).toBe(403);
+  test('DELETE /api/staff with a secretary token → 204 (roster management)', async () => {
+    expect((await asSec(request(app).delete(`/api/staff/${staffId}`))).status).toBe(204);
   });
-  test('DELETE /api/products with a secretary token → 403', async () => {
-    expect((await asSec(request(app).delete(`/api/products/${productId}`))).status).toBe(403);
+  test('DELETE /api/products with a secretary token → 204 (catalog management)', async () => {
+    expect((await asSec(request(app).delete(`/api/products/${productId}`))).status).toBe(204);
   });
-  test('DELETE /api/pret-a-porter with a secretary token → 403', async () => {
-    expect((await asSec(request(app).delete(`/api/pret-a-porter/${modelId}`))).status).toBe(403);
+  test('DELETE /api/pret-a-porter with a secretary token → 204 (catalog management)', async () => {
+    expect((await asSec(request(app).delete(`/api/pret-a-porter/${modelId}`))).status).toBe(204);
   });
 });

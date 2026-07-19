@@ -210,21 +210,65 @@ describe('SECRETARY — allowed daily operations', () => {
     expect(JSON.stringify(secModels.body)).not.toMatch(/cost_price/);
   });
 
-  it('cannot create, edit or delete products', async () => {
-    expect((await asSec(request(app).post('/api/products'))
-      .send({ category: 'parfum', name: 'x', price: 1 })).status).toBe(403);
-    expect((await asSec(request(app).put(`/api/products/${productId}`))
-      .send({ category: 'tissu', name: 'Bazin', price: 1, quantity: 999 })).status).toBe(403);
-    expect((await asSec(request(app).delete(`/api/products/${productId}`))).status).toBe(403);
+  it('can create, edit and delete products — but never sets or sees cost_price', async () => {
+    // Full catalog management is allowed (owner decision, interpretation A).
+    const created = await asSec(request(app).post('/api/products'))
+      .send({ category: 'parfum', name: 'Musc Sec', price: 8000, quantity: 4, cost_price: 5000 });
+    expect(created.status).toBe(201);
+    expect(created.body).not.toHaveProperty('cost_price'); // financial isolation kept
+    const newId = created.body.id;
+
+    // The cost_price she tried to set was ignored — the manager sees 0, not 5000.
+    const asMgr = (await asManager(request(app).get('/api/products')))
+      .body.items.find((p) => p.id === newId);
+    expect(asMgr.cost_price).toBe(0);
+
+    const edited = await asSec(request(app).put(`/api/products/${newId}`))
+      .send({ category: 'tissu', name: 'Bazin', price: 9000, quantity: 3, cost_price: 6000 });
+    expect(edited.status).toBe(200);
+    expect(edited.body).not.toHaveProperty('cost_price');
+    // Her cost_price write was ignored again (still 0).
+    expect((await asManager(request(app).get('/api/products')))
+      .body.items.find((p) => p.id === newId).cost_price).toBe(0);
+
+    expect((await asSec(request(app).delete(`/api/products/${newId}`))).status).toBe(204);
+    // Profit stats stay manager-only.
+    expect((await asSec(request(app).get(`/api/products/${productId}/stats`))).status).toBe(403);
   });
 
-  it('can manage staff contacts read-only', async () => {
+  it('can create, edit and delete prêt-à-porter models — cost_price stays manager-only', async () => {
+    const created = await asSec(request(app).post('/api/pret-a-porter'))
+      .send({ name: 'Boubou Sec', fabric_type: 'bazin', price: 30000, cost_price: 18000 });
+    expect(created.status).toBe(201);
+    expect(created.body).not.toHaveProperty('cost_price');
+    const newId = created.body.id;
+    // Her cost_price was ignored — manager sees 0.
+    expect((await asManager(request(app).get('/api/pret-a-porter')))
+      .body.items.find((m) => m.id === newId).cost_price).toBe(0);
+
+    expect((await asSec(request(app).put(`/api/pret-a-porter/${newId}`))
+      .send({ name: 'Boubou Lux', fabric_type: 'bazin', price: 32000 })).status).toBe(200);
+    expect((await asSec(request(app).delete(`/api/pret-a-porter/${newId}`))).status).toBe(204);
+    // Profit stats stay manager-only.
+    expect((await asSec(request(app).get(`/api/pret-a-porter/${modelId}/stats`))).status).toBe(403);
+  });
+
+  it('can create, edit and delete staff roster (no pay data exposed)', async () => {
     const list = await asSec(request(app).get('/api/staff'));
     expect(list.status).toBe(200);
-    // Contact info only — no pay fields in the payload.
     expect(JSON.stringify(list.body)).not.toMatch(/piece_rate|monthly_salary/);
-    expect((await asSec(request(app).post('/api/staff'))
-      .send({ full_name: 'X', type: 'autre' })).status).toBe(403);
+
+    const created = await asSec(request(app).post('/api/staff'))
+      .send({ full_name: 'Nouveau Couturier', type: 'couturier' });
+    expect(created.status).toBe(201);
+    expect((await asSec(request(app).put(`/api/staff/${created.body.id}`))
+      .send({ full_name: 'Renommé', type: 'couturier' })).status).toBe(200);
+    expect((await asSec(request(app).delete(`/api/staff/${created.body.id}`))).status).toBe(204);
+
+    // Pay/wages stay manager-only regardless.
+    expect((await asSec(request(app).get('/api/staff-pay'))).status).toBe(403);
+    expect((await asSec(request(app).get(`/api/tailor-entries?tailor_id=${tailorId}`))).status)
+      .toBe(403);
   });
 
   it('can create and update orders; invalid status rejected; delete denied', async () => {

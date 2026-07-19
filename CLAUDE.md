@@ -13,6 +13,17 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
    backed by DB constraints), never only by hiding UI. Any finance
    endpoint must return 403 to the secretary, and the test suite in
    `backend/tests/` proving this must always pass.
+   - **Secretary CRUD on master data (owner decision 2026-07-19, "interpretation
+     A"):** the secretary MAY fully manage the roster/catalog on four pages —
+     Tailleurs, Staff mensuel, Prêt-à-porter, Produits (create/edit/delete the
+     records + their non-financial fields). What stays MANAGER-ONLY and is never
+     shown/settable by her: tailor `piece_rate` + daily wage entries + weekly
+     totals, monthly `salary` + salary payments, and product/model `cost_price`
+     (+ the profit `/stats`). So on those pages `POST/PUT/DELETE /api/staff`,
+     `/api/products`, `/api/pret-a-porter` are both-roles; `cost_price` is
+     ignored on her writes and stripped from her reads; `/api/staff-pay`,
+     `/api/tailor-entries`, `/api/salary-payments`, `/stats` remain 403.
+     `DELETE /api/clients` stays manager-only (clients were not in the grant).
 3. **Speed is the #1 priority**: pagination on every long list, image
    compression + thumbnails, lazy loading, local caching, indexed queries.
 4. No self-registration. The two accounts are seeded/managed by the manager.
