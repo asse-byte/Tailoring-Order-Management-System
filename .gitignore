@@ -99,7 +99,9 @@ password.txt
 
 # Android and Kotlin build artifacts
 .kotlin/
+# JVM crash dumps (hs_err_*) and their replay files — can be hundreds of MB.
 hs_err_pid*.log
+replay_pid*.log
 
 # test scratch output
 backend/test_out.txt
