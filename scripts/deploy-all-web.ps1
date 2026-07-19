@@ -36,6 +36,48 @@ function Warn ($m) { Write-Host "  ! $m" -ForegroundColor Yellow }
 function Bad  ($m) { Write-Host "  x $m" -ForegroundColor Red }
 function Good ($m) { Write-Host "  + $m" -ForegroundColor Green }
 
+# Run a shell script on the server by UPLOADING IT AS A REAL FILE, never by
+# passing its text inline to ssh.
+#
+# WHY: PowerShell -> ssh loses the quoting of a multi-line inline script, which
+# produced exactly these errors: `[: too many arguments` and `%s: command not
+# found` (printf's format string arrived unquoted). Same class of bug as the
+# corrupted `tar | ssh` stream. A real file transfer removes the whole problem.
+#
+# Two details that matter:
+#  * LF line endings, UTF-8 WITHOUT BOM — a CR or a BOM makes bash fail with
+#    the same kind of "command not found" noise.
+#  * `trap 'rm -f "$0"' EXIT` inside the script deletes it on the server however
+#    it ends, while preserving the real exit code (a trailing `rm` would mask it).
+function Invoke-RemoteScript {
+    param(
+        [Parameter(Mandatory = $true)][string]$Content,
+        [Parameter(Mandatory = $true)][string]$Label,
+        [switch]$Stream          # print output live instead of capturing it
+    )
+    $name  = "couture-$Label-" + (Get-Date -Format 'yyyyMMddHHmmssfff') + '.sh'
+    $local = Join-Path $env:TEMP $name
+    $CR    = [char]13
+    $NL    = [char]10
+    $body  = "trap 'rm -f `"`$0`"' EXIT$NL" + $Content
+    # Literal .Replace (not -replace, which is regex) -> pure LF.
+    $lf    = $body.Replace("$CR$NL", "$NL").Replace("$CR", "$NL")
+    [IO.File]::WriteAllText($local, $lf, (New-Object Text.UTF8Encoding $false))
+    try {
+        & scp $local "${Server}:/tmp/$name"
+        if ($LASTEXITCODE -ne 0) { throw "scp du script '$Label' a echoue" }
+        if ($Stream) {
+            & ssh $Server "bash /tmp/$name"
+            return [pscustomobject]@{ Output = $null; ExitCode = $LASTEXITCODE }
+        }
+        $out  = & ssh $Server "bash /tmp/$name"
+        return [pscustomobject]@{ Output = $out; ExitCode = $LASTEXITCODE }
+    }
+    finally {
+        Remove-Item -Force $local -ErrorAction SilentlyContinue
+    }
+}
+
 # ---------------------------------------------------------------- preflight
 foreach ($exe in @('tar', 'ssh', 'scp', 'flutter')) {
     if (-not (Get-Command $exe -ErrorAction SilentlyContinue)) {
@@ -90,8 +132,9 @@ for d in SHOPSDIR/*/; do
 done
 '@ -replace 'SHOPSDIR', $ShopsDir
 
-$raw = & ssh $Server $discoverSh
-if ($LASTEXITCODE -ne 0) { throw "La decouverte SSH a echoue (verifiez -Server et l'acces)." }
+$res = Invoke-RemoteScript -Content $discoverSh -Label 'discover'
+if ($res.ExitCode -ne 0) { throw "La decouverte SSH a echoue (verifiez -Server et l'acces)." }
+$raw = $res.Output
 
 $shops = @()
 foreach ($line in ($raw -split "`n")) {
@@ -124,9 +167,14 @@ if ($IncludeBackend) {
         Warn "(dry-run) backend saute."
     } else {
         $anchor = $shops[0].Slug
-        $cmd = "cd $ShopsDir/$anchor && git pull --ff-only && SHOPS_DIR=$ShopsDir ./scripts/update-all.sh"
-        & ssh $Server $cmd
-        if ($LASTEXITCODE -ne 0) {
+        $backendSh = @'
+set -e
+cd "__DIR__"
+git pull --ff-only
+SHOPS_DIR="__SHOPS__" ./scripts/update-all.sh
+'@ -replace '__DIR__', "$ShopsDir/$anchor" -replace '__SHOPS__', $ShopsDir
+        $b = Invoke-RemoteScript -Content $backendSh -Label 'backend' -Stream
+        if ($b.ExitCode -ne 0) {
             Warn "update-all.sh a signale au moins un echec — voir ci-dessus. On continue avec le web."
         } else {
             Good "Backend a jour sur tous les salons."
@@ -190,11 +238,21 @@ foreach ($s in $shops) {
         #    chmod -R o+rX is mandatory: a 700 web root makes nginx serve HTML
         #    for every asset (root cause of a real outage on this project).
         $r = $s.Root
-        $remote = "set -e; mkdir -p '$r'; rm -rf '$r'/*; tar -xzf '/tmp/$archName' -C '$r'; chmod -R o+rX '$r'; echo FILES=`$(find '$r' -type f | wc -l); rm -f '/tmp/$archName'"
-        $out = & ssh $Server $remote
-        if ($LASTEXITCODE -ne 0) { throw "deploiement distant a echoue" }
+        $remoteSh = @'
+set -e
+ROOT="__ROOT__"
+ARCH="/tmp/__ARCH__"
+mkdir -p "$ROOT"
+rm -rf "$ROOT"/*
+tar -xzf "$ARCH" -C "$ROOT"
+chmod -R o+rX "$ROOT"
+printf "FILES=%s\n" "$(find "$ROOT" -type f | wc -l)"
+rm -f "$ARCH"
+'@ -replace '__ROOT__', $r -replace '__ARCH__', $archName
+        $dep = Invoke-RemoteScript -Content $remoteSh -Label "deploy-$($s.Slug)"
+        if ($dep.ExitCode -ne 0) { throw "deploiement distant a echoue" }
         $count = 'n/a'
-        foreach ($l in ($out -split "`n")) {
+        foreach ($l in ($dep.Output -split "`n")) {
             if ($l -match 'FILES=(\d+)') { $count = $Matches[1] }
         }
         Good "$count fichiers deployes dans $r"

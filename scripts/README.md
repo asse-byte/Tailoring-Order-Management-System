@@ -31,12 +31,27 @@ template and has already drifted from reality.
 > installed a real APK rather than adding the PWA to their home screen. Build it
 > with `build-shop-app.ps1` (without `-SkipApk`) and distribute the file.
 
-Why `scp` a file instead of `tar | ssh`: with an interactive SSH password the
-piped stream got corrupted (`gzip: not in gzip format`) on this project. The
-script uses a real file transfer and a per-shop, timestamped archive name so two
-runs can never collide.
+### Rule learned the hard way: never send complex text inline over SSH
 
+Two separate incidents on this project had the same root cause — PowerShell →
+`ssh` mangles anything non-trivial in transit:
 
+| What was tried | How it failed |
+| --- | --- |
+| `tar \| ssh` (piped archive) | stream corrupted → `gzip: not in gzip format` |
+| `ssh $Server $multiLineScript` | quoting lost → `[: too many arguments`, `%s: command not found` |
+
+So **everything now travels as a real file**: the archive goes by `scp`, and every
+remote script is written locally, `scp`'d, then run with a trivial
+`ssh "bash /tmp/<file>"`. `Invoke-RemoteScript` in `deploy-all-web.ps1` does this
+for you and takes care of the two details that silently break bash:
+
+- **LF line endings, UTF-8 without BOM** — a stray `\r` or a BOM produces exactly
+  the same confusing "command not found" errors.
+- `trap 'rm -f "$0"' EXIT` inside the uploaded script, so it deletes itself on the
+  server however it ends *while preserving the real exit code*.
+
+Archive names include the shop slug + a timestamp, so two runs can never collide.
 
 ## Provision a whole new shop in one command
 
@@ -50,6 +65,8 @@ NEW_SHOP_DRY_RUN=1 ./scripts/new-shop.sh   # rehearse without touching anything
 Then on the dev machine: `.\scripts\build-shop-app.ps1` builds branded web + APK
 for that shop in one command (and restores `gradle.properties` afterwards).
 Full flow: `docs/ONBOARDING_NEW_SHOP.md`.
+
+## Backup & restore (on the VPS)
 
 These run **on the VPS**, from a shop's deploy directory (where its
 `docker-compose.yml` and `.env` live), e.g. `/srv/rayan-couture`.
