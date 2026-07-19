@@ -254,26 +254,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final shopSettings = context.watch<ShopSettingsProvider>();
-
-    if (auth.isSecretary) {
-      return Scaffold(
-        appBar: AppBar(title: Text(context.loc.settings)),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24.0),
-            child: Text(
-              'Accès refusé. Cette page est réservée aux administrateurs.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.error,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
+    // The secretary gets a reduced page: her own account (password, language,
+    // theme mode, sign out) + read-only shop identity. Everything that is shop
+    // branding or financial (name/logo/promo/theme colour, default piece rate,
+    // reports) stays manager-only — see CLAUDE.md rule 1.
+    final bool isSec = auth.isSecretary;
 
     return Scaffold(
       appBar: AppBar(title: Text(context.loc.settings)),
@@ -295,7 +280,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   child: Text(
                     (auth.user?.name.isNotEmpty ?? false)
                         ? auth.user!.name[0].toUpperCase()
-                        : 'A',
+                        : (isSec ? 'S' : 'A'),
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w700,
@@ -308,7 +293,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text(auth.user?.name ?? 'Admin',
+                      Text(auth.user?.name ?? (isSec ? 'Secrétaire' : 'Gérant'),
                           style: Theme.of(context).textTheme.titleMedium),
                       Text(auth.user?.email ?? '',
                           style: Theme.of(context).textTheme.bodySmall),
@@ -344,55 +329,67 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                 ),
           ),
           const SizedBox(height: 10),
-          _ActionTile(
-            icon: Icons.store_rounded,
-            title: context.loc.shopNameLabel,
-            subtitle: shopSettings.shopName,
-            color: AppColors.primary,
-            onTap: () => _changeShopName(context),
-          ),
-          const SizedBox(height: 10),
-          _ActionTile(
-            icon: Icons.image_rounded,
-            title: context.loc.editShopLogo,
-            subtitle: shopSettings.logoUrl != null ? 'Logo téléversé' : 'Aucun logo (Placeholder actif)',
-            color: AppColors.accent,
-            onTap: () => _changeLogo(context),
-          ),
-          const SizedBox(height: 10),
-          _ActionTile(
-            icon: Icons.monetization_on_rounded,
-            title: context.loc.editDefaultPieceRate,
-            subtitle: formatFcfa(shopSettings.defaultPieceRate),
-            color: AppColors.success,
-            onTap: () => _changeDefaultPieceRate(context),
-          ),
-          const SizedBox(height: 10),
-          _ActionTile(
-            icon: Icons.link_rounded,
-            title: 'Lien du groupe promo',
-            subtitle: shopSettings.promoGroupLink.isEmpty
-                ? 'Non défini (affiché sur les factures)'
-                : shopSettings.promoGroupLink,
-            color: AppColors.info,
-            onTap: () => _changePromoLink(context),
-          ),
-          const SizedBox(height: 10),
-          _ActionTile(
-            icon: Icons.palette_rounded,
-            title: 'Couleur du thème',
-            subtitle: shopSettings.themeColorHex,
-            color: shopSettings.themeColor,
-            onTap: () => _changeThemeColor(context),
-          ),
-          const SizedBox(height: 10),
-          _ActionTile(
-            icon: Icons.assessment_rounded,
-            title: 'Rapport & statistiques',
-            subtitle: 'Rapport mensuel / annuel imprimable',
-            color: AppColors.primary,
-            onTap: () => context.push('/admin/reports'),
-          ),
+          if (isSec)
+            // Read-only shop identity: informative, not editable, and carries
+            // no financial figure.
+            _ActionTile(
+              icon: Icons.store_rounded,
+              title: context.loc.shopNameLabel,
+              subtitle: shopSettings.shopName,
+              color: AppColors.primary,
+              onTap: null,
+            )
+          else ...[
+            _ActionTile(
+              icon: Icons.store_rounded,
+              title: context.loc.shopNameLabel,
+              subtitle: shopSettings.shopName,
+              color: AppColors.primary,
+              onTap: () => _changeShopName(context),
+            ),
+            const SizedBox(height: 10),
+            _ActionTile(
+              icon: Icons.image_rounded,
+              title: context.loc.editShopLogo,
+              subtitle: shopSettings.logoUrl != null ? 'Logo téléversé' : 'Aucun logo (Placeholder actif)',
+              color: AppColors.accent,
+              onTap: () => _changeLogo(context),
+            ),
+            const SizedBox(height: 10),
+            _ActionTile(
+              icon: Icons.monetization_on_rounded,
+              title: context.loc.editDefaultPieceRate,
+              subtitle: formatFcfa(shopSettings.defaultPieceRate),
+              color: AppColors.success,
+              onTap: () => _changeDefaultPieceRate(context),
+            ),
+            const SizedBox(height: 10),
+            _ActionTile(
+              icon: Icons.link_rounded,
+              title: 'Lien du groupe promo',
+              subtitle: shopSettings.promoGroupLink.isEmpty
+                  ? 'Non défini (affiché sur les factures)'
+                  : shopSettings.promoGroupLink,
+              color: AppColors.info,
+              onTap: () => _changePromoLink(context),
+            ),
+            const SizedBox(height: 10),
+            _ActionTile(
+              icon: Icons.palette_rounded,
+              title: 'Couleur du thème',
+              subtitle: shopSettings.themeColorHex,
+              color: shopSettings.themeColor,
+              onTap: () => _changeThemeColor(context),
+            ),
+            const SizedBox(height: 10),
+            _ActionTile(
+              icon: Icons.assessment_rounded,
+              title: 'Rapport & statistiques',
+              subtitle: 'Rapport mensuel / annuel imprimable',
+              color: AppColors.primary,
+              onTap: () => context.push('/admin/reports'),
+            ),
+          ],
           const SizedBox(height: 16),
           const _LanguageSelector(),
           const SizedBox(height: 16),
@@ -471,14 +468,15 @@ class _ActionTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.color,
-    required this.onTap,
+    this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final Color color;
-  final VoidCallback onTap;
+  /// Null renders a read-only tile (no ripple, no chevron).
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -517,8 +515,9 @@ class _ActionTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: AppColors.textMuted),
+              if (onTap != null)
+                const Icon(Icons.chevron_right_rounded,
+                    color: AppColors.textMuted),
             ],
           ),
         ),

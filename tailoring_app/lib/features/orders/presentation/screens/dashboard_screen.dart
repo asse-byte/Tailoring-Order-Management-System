@@ -71,12 +71,13 @@ class DashboardScreen extends StatelessWidget {
         icon: Icons.history_rounded,
         route: '/admin/history',
       ),
-      if (!isSec)
-        _DashboardItem(
-          title: context.loc.settings,
-          icon: Icons.settings_rounded,
-          route: '/admin/settings',
-        ),
+      // Both roles: the secretary gets a reduced settings page (her account +
+      // read-only shop identity; no shop branding, no financial settings).
+      _DashboardItem(
+        title: context.loc.settings,
+        icon: Icons.settings_rounded,
+        route: '/admin/settings',
+      ),
     ];
 
     final shopSettings = context.watch<ShopSettingsProvider>();
