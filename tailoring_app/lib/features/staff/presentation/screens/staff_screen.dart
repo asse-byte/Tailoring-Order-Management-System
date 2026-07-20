@@ -7,7 +7,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../orders/data/orders_repository.dart';
 import '../../../orders/domain/entities/order.dart';
 import '../../data/staff_repository.dart';
@@ -24,7 +23,6 @@ class StaffScreen extends StatefulWidget {
 class _StaffScreenState extends State<StaffScreen> {
   final StaffRepository _repo = StaffRepository();
 
-  List<StaffContact> _contacts = [];
   List<StaffPayInfo> _payInfoList = [];
   bool _loading = true;
   String? _error;
@@ -59,12 +57,10 @@ class _StaffScreenState extends State<StaffScreen> {
       _error = null;
     });
     try {
-      final isSec = context.read<AuthProvider>().isSecretary;
-      if (isSec) {
-        _contacts = await _repo.listContacts();
-      } else {
-        _payInfoList = await _repo.listPayInfo();
-      }
+      // Both roles get the full tailor view (rates, entries, weekly totals):
+      // owner decision 2026-07-20 — piece prices vary per model, so the
+      // secretary must be able to set them while assigning work.
+      _payInfoList = await _repo.listPayInfo();
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -534,67 +530,6 @@ class _StaffScreenState extends State<StaffScreen> {
         ),
       ),
     );
-  }
-
-  Widget _buildSecretaryView() {
-    final couturiers =
-        _contacts.where((c) => c.type == 'couturier').toList();
-    return _loading
-        ? const Center(child: CircularProgressIndicator())
-        : _error != null
-            ? Center(child: Text('Erreur: $_error'))
-            : couturiers.isEmpty
-                ? const Center(child: Text('Aucun tailleur enregistré.'))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: couturiers.length,
-                    itemBuilder: (ctx, idx) {
-                      final c = couturiers[idx];
-                      return Card(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                            child: Icon(
-                              c.type == 'couturier' ? Icons.content_cut_rounded : Icons.person_rounded,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          title: Text(c.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(
-                            c.type == 'couturier' ? 'Couturier' : 'Autre personnel',
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (c.phone.isNotEmpty)
-                                IconButton(
-                                  icon: const Icon(Icons.phone_rounded, color: AppColors.success),
-                                  constraints: const BoxConstraints(),
-                                  padding: const EdgeInsets.all(4),
-                                  onPressed: () => _callPhone(c.phone),
-                                ),
-                              // Roster management (no pay data) — allowed for the secretary.
-                              IconButton(
-                                icon: const Icon(Icons.edit_rounded, color: Colors.blue),
-                                tooltip: 'Modifier',
-                                constraints: const BoxConstraints(),
-                                padding: const EdgeInsets.all(4),
-                                onPressed: () => _editStaffContact(
-                                  staffId: c.id,
-                                  fullName: c.fullName,
-                                  phone: c.phone,
-                                  type: c.type,
-                                  active: c.active,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  );
   }
 
   Widget _buildManagerStaffTab() {
@@ -1356,45 +1291,39 @@ class _StaffScreenState extends State<StaffScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isSec = context.watch<AuthProvider>().isSecretary;
     final shopName = context.watch<ShopSettingsProvider>().shopName;
 
     return Scaffold(
       appBar: AppBar(
         title: Text('$shopName - Tailleurs'),
         actions: [
-          if (!isSec)
-            IconButton(
-              icon: const Icon(Icons.emoji_events_rounded),
-              tooltip: 'Classement du mois',
-              onPressed: _openMonthlyRanking,
-            ),
+          IconButton(
+            icon: const Icon(Icons.emoji_events_rounded),
+            tooltip: 'Classement du mois',
+            onPressed: _openMonthlyRanking,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadData,
           )
         ],
       ),
-      // Roster management (add a tailor) is open to both roles; wages stay
-      // manager-only (the secretary's view never shows rates/entries).
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addStaffMember,
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add_rounded, color: Colors.white),
         label: const Text('Tailleur', style: TextStyle(color: Colors.white)),
       ),
-      // Single view: the tailor list. Tap a tailor for everything (week
-      // detail, entries, add-entry, rate) in one sheet.
-      body: isSec
-          ? _buildSecretaryView()
-          : _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null
-                  ? Center(child: Text('Erreur: $_error'))
-                  : RefreshIndicator(
-                      onRefresh: _loadData,
-                      child: _buildManagerStaffTab(),
-                    ),
+      // Identical for BOTH roles (owner decision 2026-07-20): the tailor list;
+      // tap a tailor for everything (week detail, entries, add-entry, rate).
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(child: Text('Erreur: $_error'))
+              : RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: _buildManagerStaffTab(),
+                ),
     );
   }
 }

@@ -86,10 +86,16 @@ function createApp() {
   app.use('/api/staff', staffOnly, staffRouter);              // CRUD both (roster; pay stays manager-only)
   app.use('/api/upload', staffOnly, uploadRouter);
 
+  // -- TAILOR work + piece rates: BOTH roles (owner decision 2026-07-20) -----
+  // Piece prices vary per garment/model, so the secretary must be able to set
+  // them while assigning work — otherwise every price change funnels through
+  // the manager. She therefore sees tailor rates, amounts and weekly totals.
+  // Monthly SALARIES and every other financial surface stay manager-only.
+  app.use('/api/tailor-entries', staffOnly, tailorEntriesRouter);
+  app.use('/api/staff-pay', staffOnly, staffPayRouter); // secretary: couturiers + piece_rate only (in router)
+
   // -- [FINANCE] manager-only: the secretary gets 403 on every route ---------
-  app.use('/api/staff-pay', managerOnly, staffPayRouter);
   app.use('/api/salary-payments', managerOnly, salaryPaymentsRouter);
-  app.use('/api/tailor-entries', managerOnly, tailorEntriesRouter);
   app.use('/api/expenses', managerOnly, expensesRouter);
   app.use('/api/finance', managerOnly, financeRouter);
   app.use('/api/reports', managerOnly, reportsRouter);

@@ -71,14 +71,8 @@ describe('SECRETARY — financial routes are completely blocked (403)', () => {
     ['GET', '/api/sales'],
     ['GET', `/api/sales/${NIL}/corrections`],
     ['GET', '/api/expenses'],
-    ['GET', '/api/staff-pay'],
-    ['GET', `/api/staff-pay/${NIL}/history`],
     ['GET', '/api/salary-payments'],
     ['GET', `/api/salary-payments/${NIL}/corrections`],
-    ['GET', '/api/tailor-entries'],
-    ['GET', '/api/tailor-entries/weekly?week_id=2026-W27'],
-    ['GET', '/api/tailor-entries/monthly?month=2026-07'],
-    ['GET', `/api/tailor-entries/weekly-detail?week_id=2026-W27&tailor_id=${NIL}`],
     ['GET', '/api/finance/summary'],
     ['GET', '/api/reports/summary'],
     ['GET', '/api/settings/private'],
@@ -95,19 +89,55 @@ describe('SECRETARY — financial routes are completely blocked (403)', () => {
     expect(res.status).toBe(403);
   });
 
-  it('cannot create a tailor daily entry or a correction', async () => {
+  // TAILORS are fully open to her (owner decision 2026-07-20): piece prices
+  // vary per model, so she must be able to assign work AND price it.
+  it('CAN create a tailor daily entry, correct it, and read the totals', async () => {
+    // NB: 2027, deliberately outside the July-2026 window asserted by the
+    // finance-summary test below — this shop DB is shared across the suite.
     const e = await asSec(request(app).post('/api/tailor-entries'))
-      .send({ tailor_id: tailorId, entry_date: '2026-07-02', pieces_count: 3 });
-    expect(e.status).toBe(403);
-    const c = await asSec(request(app).post(`/api/tailor-entries/${entryId}/corrections`))
-      .send({ new_pieces: 9, reason: 'tentative' });
-    expect(c.status).toBe(403);
+      .send({ tailor_id: tailorId, entry_date: '2027-05-03', pieces_count: 3,
+        piece_rate: 4500, garment_type: 'Chemise' });
+    expect(e.status).toBe(201);
+    const c = await asSec(request(app).post(`/api/tailor-entries/${e.body.id}/corrections`))
+      .send({ new_pieces: 4, new_piece_rate: 5000, reason: 'Prix du modele' });
+    expect(c.status).toBe(201);
+    expect((await asSec(request(app).get(`/api/tailor-entries?tailor_id=${tailorId}`))).status)
+      .toBe(200);
+    const w = await asSec(request(app)
+      .get(`/api/tailor-entries/weekly?week_id=${e.body.week_id}`));
+    expect(w.status).toBe(200);
+    // She sees the money: 4 × 5000.
+    expect(w.body.items.find((r) => r.tailor_id === tailorId).amount_total).toBe(20000);
   });
 
-  it('cannot set piece rates or salaries', async () => {
+  it('CAN set a tailor piece rate (and read its history)', async () => {
     const res = await asSec(request(app).put(`/api/staff-pay/${tailorId}`))
-      .send({ piece_rate: 1 });
-    expect(res.status).toBe(403);
+      .send({ piece_rate: 3500 });
+    expect(res.status).toBe(200);
+    expect(res.body.piece_rate).toBe(3500);
+    // ...but never a salary field, even in the response.
+    expect(res.body).not.toHaveProperty('monthly_salary');
+    expect((await asSec(request(app).get(`/api/staff-pay/${tailorId}/history`))).status).toBe(200);
+  });
+
+  it('staff-pay list shows her ONLY couturiers, without any salary field', async () => {
+    const res = await asSec(request(app).get('/api/staff-pay'));
+    expect(res.status).toBe(200);
+    for (const row of res.body.items) {
+      expect(row.type).toBe('couturier');
+      expect(row).not.toHaveProperty('monthly_salary');
+      expect(row).not.toHaveProperty('salary_due_day');
+    }
+    expect(JSON.stringify(res.body)).not.toMatch(/monthly_salary|salary_due_day/);
+  });
+
+  it('cannot touch a MONTHLY employee pay record (salaries stay manager-only)', async () => {
+    const monthly = await asManager(request(app).post('/api/staff'))
+      .send({ full_name: 'Gardien', type: 'autre' });
+    expect((await asSec(request(app).put(`/api/staff-pay/${monthly.body.id}`))
+      .send({ piece_rate: 1 })).status).toBe(403);
+    expect((await asSec(request(app).get(`/api/staff-pay/${monthly.body.id}/history`))).status)
+      .toBe(403);
   });
 
   it('cannot correct a sale (corrections are manager-only)', async () => {
@@ -265,10 +295,9 @@ describe('SECRETARY — allowed daily operations', () => {
       .send({ full_name: 'Renommé', type: 'couturier' })).status).toBe(200);
     expect((await asSec(request(app).delete(`/api/staff/${created.body.id}`))).status).toBe(204);
 
-    // Pay/wages stay manager-only regardless.
-    expect((await asSec(request(app).get('/api/staff-pay'))).status).toBe(403);
-    expect((await asSec(request(app).get(`/api/tailor-entries?tailor_id=${tailorId}`))).status)
-      .toBe(403);
+    // Tailor pay/wages are hers too now; monthly salaries are not.
+    expect((await asSec(request(app).get('/api/staff-pay'))).status).toBe(200);
+    expect((await asSec(request(app).get('/api/salary-payments'))).status).toBe(403);
   });
 
   it('can create and update orders; invalid status rejected; delete denied', async () => {

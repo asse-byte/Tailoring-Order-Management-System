@@ -106,6 +106,17 @@ try {
                 $webOut = Join-Path $distDir 'web'
                 if (Test-Path $webOut) { Remove-Item -Recurse -Force $webOut }
                 Copy-Item -Recurse (Join-Path $appDir 'build\web') $webOut
+                # version.json is Flutter metadata (browsers never use it for the
+                # install name) but it still carried the pubspec name
+                # "tailoring_app". Stamp it so NO artefact mentions it and the
+                # shop name is the only name anywhere in the build.
+                $vf = Join-Path $webOut 'version.json'
+                if (Test-Path $vf) {
+                    $vj = [IO.File]::ReadAllText($vf)
+                    $vj = $vj -replace '"app_name"\s*:\s*"[^"]*"', "`"app_name`": `"$jsonName`""
+                    $vj = $vj -replace '"package_name"\s*:\s*"[^"]*"', "`"package_name`": `"$jsonName`""
+                    [IO.File]::WriteAllText($vf, $vj)
+                }
             }
             if (-not $SkipApk) {
                 Write-Host "[2/2] flutter build apk..." -ForegroundColor Cyan

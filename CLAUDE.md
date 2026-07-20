@@ -6,13 +6,31 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
 
 ## Non-negotiable rules
 
-1. **Two operating users only**: `MANAGER` (le Gérant — full access to everything)
-   and `SECRETARY` (la Secrétaire — must NEVER see any financial data: profits,
-   revenues, expenses, tailor piece-rates/wages, staff salaries).
+1. **Two operating users only**: `MANAGER` (le Gérant — full access to
+   everything) and `SECRETARY` (la Secrétaire). The secretary must NEVER see
+   the shop's money: profits, revenues, product/model cost prices and margins,
+   expenses, monthly staff salaries and salary payments.
+   **Exception, deliberately granted by the owner (2026-07-20): TAILOR
+   piece-rates and wages ARE hers** — see rule 2 for the exact boundary. Read
+   rule 2 before touching any permission; the two rules together are the whole
+   truth, and neither may be narrowed without the owner's word.
 2. **Financial isolation must be enforced server-side** (API role checks
    backed by DB constraints), never only by hiding UI. Any finance
    endpoint must return 403 to the secretary, and the test suite in
    `backend/tests/` proving this must always pass.
+   - **TAILORS are fully open to the secretary (owner decision 2026-07-20,
+     "option B"):** piece prices differ per garment/model and there are many
+     models, so routing every price through the manager was unworkable. The
+     secretary therefore has the manager's full powers over tailors: she creates
+     and corrects daily entries INCLUDING `piece_rate`, and sees amounts,
+     weekly totals and the monthly ranking. `/api/tailor-entries` is both-roles;
+     `/api/staff-pay` is both-roles but the secretary is confined to
+     `type = 'couturier'` and to `piece_rate` — `monthly_salary` /
+     `salary_due_day` are stripped from her reads, ignored on her writes, and
+     any staff-pay route for a non-couturier returns 403 to her.
+     Still MANAGER-ONLY: monthly salaries, `/api/salary-payments`,
+     `/api/finance`, `/api/reports`, `/api/expenses`, `GET /api/sales`,
+     product/model `cost_price` + `/stats`, `/api/settings/private`, `/api/users`.
    - **Secretary CRUD on master data (owner decision 2026-07-19, "interpretation
      A"):** the secretary MAY fully manage the roster/catalog on four pages —
      Tailleurs, Staff mensuel, Prêt-à-porter, Produits (create/edit/delete the
@@ -36,10 +54,11 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
 2. Produits — categories: Parfums / Chaussures / Tissus; price, stock,
    images; sale decrements stock and records revenue in Finances.
 3. Staff / Personnel — two distinct types:
-   - **Couturiers principaux**: per-piece pay. Manager sets `piece_rate`
-     (per tailor or default), enters daily pieces count; system computes
-     daily amount and weekly totals (paid weekly). Daily entries are
-     immutable history — never deleted after week close.
+   - **Couturiers principaux**: per-piece pay. Manager **or secretary** sets
+     `piece_rate` (per tailor, per entry, or default) and enters the daily
+     pieces count; system computes daily amount and weekly totals (paid
+     weekly). Daily entries are immutable history — never deleted after week
+     close (corrections only).
    - **Non-couturiers**: fixed monthly salary.
    Secretary may see names/contacts only — never pay data.
 4. Finances — **MANAGER ONLY, completely absent from secretary UI**.
