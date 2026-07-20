@@ -113,7 +113,10 @@ for d in SHOPSDIR/*/; do
   s=$(basename "$d")
   [ -f "$d/docker-compose.yml" ] || continue
   [ -f "$d/.env" ] || continue
-  name=$(grep -m1 "^SHOP_NAME=" "$d/.env" | cut -d= -f2- | tr -d "\r")
+  # Strip CR and any surrounding quotes: SHOP_NAME="CouturePro Demo" is valid
+  # .env syntax, but the quotes must NOT end up in the PWA name (they did:
+  # the demo shipped as "\"CouturePro Demo\"").
+  name=$(grep -m1 "^SHOP_NAME=" "$d/.env" | cut -d= -f2- | tr -d "\r\"'")
   port=$(grep -m1 "^API_PORT=" "$d/.env" | cut -d= -f2 | tr -d " \t\r")
   conf=""
   if [ -n "$port" ]; then
