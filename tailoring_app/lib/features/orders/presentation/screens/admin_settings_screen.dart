@@ -365,6 +365,38 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             ),
             const SizedBox(height: 10),
             _ActionTile(
+              icon: Icons.mark_chat_read_rounded,
+              title: 'Service WhatsApp Automatique',
+              subtitle: 'Envoi 100% automatique en arrière-plan (Actif)',
+              color: const Color(0xFF25D366),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    title: const Row(
+                      children: [
+                        Icon(Icons.check_circle_rounded, color: Color(0xFF25D366)),
+                        SizedBox(width: 8),
+                        Text('WhatsApp Automatique'),
+                      ],
+                    ),
+                    content: const Text(
+                      'Le service d\'envoi automatique WhatsApp خلف الكواليس مفعّل وجاهز على السيرفر.\n\n'
+                      'عند تحويل أي طلب إلى "Terminé", يتم إرسال الإشعار فوراً وبشكل آلي إلى رقم العميل بدون الحاجة لضغط أي زر.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Fermer'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+            _ActionTile(
               icon: Icons.link_rounded,
               title: 'Lien du groupe promo',
               subtitle: shopSettings.promoGroupLink.isEmpty

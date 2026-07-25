@@ -19,6 +19,7 @@ const pretAPorterRouter = require('./routes/pretAPorter');
 const settings = require('./routes/settings');
 const usersRouter = require('./routes/users');
 const uploadRouter = require('./routes/upload');
+const whatsappRouter = require('./routes/whatsapp');
 
 function createApp() {
   const app = express();
@@ -85,6 +86,7 @@ function createApp() {
   app.use('/api/sales', staffOnly, salesRouter);              // GET: manager (in router)
   app.use('/api/staff', staffOnly, staffRouter);              // CRUD both (roster; pay stays manager-only)
   app.use('/api/upload', staffOnly, uploadRouter);
+  app.use('/api/whatsapp', staffOnly, whatsappRouter);
 
   // -- TAILOR work + piece rates: BOTH roles (owner decision 2026-07-20) -----
   // Piece prices vary per garment/model, so the secretary must be able to set

@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { managerOnly } = require('../middleware/auth');
 const { asyncH, pagination, intOrNull, dateStr, str } = require('../util');
+const whatsappService = require('../services/whatsapp');
 
 const router = express.Router();
 const STATUSES = ['en_attente', 'en_cours', 'termine', 'livre'];
@@ -165,6 +166,13 @@ router.put('/:id', asyncH(async (req, res) => {
       status || null, req.params.id]);
   if (!rows[0]) return res.status(404).json({ error: 'Commande introuvable.' });
   const { rows: full } = await db.query(`${ORDER_SELECT} WHERE o.id = $1`, [req.params.id]);
+
+  if (status === 'termine' && full[0]) {
+    whatsappService.sendOrderReadyMessage(full[0]).catch(err => {
+      console.error('[WhatsApp Background Send Error]:', err.message);
+    });
+  }
+
   res.json(full[0]);
 }));
 
