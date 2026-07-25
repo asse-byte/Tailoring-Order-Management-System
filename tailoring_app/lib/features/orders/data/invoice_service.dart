@@ -314,7 +314,7 @@ class InvoiceService {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: <pw.Widget>[
                     pw.Text(shopName,
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                             fontSize: 22,
                             fontWeight: pw.FontWeight.bold,
                             color: _teal)),
@@ -358,7 +358,7 @@ class InvoiceService {
               mainAxisAlignment: pw.MainAxisAlignment.end,
               children: <pw.Widget>[
                 pw.Text('TOTAL PAYÉ : ${formatFcfa(total)}',
-                    style: pw.TextStyle(
+                    style: const pw.TextStyle(
                         fontSize: 16,
                         fontWeight: pw.FontWeight.bold,
                         color: _gold)),
