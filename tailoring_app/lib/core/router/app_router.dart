@@ -23,6 +23,7 @@ import '../../features/staff/presentation/screens/monthly_staff_screen.dart';
 import '../../features/finance/presentation/screens/finance_screen.dart';
 import '../../features/reports/presentation/screens/reports_screen.dart';
 import '../../features/ready_to_wear/presentation/screens/ready_to_wear_screen.dart';
+import '../../features/ready_to_wear/presentation/screens/models_showcase_screen.dart';
 import '../../features/appointments/presentation/screens/appointments_screen.dart';
 
 /// Wraps a [Listenable] so GoRouter can refresh on auth changes.
@@ -132,6 +133,10 @@ class AppRouter {
             GoRoute(
               path: 'ready-to-wear',
               builder: (_, __) => const ReadyToWearScreen(),
+            ),
+            GoRoute(
+              path: 'models-showcase',
+              builder: (_, __) => const ModelsShowcaseScreen(),
             ),
             GoRoute(
               path: 'appointments',

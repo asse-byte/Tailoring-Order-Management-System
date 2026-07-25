@@ -56,6 +56,11 @@ class DashboardScreen extends StatelessWidget {
           icon: Icons.account_balance_wallet_rounded,
           route: '/admin/finance',
         ),
+      const _DashboardItem(
+        title: 'Mes Modèles',
+        icon: Icons.collections_rounded,
+        route: '/admin/models-showcase',
+      ),
       _DashboardItem(
         title: context.loc.readyToWear,
         icon: Icons.checkroom_rounded,
