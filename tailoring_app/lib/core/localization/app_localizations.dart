@@ -565,7 +565,7 @@ class AppLocalizations {
       'products': 'Produits',
       'staff': 'Personnel',
       'finance': 'Finance',
-      'readyToWear': 'Prêt-à-porter',
+      'readyToWear': 'Mes Modèles',
       'command': 'Commandes',
       'appointments': 'Rendez-vous',
       'history': 'Historiques',
