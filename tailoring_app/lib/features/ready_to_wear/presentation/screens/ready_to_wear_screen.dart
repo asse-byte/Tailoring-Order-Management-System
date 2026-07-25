@@ -565,6 +565,50 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                 // Lazy-loaded Video Player
                 LazyVideoPlayer(videoUrl: resolvedVideo),
               ],
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Modifier'),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _addOrEditModel(m);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(foregroundColor: AppColors.error),
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      label: const Text('Supprimer'),
+                      onPressed: () async {
+                        final confirm = await confirmDeleteByTyping(
+                          context,
+                          itemName: m.name,
+                          itemLabel: 'ce modèle',
+                          historyNote: 'Les ventes de ce modèle resteront en mémoire dans les Finances.',
+                        );
+                        if (confirm) {
+                          Navigator.pop(ctx);
+                          try {
+                            await _repo.delete(m.id);
+                            _loadModels();
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+                              );
+                            }
+                          }
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         );

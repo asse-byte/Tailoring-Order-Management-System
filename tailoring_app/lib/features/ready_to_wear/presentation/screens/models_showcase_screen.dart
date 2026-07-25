@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 import '../../data/pret_a_porter_repository.dart';
 
@@ -199,6 +200,36 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                 onPressed: () {
                   Navigator.pop(ctx);
                   context.push('/admin/walk-in');
+                },
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: const BorderSide(color: AppColors.error),
+                ),
+                icon: const Icon(Icons.delete_outline_rounded),
+                label: const Text('Supprimer ce modèle'),
+                onPressed: () async {
+                  final confirm = await confirmDeleteByTyping(
+                    context,
+                    itemName: m.name,
+                    itemLabel: 'ce modèle',
+                    historyNote: 'Les commandes créées avec ce modèle restent enregistrées.',
+                  );
+                  if (confirm) {
+                    Navigator.pop(ctx);
+                    try {
+                      await _repo.delete(m.id);
+                      _loadModels();
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+                        );
+                      }
+                    }
+                  }
                 },
               ),
             ],
