@@ -94,6 +94,23 @@ class OrderCard extends StatelessWidget {
                     style: theme.textTheme.bodySmall,
                   ),
                   const Spacer(),
+                  if (order.reste > 0)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Reste: ${formatFcfa(order.reste)}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ),
                   Text(
                     formatFcfa(order.total),
                     style: theme.textTheme.titleMedium?.copyWith(

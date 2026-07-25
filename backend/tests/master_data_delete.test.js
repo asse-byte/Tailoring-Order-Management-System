@@ -127,13 +127,13 @@ describe('Type-A delete access', () => {
       .send({ name: 'Kaftan', fabric_type: 'soie', price: 40000 })).body.id;
   });
 
-  // SECURITY FIX (separate from the feature): DELETE /clients was unprotected.
-  // Clients were NOT part of the secretary-CRUD grant → still manager-only.
-  test('DELETE /api/clients with a secretary token → 403', async () => {
+  // DELETE /clients open to secretary per owner directive (delivered orders
+  // preserved via client_name_snapshot).
+  test('DELETE /api/clients with a secretary token → 204 (master data delete)', async () => {
     const res = await asSec(request(app).delete(`/api/clients/${clientId}`));
-    expect(res.status).toBe(403);
-    // Still there when the manager looks.
-    expect((await asM(request(app).get(`/api/clients/${clientId}`))).status).toBe(200);
+    expect(res.status).toBe(204);
+    // Verified deleted when looked up.
+    expect((await asM(request(app).get(`/api/clients/${clientId}`))).status).toBe(404);
   });
 
   test('DELETE /api/staff with a secretary token → 204 (roster management)', async () => {

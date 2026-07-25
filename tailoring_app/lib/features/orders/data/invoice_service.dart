@@ -266,6 +266,116 @@ class InvoiceService {
     return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  /// Opens WhatsApp with a friendly notification that the garment is ready.
+  static Future<bool> sendOrderReadyWhatsApp({
+    required TailoringOrder order,
+    required String shopName,
+  }) async {
+    final phone = _waPhone(order.clientPhone);
+    if (phone == null) return false;
+
+    final msg = StringBuffer()
+      ..writeln('Bonjour ${order.clientName},')
+      ..writeln()
+      ..writeln('Bonne nouvelle ! Votre commande chez $shopName est prête pour retrait !')
+      ..writeln('Reste à régler: ${formatFcfa(order.reste)}')
+      ..writeln()
+      ..writeln('Vous pouvez passer la récupérer à l\'atelier à tout moment.')
+      ..writeln('Merci beaucoup pour votre patience et votre confiance !')
+      ..writeln('À très bientôt chez $shopName.');
+
+    final uri = Uri.parse(
+        'https://wa.me/$phone?text=${Uri.encodeComponent(msg.toString())}');
+    return launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  /// Generates a branded PDF receipt for a counter product/model sale.
+  static Future<Uint8List> buildSaleReceiptPdf({
+    required String itemName,
+    required String itemKind,
+    required int qty,
+    required int unitPrice,
+    required int total,
+    required String shopName,
+  }) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context ctx) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: <pw.Widget>[
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: <pw.Widget>[
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: <pw.Widget>[
+                    pw.Text(shopName,
+                        style: pw.TextStyle(
+                            fontSize: 22,
+                            fontWeight: pw.FontWeight.bold,
+                            color: _teal)),
+                    pw.Text('Reçu de vente comptoir',
+                        style: const pw.TextStyle(fontSize: 14, color: PdfColors.grey700)),
+                  ],
+                ),
+                pw.Text('Date: ${_fmtDate(DateTime.now())}',
+                    style: const pw.TextStyle(fontSize: 12)),
+              ],
+            ),
+            pw.SizedBox(height: 12),
+            pw.Divider(thickness: 1, color: _teal),
+            pw.SizedBox(height: 20),
+            pw.Table(
+              border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+              children: <pw.TableRow>[
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: _teal),
+                  children: <pw.Widget>[
+                    _cell('Article', bold: true, color: PdfColors.white),
+                    _cell('Type', bold: true, color: PdfColors.white),
+                    _cell('Quantité', bold: true, color: PdfColors.white),
+                    _cell('Prix Unitaire', bold: true, color: PdfColors.white),
+                    _cell('Total', bold: true, color: PdfColors.white),
+                  ],
+                ),
+                pw.TableRow(
+                  children: <pw.Widget>[
+                    _cell(itemName),
+                    _cell(itemKind),
+                    _cell(qty.toString()),
+                    _cell(formatFcfa(unitPrice)),
+                    _cell(formatFcfa(total), bold: true),
+                  ],
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.end,
+              children: <pw.Widget>[
+                pw.Text('TOTAL PAYÉ : ${formatFcfa(total)}',
+                    style: pw.TextStyle(
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                        color: _gold)),
+              ],
+            ),
+            pw.Spacer(),
+            pw.Center(
+              child: pw.Text('Merci pour votre achat chez $shopName ! À bientôt.',
+                  style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+            ),
+          ],
+        ),
+      ),
+    );
+    return pdf.save();
+  }
+
   static String _fmtDate(DateTime? d) => d == null
       ? '—'
       : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';

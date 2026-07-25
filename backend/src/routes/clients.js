@@ -73,11 +73,10 @@ router.put('/:id', asyncH(async (req, res) => {
   res.json(rows[0]);
 }));
 
-// Manager-only (security fix): deleting a client is destructive master-data
-// removal, never something the secretary may do. Delivered orders survive in
-// Historique via their client_name_snapshot (orders.client_id → ON DELETE SET
-// NULL, migration 012); measurements/appointments cascade away with the client.
-router.delete('/:id', managerOnly, asyncH(async (req, res) => {
+// Master-data delete (both roles allowed per owner directive): delivered orders
+// survive in Historique via their client_name_snapshot (orders.client_id → ON
+// DELETE SET NULL, migration 012); measurements/appointments cascade away.
+router.delete('/:id', asyncH(async (req, res) => {
   const { rowCount } = await db.query('DELETE FROM clients WHERE id = $1', [req.params.id]);
   if (!rowCount) return res.status(404).json({ error: 'Client introuvable.' });
   res.status(204).end();

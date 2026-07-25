@@ -162,8 +162,61 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       _toast(chosen == AppConstants.statusLivre
           ? 'Commande livrée — déplacée vers l\'Historique.'
           : 'Statut mis à jour.');
+
+      if (chosen == AppConstants.statusTermine) {
+        final settings = context.read<ShopSettingsProvider>();
+        final bool sent = await InvoiceService.sendOrderReadyWhatsApp(
+          order: _order!,
+          shopName: settings.shopName,
+        );
+        if (sent && mounted) {
+          _toast('Notification WhatsApp "Commande prête" envoyée au client !');
+        }
+      }
     } catch (e) {
       if (mounted) _toast('Impossible de mettre à jour : $e', error: true);
+    }
+  }
+
+  Future<void> _markAsPaid() async {
+    final order = _order;
+    if (order == null || order.reste <= 0) return;
+
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Marquer comme soldé'),
+        content: Text(
+          'Confirmer le règlement intégral du solde restant ?\n\n'
+          'Montant à régler : ${formatFcfa(order.reste)}',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirmer le paiement'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    try {
+      _order = await _repo.update(order.id, advance: order.total);
+      if (!mounted) return;
+      setState(() {});
+      _toast('Commande marquée comme entièrement soldée !');
+    } catch (e) {
+      if (mounted) _toast('Erreur : $e', error: true);
     }
   }
 
@@ -795,6 +848,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
+          if (_order != null && _order!.reste > 0) ...<Widget>[
+            ElevatedButton.icon(
+              icon: const Icon(Icons.check_circle_outline_rounded),
+              label: Text('Marquer comme soldé (${formatFcfa(_order!.reste)})'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: _markAsPaid,
+            ),
+            const SizedBox(height: 10),
+          ],
           PrimaryButton(
             label: 'Modifier le statut',
             icon: Icons.timeline_rounded,

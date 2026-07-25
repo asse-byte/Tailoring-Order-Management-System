@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:printing/printing.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -14,6 +15,7 @@ import '../providers/products_provider.dart';
 import '../../domain/product.dart';
 import '../../data/products_repository.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
+import '../../../orders/data/invoice_service.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -103,8 +105,32 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 Navigator.pop(ctx);
                 final success = await context.read<ProductsProvider>().sellProduct(product.id, qty);
                 if (success && mounted) {
+                  final settings = context.read<ShopSettingsProvider>();
+                  final total = qty * product.price.toInt();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Vente enregistrée avec succès !'), backgroundColor: AppColors.success),
+                    SnackBar(
+                      content: const Text('Vente enregistrée avec succès !'),
+                      backgroundColor: AppColors.success,
+                      duration: const Duration(seconds: 8),
+                      action: SnackBarAction(
+                        label: 'Imprimer reçu',
+                        textColor: Colors.white,
+                        onPressed: () async {
+                          final pdfBytes = await InvoiceService.buildSaleReceiptPdf(
+                            itemName: product.name,
+                            itemKind: _mapCategoryToFrench(product.category),
+                            qty: qty,
+                            unitPrice: product.price.toInt(),
+                            total: total,
+                            shopName: settings.shopName,
+                          );
+                          await Printing.layoutPdf(
+                            onLayout: (format) async => pdfBytes,
+                            name: 'recu_vente_${product.name}.pdf',
+                          );
+                        },
+                      ),
+                    ),
                   );
                 } else if (mounted) {
                   final err = context.read<ProductsProvider>().error ?? 'Une erreur est survenue.';

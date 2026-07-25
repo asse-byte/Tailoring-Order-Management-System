@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
+import 'package:printing/printing.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -12,6 +13,7 @@ import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/pret_a_porter_repository.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
+import '../../../orders/data/invoice_service.dart';
 
 class ReadyToWearScreen extends StatefulWidget {
   const ReadyToWearScreen({super.key});
@@ -90,8 +92,32 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                   await _repo.sellModel(modelId: model.id, quantity: qty);
                   setState(() => _loading = false);
                   if (mounted) {
+                    final settings = context.read<ShopSettingsProvider>();
+                    final total = qty * model.price.toInt();
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Vente de prêt-à-porter enregistrée avec succès !'), backgroundColor: AppColors.success),
+                      SnackBar(
+                        content: const Text('Vente de prêt-à-porter enregistrée avec succès !'),
+                        backgroundColor: AppColors.success,
+                        duration: const Duration(seconds: 8),
+                        action: SnackBarAction(
+                          label: 'Imprimer reçu',
+                          textColor: Colors.white,
+                          onPressed: () async {
+                            final pdfBytes = await InvoiceService.buildSaleReceiptPdf(
+                              itemName: model.name,
+                              itemKind: 'Modèle Prêt-à-porter',
+                              qty: qty,
+                              unitPrice: model.price.toInt(),
+                              total: total,
+                              shopName: settings.shopName,
+                            );
+                            await Printing.layoutPdf(
+                              onLayout: (format) async => pdfBytes,
+                              name: 'recu_modele_${model.name}.pdf',
+                            );
+                          },
+                        ),
+                      ),
                     );
                   }
                 } catch (e) {
@@ -554,7 +580,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('$shopName - Prêt-à-porter'),
+        title: Text('$shopName - Mes Modèles'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
