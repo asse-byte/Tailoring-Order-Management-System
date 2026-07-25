@@ -591,11 +591,11 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                           itemLabel: 'ce modèle',
                           historyNote: 'Les ventes de ce modèle resteront en mémoire dans les Finances.',
                         );
-                        if (confirm) {
+                        if (confirm && ctx.mounted) {
                           Navigator.pop(ctx);
                           try {
                             await _repo.delete(m.id);
-                            _loadModels();
+                            if (mounted) _loadModels();
                           } catch (e) {
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(

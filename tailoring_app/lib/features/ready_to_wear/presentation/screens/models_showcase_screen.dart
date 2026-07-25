@@ -217,11 +217,11 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                     itemLabel: 'ce modèle',
                     historyNote: 'Les commandes créées avec ce modèle restent enregistrées.',
                   );
-                  if (confirm) {
+                  if (confirm && ctx.mounted) {
                     Navigator.pop(ctx);
                     try {
                       await _repo.delete(m.id);
-                      _loadModels();
+                      if (mounted) _loadModels();
                     } catch (e) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
