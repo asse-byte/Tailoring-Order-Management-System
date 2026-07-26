@@ -69,28 +69,43 @@ class _ProductsScreenState extends State<ProductsScreen> {
   Future<void> _recordSale(Product product) async {
     final formKey = GlobalKey<FormState>();
     int qty = 1;
+    final priceCtrl = TextEditingController(text: formatThousands(product.price.toInt()));
 
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Vendre / Sell - ${product.name}'),
+        title: Text('Vendre - ${product.name}'),
         content: Form(
           key: formKey,
-          child: TextFormField(
-            decoration: const InputDecoration(
-              labelText: 'Quantité à vendre',
-              suffixText: 'unités',
-            ),
-            keyboardType: TextInputType.number,
-            initialValue: '1',
-            validator: (v) {
-              final val = int.tryParse(v ?? '');
-              if (val == null || val < 1) return 'Quantité invalide';
-              if (val > product.quantity) return 'Stock insuffisant (${product.quantity} dispo)';
-              return null;
-            },
-            onSaved: (v) => qty = int.tryParse(v ?? '') ?? 1,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                decoration: const InputDecoration(
+                  labelText: 'Quantité à vendre',
+                  suffixText: 'unités',
+                ),
+                keyboardType: TextInputType.number,
+                initialValue: '1',
+                validator: (v) {
+                  final val = int.tryParse(v ?? '');
+                  if (val == null || val < 1) return 'Quantité invalide';
+                  if (val > product.quantity) return 'Stock insuffisant (${product.quantity} dispo)';
+                  return null;
+                },
+                onSaved: (v) => qty = int.tryParse(v ?? '') ?? 1,
+              ),
+              const SizedBox(height: 12),
+              FormattedNumberField(
+                controller: priceCtrl,
+                label: 'Prix de vente unitaire (FCFA)',
+                validator: (val) {
+                  if (val == null || val < 0) return 'Prix invalide';
+                  return null;
+                },
+              ),
+            ],
           ),
         ),
         actions: [
@@ -102,11 +117,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
             onPressed: () async {
               if (formKey.currentState!.validate()) {
                 formKey.currentState!.save();
+                final customPrice = parseThousands(priceCtrl.text) ?? product.price.toInt();
                 Navigator.pop(ctx);
-                final success = await context.read<ProductsProvider>().sellProduct(product.id, qty);
+                final success = await context.read<ProductsProvider>().sellProduct(
+                      product.id,
+                      qty,
+                      unitPrice: customPrice,
+                    );
                 if (success && mounted) {
                   final settings = context.read<ShopSettingsProvider>();
-                  final total = qty * product.price.toInt();
+                  final total = qty * customPrice;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text('Vente enregistrée avec succès !'),
@@ -120,7 +140,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             itemName: product.name,
                             itemKind: _mapCategoryToFrench(product.category),
                             qty: qty,
-                            unitPrice: product.price.toInt(),
+                            unitPrice: customPrice,
                             total: total,
                             shopName: settings.shopName,
                           );

@@ -70,15 +70,16 @@ class ProductsRepository {
 
   Future<void> delete(String id) => _api.delete('/api/products/$id');
 
-  /// Sells a product from the counter
   Future<void> sellProduct({
     required String productId,
     required int quantity,
+    int? unitPrice,
   }) async {
     await _api.post('/api/sales', body: {
       'kind': 'produit',
       'item_id': productId,
       'qty': quantity,
+      if (unitPrice != null) 'unit_price': unitPrice,
     });
   }
 

@@ -148,12 +148,16 @@ class ProductsProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> sellProduct(String productId, int quantity) async {
+  Future<bool> sellProduct(String productId, int quantity, {int? unitPrice}) async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      await _repo.sellProduct(productId: productId, quantity: quantity);
+      await _repo.sellProduct(
+        productId: productId,
+        quantity: quantity,
+        unitPrice: unitPrice,
+      );
       // Update local product stock
       final idx = _items.indexWhere((x) => x.id == productId);
       if (idx != -1) {

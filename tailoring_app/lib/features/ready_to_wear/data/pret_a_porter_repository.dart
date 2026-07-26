@@ -143,15 +143,16 @@ class PretAPorterRepository {
 
   Future<void> delete(String id) => _api.delete('/api/pret-a-porter/$id');
 
-  /// Sells a model from the counter
   Future<void> sellModel({
     required String modelId,
     required int quantity,
+    int? unitPrice,
   }) async {
     await _api.post('/api/sales', body: {
       'kind': 'pret_a_porter', // valeur API exacte — 'pret-a-porter' est rejeté
       'item_id': modelId,
       'qty': quantity,
+      if (unitPrice != null) 'unit_price': unitPrice,
     });
   }
 

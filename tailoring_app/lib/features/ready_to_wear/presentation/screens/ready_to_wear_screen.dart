@@ -54,6 +54,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
   Future<void> _recordSale(PretAPorterModel model) async {
     final formKey = GlobalKey<FormState>();
     int qty = 1;
+    final priceCtrl = TextEditingController(text: formatThousands(model.price.toInt()));
 
     await showDialog(
       context: context,
@@ -62,19 +63,33 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
         title: Text('Vendre Modèle - ${model.name}'),
         content: Form(
           key: formKey,
-          child: TextFormField(
-            decoration: const InputDecoration(
-              labelText: 'Quantité à vendre',
-              suffixText: 'unités',
-            ),
-            keyboardType: TextInputType.number,
-            initialValue: '1',
-            validator: (v) {
-              final val = int.tryParse(v ?? '');
-              if (val == null || val < 1) return 'Quantité invalide';
-              return null;
-            },
-            onSaved: (v) => qty = int.tryParse(v ?? '') ?? 1,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                decoration: const InputDecoration(
+                  labelText: 'Quantité à vendre',
+                  suffixText: 'unités',
+                ),
+                keyboardType: TextInputType.number,
+                initialValue: '1',
+                validator: (v) {
+                  final val = int.tryParse(v ?? '');
+                  if (val == null || val < 1) return 'Quantité invalide';
+                  return null;
+                },
+                onSaved: (v) => qty = int.tryParse(v ?? '') ?? 1,
+              ),
+              const SizedBox(height: 12),
+              FormattedNumberField(
+                controller: priceCtrl,
+                label: 'Prix de vente unitaire (FCFA)',
+                validator: (val) {
+                  if (val == null || val < 0) return 'Prix invalide';
+                  return null;
+                },
+              ),
+            ],
           ),
         ),
         actions: [
@@ -86,14 +101,19 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
             onPressed: () async {
               if (formKey.currentState!.validate()) {
                 formKey.currentState!.save();
+                final customPrice = parseThousands(priceCtrl.text) ?? model.price.toInt();
                 Navigator.pop(ctx);
                 try {
                   setState(() => _loading = true);
-                  await _repo.sellModel(modelId: model.id, quantity: qty);
+                  await _repo.sellModel(
+                    modelId: model.id,
+                    quantity: qty,
+                    unitPrice: customPrice,
+                  );
                   setState(() => _loading = false);
                   if (mounted) {
                     final settings = context.read<ShopSettingsProvider>();
-                    final total = qty * model.price.toInt();
+                    final total = qty * customPrice;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: const Text('Vente de prêt-à-porter enregistrée avec succès !'),
@@ -107,7 +127,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                               itemName: model.name,
                               itemKind: 'Modèle Prêt-à-porter',
                               qty: qty,
-                              unitPrice: model.price.toInt(),
+                              unitPrice: customPrice,
                               total: total,
                               shopName: settings.shopName,
                             );

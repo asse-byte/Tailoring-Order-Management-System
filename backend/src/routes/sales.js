@@ -38,10 +38,13 @@ router.post('/', asyncH(async (req, res) => {
         if (!rows[0]) return { status: 404, error: 'Modèle introuvable.' };
         ({ name, price } = rows[0]);
       }
+      const customPrice = intOrNull(req.body.unit_price);
+      const finalPrice = (customPrice !== null && customPrice >= 0) ? customPrice : price;
+
       const { rows: inserted } = await tx.query(
         `INSERT INTO sales (kind, item_id, item_name, qty, unit_price, total, created_by)
          VALUES ($1, $2, $3, $4::int, $5::int, $4::int * $5::int, $6) RETURNING *`,
-        [kind, itemId, name, qty, price, req.user.id]);
+        [kind, itemId, name, qty, finalPrice, req.user.id]);
       return { status: 201, sale: inserted[0] };
     });
 

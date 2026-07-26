@@ -389,13 +389,13 @@ describe('Sales — server-side pricing and atomic stock', () => {
     expect(rows[0].quantity).toBe(8); // 10 - 2
   });
 
-  it('any price/total sent by the client is IGNORED — the DB prices the sale', async () => {
+  it('client can specify custom unit_price (e.g. discount/VIP); DB calculates total', async () => {
     await asSec(request(app).post('/api/sales'))
-      .send({ kind: 'produit', item_id: productId, qty: 1, unit_price: 1, total: 1 });
+      .send({ kind: 'produit', item_id: productId, qty: 1, unit_price: 12000 });
     const { rows } = await db.query(
       'SELECT unit_price, total FROM sales ORDER BY sold_at DESC LIMIT 1');
-    expect(rows[0].unit_price).toBe(15000);
-    expect(rows[0].total).toBe(15000);
+    expect(rows[0].unit_price).toBe(12000);
+    expect(rows[0].total).toBe(12000);
   });
 
   it('sale beyond stock → 409 and stock unchanged', async () => {
