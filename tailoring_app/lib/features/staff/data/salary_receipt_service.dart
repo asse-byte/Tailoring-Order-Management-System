@@ -27,12 +27,8 @@ class SalaryReceiptService {
             : '${ApiClient.baseUrl}$logoUrl';
         final res = await http.get(Uri.parse(url));
         if (res.statusCode == 200) return res.bodyBytes;
-      } catch (_) {/* fall back */}
+      } catch (_) {}
     }
-    try {
-      final data = await rootBundle.load('assets/logo.jpeg');
-      return data.buffer.asUint8List();
-    } catch (_) {/* fall back to placeholder */}
     return null;
   }
 
@@ -43,8 +39,10 @@ class SalaryReceiptService {
     required String roleLabel,
     required String periodLabel,
     required int amount,
-    required String paidAtLabel,
-    required String receiptNo,
+    required String paidDate,
+    required String paymentMode,
+    String? reference,
+    String? note,
     Uint8List? logoBytes,
   }) async {
     final doc = pw.Document();
@@ -71,7 +69,8 @@ class SalaryReceiptService {
                   ),
                   alignment: pw.Alignment.center,
                   child: logo == null
-                      ? pw.Text('R',
+                      ? pw.Text(
+                          shopName.trim().isNotEmpty ? shopName.trim()[0].toUpperCase() : 'C',
                           style: const pw.TextStyle(
                               color: PdfColors.white,
                               fontSize: 30,

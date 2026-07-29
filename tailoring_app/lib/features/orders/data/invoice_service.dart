@@ -22,8 +22,6 @@ class InvoiceService {
   static const PdfColor _gold = PdfColor.fromInt(0xFFC9A84C);
 
   /// Resolves the logo bytes for the invoice, in priority order:
-  /// 1. the shop's uploaded logo (settings URL), 2. the bundled default
-  /// `assets/logo.jpeg`, 3. null (the PDF then draws the "R" placeholder).
   static Future<Uint8List?> _logoBytes(String? logoUrl) async {
     if (logoUrl != null && logoUrl.isNotEmpty) {
       try {
@@ -32,12 +30,8 @@ class InvoiceService {
             : '${ApiClient.baseUrl}$logoUrl';
         final res = await http.get(Uri.parse(url));
         if (res.statusCode == 200) return res.bodyBytes;
-      } catch (_) {/* fall back to bundled asset */}
+      } catch (_) {}
     }
-    try {
-      final data = await rootBundle.load('assets/logo.jpeg');
-      return data.buffer.asUint8List();
-    } catch (_) {/* fall back to placeholder */}
     return null;
   }
 
@@ -57,7 +51,7 @@ class InvoiceService {
         build: (ctx) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: <pw.Widget>[
-            // Header: logo (or "R" placeholder) + shop name.
+            // Header: logo (or shop initial placeholder) + shop name.
             pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: <pw.Widget>[
@@ -73,7 +67,8 @@ class InvoiceService {
                   ),
                   alignment: pw.Alignment.center,
                   child: logo == null
-                      ? pw.Text('R',
+                      ? pw.Text(
+                          shopName.trim().isNotEmpty ? shopName.trim()[0].toUpperCase() : 'C',
                           style: const pw.TextStyle(
                               color: PdfColors.white,
                               fontSize: 30,

@@ -113,9 +113,15 @@ class DashboardScreen extends StatelessWidget {
                     ? CachedNetworkImage(
                         imageUrl: '${ApiClient.baseUrl}$logoUrl',
                         fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => Image.asset('assets/logo.jpeg', fit: BoxFit.cover),
+                        errorWidget: (_, __, ___) => const CircleAvatar(
+                          backgroundColor: AppColors.primary,
+                          child: Icon(Icons.storefront_rounded, size: 18, color: Colors.white),
+                        ),
                       )
-                    : Image.asset('assets/logo.jpeg', fit: BoxFit.cover),
+                    : const CircleAvatar(
+                        backgroundColor: AppColors.primary,
+                        child: Icon(Icons.storefront_rounded, size: 18, color: Colors.white),
+                      ),
               ),
             ),
             const SizedBox(width: 10),

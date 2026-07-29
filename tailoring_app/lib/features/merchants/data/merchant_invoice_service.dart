@@ -24,10 +24,6 @@ class MerchantInvoiceService {
         if (res.statusCode == 200) return res.bodyBytes;
       } catch (_) {}
     }
-    try {
-      final data = await rootBundle.load('assets/logo.jpeg');
-      return data.buffer.asUint8List();
-    } catch (_) {}
     return null;
   }
 
@@ -58,7 +54,9 @@ class MerchantInvoiceService {
                   ),
                   alignment: pw.Alignment.center,
                   child: logo == null
-                      ? pw.Text('R', style: const pw.TextStyle(color: PdfColors.white, fontSize: 26, fontWeight: pw.FontWeight.bold))
+                      ? pw.Text(
+                          shopName.trim().isNotEmpty ? shopName.trim()[0].toUpperCase() : 'C',
+                          style: const pw.TextStyle(color: PdfColors.white, fontSize: 26, fontWeight: pw.FontWeight.bold))
                       : null,
                 ),
                 pw.SizedBox(width: 12),

@@ -60,7 +60,7 @@ router.get('/summary', asyncH(async (req, res) => {
        WHERE entry_date BETWEEN $1::date AND $2::date`, [from, to]),
     db.query(
       `SELECT COALESCE(SUM(amount), 0)::bigint AS v FROM expenses_effective
-       WHERE NOT voided AND spent_at BETWEEN $1::date AND $2::date`, [from, to]),
+       WHERE NOT voided AND spent_at >= $1::date AND spent_at < $2::date + 1`, [from, to]),
     db.query(
       `SELECT COALESCE(SUM(p.monthly_salary), 0)::bigint AS v
        FROM staff_pay p JOIN staff s ON s.id = p.staff_id

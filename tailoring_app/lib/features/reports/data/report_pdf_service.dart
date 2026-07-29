@@ -25,12 +25,8 @@ class ReportPdfService {
             : '${ApiClient.baseUrl}$logoUrl';
         final res = await http.get(Uri.parse(url));
         if (res.statusCode == 200) return res.bodyBytes;
-      } catch (_) {/* fall back */}
+      } catch (_) {}
     }
-    try {
-      final data = await rootBundle.load('assets/logo.jpeg');
-      return data.buffer.asUint8List();
-    } catch (_) {/* fall back */}
     return null;
   }
 
@@ -87,7 +83,8 @@ class ReportPdfService {
                 ),
                 alignment: pw.Alignment.center,
                 child: logo == null
-                    ? pw.Text('R',
+                    ? pw.Text(
+                        shopName.trim().isNotEmpty ? shopName.trim()[0].toUpperCase() : 'C',
                         style: const pw.TextStyle(
                             color: PdfColors.white,
                             fontSize: 28,
