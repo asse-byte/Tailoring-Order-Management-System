@@ -39,10 +39,8 @@ class SalaryReceiptService {
     required String roleLabel,
     required String periodLabel,
     required int amount,
-    required String paidDate,
-    required String paymentMode,
-    String? reference,
-    String? note,
+    required String paidAtLabel,
+    required String receiptNo,
     Uint8List? logoBytes,
   }) async {
     final doc = pw.Document();
