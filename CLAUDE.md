@@ -41,7 +41,7 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
      `/api/products`, `/api/pret-a-porter` are both-roles; `cost_price` is
      ignored on her writes and stripped from her reads; `/api/staff-pay`,
      `/api/tailor-entries`, `/api/salary-payments`, `/stats` remain 403.
-     `DELETE /api/clients` stays manager-only (clients were not in the grant).
+     `DELETE /api/clients` is open to both roles (Type-A master data delete; past delivered orders preserved via `client_name_snapshot`).
 3. **Speed is the #1 priority**: pagination on every long list, image
    compression + thumbnails, lazy loading, local caching, indexed queries.
 4. No self-registration. The two accounts are seeded/managed by the manager.

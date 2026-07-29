@@ -110,14 +110,24 @@ describe('SECRETARY — financial routes are completely blocked (403)', () => {
     expect(w.body.items.find((r) => r.tailor_id === tailorId).amount_total).toBe(20000);
   });
 
-  it('CAN set a tailor piece rate (and read its history)', async () => {
+  it('CAN set a tailor piece rate (and read its history), without overwriting pre-existing monthly_salary', async () => {
+    // First, set a monthly salary as manager
+    await asManager(request(app).put(`/api/staff-pay/${tailorId}`))
+      .send({ piece_rate: 2000, monthly_salary: 50000, salary_due_day: 5 });
+
+    // Secretary updates piece rate
     const res = await asSec(request(app).put(`/api/staff-pay/${tailorId}`))
       .send({ piece_rate: 3500 });
     expect(res.status).toBe(200);
     expect(res.body.piece_rate).toBe(3500);
-    // ...but never a salary field, even in the response.
+    // ...but never a salary field in secretary response.
     expect(res.body).not.toHaveProperty('monthly_salary');
     expect((await asSec(request(app).get(`/api/staff-pay/${tailorId}/history`))).status).toBe(200);
+
+    // Verify as Manager that monthly_salary was preserved in DB
+    const mgrView = await asManager(request(app).get('/api/staff-pay'));
+    const tailorPay = mgrView.body.items.find((i) => i.staff_id === tailorId);
+    expect(tailorPay.monthly_salary).toBe(50000);
   });
 
   it('staff-pay list shows her ONLY couturiers, without any salary field', async () => {

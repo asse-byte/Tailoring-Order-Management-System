@@ -38,6 +38,8 @@ class StaffPayInfo {
   final int? pieceRate;
   final int? monthlySalary;
   final int? salaryDueDay;
+  final int? weeklySalary;
+  final String payFrequency; // 'mensuel' | 'hebdo'
 
   const StaffPayInfo({
     required this.staffId,
@@ -48,6 +50,8 @@ class StaffPayInfo {
     this.pieceRate,
     this.monthlySalary,
     this.salaryDueDay,
+    this.weeklySalary,
+    this.payFrequency = 'mensuel',
   });
 
   factory StaffPayInfo.fromJson(Map<String, dynamic> json) {
@@ -60,6 +64,8 @@ class StaffPayInfo {
       pieceRate: json['piece_rate'] as int?,
       monthlySalary: json['monthly_salary'] as int?,
       salaryDueDay: json['salary_due_day'] as int?,
+      weeklySalary: json['weekly_salary'] as int?,
+      payFrequency: json['pay_frequency'] as String? ?? 'mensuel',
     );
   }
 }
@@ -284,6 +290,8 @@ class StaffRepository {
     int? pieceRate,
     int? monthlySalary,
     int? salaryDueDay,
+    int? weeklySalary,
+    String? payFrequency,
   }) async {
     // Send null for fields that don't apply to the staff type. In particular
     // salary_due_day has a DB CHECK (BETWEEN 1 AND 31): 0 is rejected, null
@@ -292,6 +300,8 @@ class StaffRepository {
       'piece_rate': pieceRate,
       'monthly_salary': monthlySalary,
       'salary_due_day': salaryDueDay,
+      'weekly_salary': weeklySalary,
+      'pay_frequency': payFrequency,
     });
   }
 

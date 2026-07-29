@@ -25,7 +25,8 @@ router.get('/', asyncH(async (req, res) => {
   // The secretary only ever receives couturiers, and without any salary field.
   const { rows } = await db.query(
     `SELECT s.id AS staff_id, s.full_name, s.phone, s.type, s.active,
-            p.piece_rate, p.monthly_salary, p.salary_due_day
+            p.piece_rate, p.monthly_salary, p.salary_due_day, p.weekly_salary,
+            COALESCE(p.pay_frequency, 'mensuel') AS pay_frequency
      FROM staff s LEFT JOIN staff_pay p ON p.staff_id = s.id
      WHERE ($1::boolean OR s.type = 'couturier')
      ORDER BY s.active DESC, s.full_name`, [isManager]);
@@ -33,6 +34,8 @@ router.get('/', asyncH(async (req, res) => {
     for (const row of rows) {
       delete row.monthly_salary;
       delete row.salary_due_day;
+      delete row.weekly_salary;
+      delete row.pay_frequency;
     }
   }
   res.json({ items: rows });
@@ -47,6 +50,9 @@ router.put('/:staffId', asyncH(async (req, res) => {
   // The secretary can never write salary fields — force them to "unchanged".
   const monthlySalary = isManager ? intOrNull(req.body.monthly_salary) : null;
   const salaryDueDay = isManager ? intOrNull(req.body.salary_due_day) : null;
+  const weeklySalary = isManager ? intOrNull(req.body.weekly_salary) : null;
+  const payFrequency = isManager && ['mensuel', 'hebdo'].includes(req.body.pay_frequency)
+    ? req.body.pay_frequency : 'mensuel';
   if (pieceRate === undefined || monthlySalary === undefined || salaryDueDay === undefined) {
     return res.status(400).json({ error: 'Montants invalides (entiers ≥ 0).' });
   }
@@ -58,14 +64,16 @@ router.put('/:staffId', asyncH(async (req, res) => {
     const oldSalary = old[0]?.monthly_salary ?? null;
 
     const { rows } = await tx.query(
-      `INSERT INTO staff_pay (staff_id, piece_rate, monthly_salary, salary_due_day)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO staff_pay (staff_id, piece_rate, monthly_salary, salary_due_day, weekly_salary, pay_frequency)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (staff_id) DO UPDATE SET
          piece_rate = EXCLUDED.piece_rate,
-         monthly_salary = EXCLUDED.monthly_salary,
-         salary_due_day = EXCLUDED.salary_due_day
+         monthly_salary = CASE WHEN $7 THEN EXCLUDED.monthly_salary ELSE staff_pay.monthly_salary END,
+         salary_due_day = CASE WHEN $7 THEN EXCLUDED.salary_due_day ELSE staff_pay.salary_due_day END,
+         weekly_salary = CASE WHEN $7 THEN EXCLUDED.weekly_salary ELSE staff_pay.weekly_salary END,
+         pay_frequency = CASE WHEN $7 THEN EXCLUDED.pay_frequency ELSE staff_pay.pay_frequency END
        RETURNING *`,
-      [req.params.staffId, pieceRate, monthlySalary, salaryDueDay]);
+      [req.params.staffId, pieceRate, monthlySalary, salaryDueDay, weeklySalary, payFrequency, isManager]);
 
     if (oldPieceRate !== pieceRate || oldSalary !== monthlySalary) {
       await tx.query(
@@ -82,6 +90,8 @@ router.put('/:staffId', asyncH(async (req, res) => {
   if (!isManager) {
     delete updated.monthly_salary;
     delete updated.salary_due_day;
+    delete updated.weekly_salary;
+    delete updated.pay_frequency;
   }
   res.json(updated);
 }));

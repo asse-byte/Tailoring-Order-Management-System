@@ -57,6 +57,11 @@ class DashboardScreen extends StatelessWidget {
           route: '/admin/finance',
         ),
       const _DashboardItem(
+        title: 'Grossistes & Fournisseurs',
+        icon: Icons.storefront_rounded,
+        route: '/admin/merchants',
+      ),
+      const _DashboardItem(
         title: 'Mes Modèles',
         icon: Icons.collections_rounded,
         route: '/admin/models-showcase',

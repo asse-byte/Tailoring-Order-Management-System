@@ -20,6 +20,8 @@ const settings = require('./routes/settings');
 const usersRouter = require('./routes/users');
 const uploadRouter = require('./routes/upload');
 const whatsappRouter = require('./routes/whatsapp');
+const suppliersRouter = require('./routes/suppliers');
+const wholesaleRouter = require('./routes/wholesale');
 
 function createApp() {
   const app = express();
@@ -87,6 +89,7 @@ function createApp() {
   app.use('/api/staff', staffOnly, staffRouter);              // CRUD both (roster; pay stays manager-only)
   app.use('/api/upload', staffOnly, uploadRouter);
   app.use('/api/whatsapp', staffOnly, whatsappRouter);
+  app.use('/api/wholesale', staffOnly, wholesaleRouter);      // DELETE & corrections manager-only
 
   // -- TAILOR work + piece rates: BOTH roles (owner decision 2026-07-20) -----
   // Piece prices vary per garment/model, so the secretary must be able to set
@@ -99,6 +102,7 @@ function createApp() {
   // -- [FINANCE] manager-only: the secretary gets 403 on every route ---------
   app.use('/api/salary-payments', managerOnly, salaryPaymentsRouter);
   app.use('/api/expenses', managerOnly, expensesRouter);
+  app.use('/api/suppliers', managerOnly, suppliersRouter);
   app.use('/api/finance', managerOnly, financeRouter);
   app.use('/api/reports', managerOnly, reportsRouter);
   app.use('/api/settings/private', managerOnly, settings.privateRouter);

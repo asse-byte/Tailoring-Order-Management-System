@@ -32,7 +32,7 @@ function buildReadyMessage(order, shopName) {
   const resteFormatted = new Intl.NumberFormat('fr-FR').format(reste) + ' FCFA';
 
   return `Bonjour ${clientName},\n\n` +
-    `Bonne nouvelle ! Votre commande (${garment}) chez ${shopName || 'Rayan Couture'} est prête pour retrait !\n\n` +
+    `Bonne nouvelle ! Votre commande (${garment}) chez ${shopName || process.env.SHOP_NAME || '72 Couture'} est prête pour retrait !\n\n` +
     `Reste à régler: ${resteFormatted}\n` +
     `Vous pouvez passer la récupérer à l'atelier à tout moment.\n\n` +
     `Merci beaucoup pour votre patience et votre confiance !`;
@@ -63,9 +63,9 @@ class WhatsAppService {
     }
 
     // Get shop name
-    let shopName = 'Rayan Couture';
+    let shopName = process.env.SHOP_NAME || '72 Couture';
     try {
-      const { rows } = await db.query('SELECT shop_name FROM shop_settings LIMIT 1');
+      const { rows } = await db.query("SELECT value #>> '{}' AS shop_name FROM settings WHERE key = 'shop_name'");
       if (rows[0] && rows[0].shop_name) {
         shopName = rows[0].shop_name;
       }

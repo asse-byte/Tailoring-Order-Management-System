@@ -25,6 +25,7 @@ import '../../features/reports/presentation/screens/reports_screen.dart';
 import '../../features/ready_to_wear/presentation/screens/ready_to_wear_screen.dart';
 import '../../features/ready_to_wear/presentation/screens/models_showcase_screen.dart';
 import '../../features/appointments/presentation/screens/appointments_screen.dart';
+import '../../features/merchants/presentation/merchants_screen.dart';
 
 /// Wraps a [Listenable] so GoRouter can refresh on auth changes.
 class _AuthRefresh extends ChangeNotifier {
@@ -141,6 +142,10 @@ class AppRouter {
             GoRoute(
               path: 'appointments',
               builder: (_, __) => const AppointmentsScreen(),
+            ),
+            GoRoute(
+              path: 'merchants',
+              builder: (_, __) => const MerchantsScreen(),
             ),
             GoRoute(
               path: 'history',

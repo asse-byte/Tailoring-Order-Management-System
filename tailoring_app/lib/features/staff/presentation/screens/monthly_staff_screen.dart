@@ -206,87 +206,120 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
 
   Future<void> _editPay(StaffPayInfo member) async {
     final formKey = GlobalKey<FormState>();
-    int salary = member.monthlySalary ?? 0;
+    String frequency = member.payFrequency;
+    int monthlySalary = member.monthlySalary ?? 0;
+    int weeklySalary = member.weeklySalary ?? 0;
     int dueDay = member.salaryDueDay ?? 1;
-    final salaryCtrl = TextEditingController(text: formatThousands(salary));
+
+    final monthlyCtrl = TextEditingController(text: formatThousands(monthlySalary));
+    final weeklyCtrl = TextEditingController(text: formatThousands(weeklySalary));
 
     await showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: <Widget>[
-            Expanded(child: Text('Salaire — ${member.fullName}')),
-            IconButton(
-              tooltip: 'Supprimer définitivement',
-              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: <Widget>[
+              Expanded(child: Text('Configuration Salaire — ${member.fullName}')),
+              IconButton(
+                tooltip: 'Supprimer définitivement',
+                icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                onPressed: () async {
+                  final bool ok = await confirmDeleteByTyping(
+                    ctx,
+                    itemName: member.fullName,
+                    itemLabel: 'cet employé',
+                    historyNote: 'Les paiements de salaire déjà enregistrés restent conservés.',
+                  );
+                  if (!ok) return;
+                  try {
+                    await _repo.deleteStaff(member.staffId);
+                    if (!ctx.mounted) return;
+                    Navigator.pop(ctx);
+                    _load();
+                    _toast('Employé supprimé.');
+                  } catch (e) {
+                    if (ctx.mounted) _toast('Erreur: $e', error: true);
+                  }
+                },
+              ),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  DropdownButtonFormField<String>(
+                    value: frequency,
+                    decoration: const InputDecoration(labelText: 'Fréquence de paiement'),
+                    items: const [
+                      DropdownMenuItem(value: 'mensuel', child: Text('Mensuel (Fin de mois)')),
+                      DropdownMenuItem(value: 'hebdo', child: Text('Hebdomadaire (Fin de semaine / Samedi)')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setDlg(() => frequency = val);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  if (frequency == 'mensuel') ...[
+                    FormattedNumberField(
+                      controller: monthlyCtrl,
+                      label: 'Salaire Mensuel (FCFA)',
+                      validator: (v) => v == null ? 'Invalide' : null,
+                      onChanged: (v) => monthlySalary = v ?? 0,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      initialValue: dueDay.toString(),
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Jour du mois (1 - 31)'),
+                      validator: (v) {
+                        final n = int.tryParse(v ?? '');
+                        return (n == null || n < 1 || n > 31) ? 'Jour invalide' : null;
+                      },
+                      onSaved: (v) => dueDay = int.tryParse(v ?? '') ?? 1,
+                    ),
+                  ] else ...[
+                    FormattedNumberField(
+                      controller: weeklyCtrl,
+                      label: 'Salaire Hebdomadaire (FCFA/semaine)',
+                      validator: (v) => v == null ? 'Invalide' : null,
+                      onChanged: (v) => weeklySalary = v ?? 0,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+            ElevatedButton(
               onPressed: () async {
-                final bool ok = await confirmDeleteByTyping(
-                  ctx,
-                  itemName: member.fullName,
-                  itemLabel: 'cet employé',
-                  historyNote: 'Les paiements de salaire déjà enregistrés '
-                      'restent conservés dans le registre (au nom mémorisé). '
-                      'Seule sa fiche est supprimée.',
-                );
-                if (!ok) return;
+                if (!formKey.currentState!.validate()) return;
+                formKey.currentState!.save();
                 try {
-                  await _repo.deleteStaff(member.staffId);
+                  await _repo.updatePay(
+                    member.staffId,
+                    monthlySalary: frequency == 'mensuel' ? monthlySalary : 0,
+                    salaryDueDay: frequency == 'mensuel' ? dueDay : null,
+                    weeklySalary: frequency == 'hebdo' ? weeklySalary : 0,
+                    payFrequency: frequency,
+                  );
                   if (!ctx.mounted) return;
                   Navigator.pop(ctx);
                   _load();
-                  _toast('Employé supprimé.');
+                  _toast('Configuration salaire enregistrée.');
                 } catch (e) {
                   if (ctx.mounted) _toast('Erreur: $e', error: true);
                 }
               },
+              child: const Text('Enregistrer'),
             ),
           ],
         ),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              FormattedNumberField(
-                controller: salaryCtrl,
-                label: 'Salaire mensuel (FCFA)',
-                validator: (v) => v == null ? 'Invalide' : null,
-                onChanged: (v) => salary = v ?? 0,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                initialValue: dueDay.toString(),
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Jour de versement (1 - 31)'),
-                validator: (v) {
-                  final n = int.tryParse(v ?? '');
-                  return (n == null || n < 1 || n > 31) ? 'Jour invalide' : null;
-                },
-                onSaved: (v) => dueDay = int.tryParse(v ?? '') ?? 1,
-              ),
-            ],
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-              formKey.currentState!.save();
-              try {
-                await _repo.updatePay(member.staffId,
-                    monthlySalary: salary, salaryDueDay: dueDay);
-                if (!ctx.mounted) return;
-                Navigator.pop(ctx);
-                _load();
-              } catch (e) {
-                if (ctx.mounted) _toast('Erreur: $e', error: true);
-              }
-            },
-            child: const Text('Enregistrer'),
-          ),
-        ],
       ),
     );
   }
@@ -467,10 +500,10 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
     }
   }
 
-  /// Per-employee sheet: a Jan→Dec grid for a year, showing which months are
-  /// paid, with actions to pay / print a receipt / void.
+  /// Per-employee sheet: interactive payment plan hub (Mensuel vs Hebdomadaire).
   Future<void> _openPaymentSheet(StaffPayInfo member) async {
     int year = DateTime.now().year;
+    String selectedPlan = member.payFrequency; // 'mensuel' | 'hebdo'
     List<SalaryPayment> payments = <SalaryPayment>[];
     bool loading = true;
     bool started = false;
@@ -498,21 +531,28 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
             WidgetsBinding.instance.addPostFrameCallback((_) => load());
           }
 
-          SalaryPayment? paymentFor(int monthIdx) {
-            final String period =
-                '$year-${(monthIdx + 1).toString().padLeft(2, '0')}';
+          SalaryPayment? paymentForMonth(int monthIdx) {
+            final String period = '$year-${(monthIdx + 1).toString().padLeft(2, '0')}';
             for (final SalaryPayment p in payments) {
               if (p.period == period && !p.voided) return p;
             }
             return null;
           }
 
-          final int paidCount =
-              List.generate(12, (i) => paymentFor(i)).whereType<SalaryPayment>().length;
+          SalaryPayment? paymentForWeek(int weekNum) {
+            final String period = '$year-W${weekNum.toString().padLeft(2, '0')}';
+            for (final SalaryPayment p in payments) {
+              if (p.period == period && !p.voided) return p;
+            }
+            return null;
+          }
+
+          final int paidMonthCount = List.generate(12, (i) => paymentForMonth(i)).whereType<SalaryPayment>().length;
+          final int paidWeekCount = List.generate(52, (i) => paymentForWeek(i + 1)).whereType<SalaryPayment>().length;
 
           return SafeArea(
             child: DraggableScrollableSheet(
-              initialChildSize: 0.85,
+              initialChildSize: 0.90,
               minChildSize: 0.5,
               maxChildSize: 0.95,
               expand: false,
@@ -531,113 +571,228 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Row(children: <Widget>[
-                      CircleAvatar(
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                        child: const Icon(Icons.person_rounded,
-                            color: AppColors.primary),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(member.fullName,
-                                style: Theme.of(ctx).textTheme.titleLarge),
-                            Text(
-                                'Salaire mensuel: ${formatFcfa(member.monthlySalary ?? 0)}',
-                                style: Theme.of(ctx).textTheme.bodySmall),
-                          ],
+                    Row(
+                      children: <Widget>[
+                        CircleAvatar(
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                          child: const Icon(Icons.person_rounded, color: AppColors.primary),
                         ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(member.fullName, style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                              Text(
+                                selectedPlan == 'hebdo'
+                                    ? 'Salaire Hebdomadaire: ${formatFcfa(member.weeklySalary ?? 0)} / semaine'
+                                    : 'Salaire Mensuel: ${formatFcfa(member.monthlySalary ?? 0)} (le ${member.salaryDueDay ?? 1})',
+                                style: Theme.of(ctx).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Modifier Salaire / Fréquence',
+                          icon: const Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 28),
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            _editPay(member);
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Plan Switcher (Mensuel vs Hebdomadaire)
+                    Center(
+                      child: SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(
+                            value: 'mensuel',
+                            label: Text('Plan Mensuel'),
+                            icon: Icon(Icons.calendar_month_rounded),
+                          ),
+                          ButtonSegment(
+                            value: 'hebdo',
+                            label: Text('Plan Hebdomadaire'),
+                            icon: Icon(Icons.view_week_rounded),
+                          ),
+                        ],
+                        selected: {selectedPlan},
+                        onSelectionChanged: (val) {
+                          setSheet(() => selectedPlan = val.first);
+                        },
                       ),
-                    ]),
-                    const Divider(),
-                    Row(children: <Widget>[
-                      IconButton(
-                        icon: const Icon(Icons.chevron_left_rounded),
-                        onPressed: () { year -= 1; load(); },
-                      ),
-                      Expanded(
-                        child: Text('Année $year — $paidCount/12 payés',
+                    ),
+                    const Divider(height: 20),
+
+                    Row(
+                      children: <Widget>[
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left_rounded),
+                          onPressed: () { year -= 1; load(); },
+                        ),
+                        Expanded(
+                          child: Text(
+                            selectedPlan == 'hebdo'
+                                ? 'Année $year — $paidWeekCount/52 semaines payées'
+                                : 'Année $year — $paidMonthCount/12 mois payés',
                             textAlign: TextAlign.center,
-                            style: const TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.chevron_right_rounded),
-                        onPressed: () { year += 1; load(); },
-                      ),
-                    ]),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right_rounded),
+                          onPressed: () { year += 1; load(); },
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 8),
+
                     Expanded(
                       child: loading
                           ? const Center(child: CircularProgressIndicator())
-                          : ListView.separated(
-                              controller: scrollCtrl,
-                              itemCount: 12,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 6),
-                              itemBuilder: (ctx, i) {
-                                final SalaryPayment? p = paymentFor(i);
-                                final bool paid = p != null;
-                                return Card(
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                  child: ListTile(
-                                    leading: Icon(
-                                      paid
-                                          ? Icons.check_circle_rounded
-                                          : Icons.radio_button_unchecked_rounded,
-                                      color: paid
-                                          ? AppColors.success
-                                          : AppColors.textSecondary,
-                                    ),
-                                    title: Text(_monthNames[i],
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w600)),
-                                    subtitle: paid
-                                        ? Text(
-                                            'Payé le ${p.paidAt} · ${formatFcfa(p.amount)}')
-                                        : const Text('Non payé'),
-                                    trailing: paid
-                                        ? PopupMenuButton<String>(
-                                            onSelected: (v) {
-                                              if (v == 'receipt') {
-                                                _printReceipt(member, p,
-                                                    '${_monthNames[i]} $year');
-                                              } else if (v == 'void') {
-                                                _voidPayment(p, load);
-                                              }
-                                            },
-                                            itemBuilder: (_) => const [
-                                              PopupMenuItem(
-                                                  value: 'receipt',
-                                                  child: Text('Imprimer le reçu')),
-                                              PopupMenuItem(
-                                                  value: 'void',
-                                                  child: Text('Annuler le paiement')),
-                                            ],
-                                          )
-                                        : ElevatedButton(
-                                            // The global theme forces buttons to
-                                            // full width (Size.fromHeight →
-                                            // infinite), which a ListTile trailing
-                                            // cannot lay out. Override to size to
-                                            // content so it fits in the trailing.
-                                            style: ElevatedButton.styleFrom(
-                                              minimumSize: const Size(0, 40),
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 16),
-                                              tapTargetSize: MaterialTapTargetSize
-                                                  .shrinkWrap,
+                          : selectedPlan == 'mensuel'
+                              ? ListView.separated(
+                                  controller: scrollCtrl,
+                                  itemCount: 12,
+                                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                                  itemBuilder: (ctx, i) {
+                                    final SalaryPayment? p = paymentForMonth(i);
+                                    final bool paid = p != null;
+                                    return Card(
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      child: ListTile(
+                                        leading: Icon(
+                                          paid ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                          color: paid ? AppColors.success : AppColors.textSecondary,
+                                        ),
+                                        title: Text(_monthNames[i], style: const TextStyle(fontWeight: FontWeight.w600)),
+                                        subtitle: paid
+                                            ? Text('Payé le ${p.paidAt} · ${formatFcfa(p.amount)}')
+                                            : const Text('Non payé'),
+                                        trailing: paid
+                                            ? PopupMenuButton<String>(
+                                                onSelected: (v) {
+                                                  if (v == 'receipt') {
+                                                    _printReceipt(member, p, '${_monthNames[i]} $year');
+                                                  } else if (v == 'void') {
+                                                    _voidPayment(p, load);
+                                                  }
+                                                },
+                                                itemBuilder: (_) => const [
+                                                  PopupMenuItem(value: 'receipt', child: Text('Imprimer le reçu')),
+                                                  PopupMenuItem(value: 'void', child: Text('Annuler le paiement')),
+                                                ],
+                                              )
+                                            : ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                  minimumSize: const Size(0, 40),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                ),
+                                                onPressed: () => _recordPayment(member, i, year, load),
+                                                child: const Text('Payer'),
+                                              ),
+                                      ),
+                                    );
+                                  },
+                                )
+                              : ListView.separated(
+                                  controller: scrollCtrl,
+                                  itemCount: 52,
+                                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                                  itemBuilder: (ctx, i) {
+                                    final int weekNum = i + 1;
+                                    final SalaryPayment? p = paymentForWeek(weekNum);
+                                    final bool paid = p != null;
+
+                                    // ISO Week Date Range calculation
+                                    final jan4 = DateTime(year, 1, 4);
+                                    final firstMonday = jan4.subtract(Duration(days: jan4.weekday - 1));
+                                    final weekStart = firstMonday.add(Duration(days: (weekNum - 1) * 7));
+                                    final weekEnd = weekStart.add(const Duration(days: 6));
+                                    final String rangeStr = '${weekStart.day.toString().padLeft(2, '0')}/${weekStart.month.toString().padLeft(2, '0')} au ${weekEnd.day.toString().padLeft(2, '0')}/${weekEnd.month.toString().padLeft(2, '0')}';
+
+                                    final now = DateTime.now();
+                                    final bool isCurrentWeek = (now.year == year) &&
+                                        (now.isAfter(weekStart.subtract(const Duration(seconds: 1))) &&
+                                         now.isBefore(weekEnd.add(const Duration(days: 1))));
+
+                                    final String weekLabel = 'Semaine $weekNum ($rangeStr)';
+
+                                    return Card(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        side: isCurrentWeek
+                                            ? const BorderSide(color: AppColors.primary, width: 2)
+                                            : BorderSide.none,
+                                      ),
+                                      color: isCurrentWeek
+                                          ? AppColors.primary.withValues(alpha: 0.08)
+                                          : null,
+                                      child: ListTile(
+                                        leading: Icon(
+                                          paid ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                          color: paid ? AppColors.success : (isCurrentWeek ? AppColors.primary : AppColors.textSecondary),
+                                        ),
+                                        title: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                weekLabel,
+                                                style: TextStyle(
+                                                  fontWeight: isCurrentWeek ? FontWeight.bold : FontWeight.w600,
+                                                  color: isCurrentWeek ? AppColors.primary : null,
+                                                ),
+                                              ),
                                             ),
-                                            onPressed: () =>
-                                                _recordPayment(member, i, year, load),
-                                            child: const Text('Payer'),
-                                          ),
-                                  ),
-                                );
-                              },
-                            ),
+                                            if (isCurrentWeek)
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.primary,
+                                                  borderRadius: BorderRadius.circular(10),
+                                                ),
+                                                child: const Text(
+                                                  'EN COURS',
+                                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        subtitle: paid
+                                            ? Text('Payé le ${p.paidAt} · ${formatFcfa(p.amount)}')
+                                            : Text(isCurrentWeek ? 'Semaine actuelle — Non payé' : 'Non payé'),
+                                        trailing: paid
+                                            ? PopupMenuButton<String>(
+                                                onSelected: (v) {
+                                                  if (v == 'receipt') {
+                                                    _printReceipt(member, p, weekLabel);
+                                                  } else if (v == 'void') {
+                                                    _voidPayment(p, load);
+                                                  }
+                                                },
+                                                itemBuilder: (_) => const [
+                                                  PopupMenuItem(value: 'receipt', child: Text('Imprimer le reçu')),
+                                                  PopupMenuItem(value: 'void', child: Text('Annuler le paiement')),
+                                                ],
+                                              )
+                                            : ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                  minimumSize: const Size(0, 40),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                                  backgroundColor: isCurrentWeek ? AppColors.primary : null,
+                                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                ),
+                                                onPressed: () => _recordWeeklyPayment(member, weekNum, year, load),
+                                                child: const Text('Payer Semaine'),
+                                              ),
+                                      ),
+                                    );
+                                  },
+                                ),
                     ),
                   ],
                 ),
@@ -647,6 +802,109 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _recordWeeklyPayment(
+    StaffPayInfo member,
+    int weekNum,
+    int year,
+    Future<void> Function() reload,
+  ) async {
+    final formKey = GlobalKey<FormState>();
+    int amount = member.weeklySalary ?? 0;
+    DateTime paidAt = DateTime.now();
+    String note = '';
+    final amountCtrl = TextEditingController(text: formatThousands(amount));
+    final String period = '$year-W${weekNum.toString().padLeft(2, '0')}';
+    final String weekLabel = 'Semaine $weekNum ($year)';
+
+    final bool? ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Payer — $weekLabel'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                FormattedNumberField(
+                  controller: amountCtrl,
+                  label: 'Montant payé (FCFA)',
+                  validator: (v) => (v == null || v < 0) ? 'Invalide' : null,
+                  onChanged: (v) => amount = v ?? 0,
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Date de paiement'),
+                  subtitle: Text('${paidAt.day}/${paidAt.month}/${paidAt.year}'),
+                  trailing: const Icon(Icons.calendar_month_rounded),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate: paidAt,
+                      firstDate: DateTime(2026),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) setDlg(() => paidAt = picked);
+                  },
+                ),
+                TextFormField(
+                  decoration: const InputDecoration(labelText: 'Note (optionnel)'),
+                  onSaved: (v) => note = v?.trim() ?? '',
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                formKey.currentState!.save();
+                Navigator.pop(ctx, true);
+              },
+              child: const Text('Confirmer le paiement'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final String paidStr =
+          '${paidAt.year}-${paidAt.month.toString().padLeft(2, '0')}-${paidAt.day.toString().padLeft(2, '0')}';
+      final SalaryPayment payment = await _payRepo.record(
+        staffId: member.staffId,
+        period: period,
+        kind: 'hebdo',
+        amount: amount,
+        paidAt: paidStr,
+        note: note,
+      );
+      await reload();
+      if (!mounted) return;
+      _toast('Paiement hebdo enregistré.');
+      final bool? print = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Reçu de paiement'),
+          content: const Text('Voulez-vous imprimer le reçu maintenant ?'),
+          actions: <Widget>[
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Plus tard')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Imprimer')),
+          ],
+        ),
+      );
+      if (print == true) {
+        await _printReceipt(member, payment, weekLabel);
+      }
+    } catch (e) {
+      if (mounted) _toast('Erreur: $e', error: true);
+    }
   }
 
   /// Secretary roster list — name + phone only, with edit/delete. No salary,
@@ -719,8 +977,9 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                               title: Text(m.fullName,
                                   style: const TextStyle(fontWeight: FontWeight.bold)),
                               subtitle: Text(
-                                'Salaire: ${formatFcfa(m.monthlySalary ?? 0)} '
-                                '(le ${m.salaryDueDay ?? 1})\nTél: ${m.phone}',
+                                m.payFrequency == 'hebdo'
+                                    ? 'Salaire Hebdo: ${formatFcfa(m.weeklySalary ?? 0)} / semaine\nTél: ${m.phone}'
+                                    : 'Salaire Mensuel: ${formatFcfa(m.monthlySalary ?? 0)} (le ${m.salaryDueDay ?? 1})\nTél: ${m.phone}',
                               ),
                               isThreeLine: true,
                               onTap: () => _openPaymentSheet(m),

@@ -1,0 +1,747 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/money.dart';
+import '../../../core/widgets/confirm_delete_dialog.dart';
+import '../../../core/widgets/formatted_number_field.dart';
+import '../../settings/presentation/providers/shop_settings_provider.dart';
+import '../data/merchant_invoice_service.dart';
+import '../data/merchant_repository.dart';
+import '../domain/merchant_models.dart';
+
+class MerchantsScreen extends StatefulWidget {
+  const MerchantsScreen({super.key});
+
+  @override
+  State<MerchantsScreen> createState() => _MerchantsScreenState();
+}
+
+class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  final MerchantRepository _repo = MerchantRepository();
+
+  // Suppliers & Purchases state
+  List<Supplier> _suppliers = <Supplier>[];
+  List<SupplierPurchase> _purchases = <SupplierPurchase>[];
+  bool _loadingSuppliers = true;
+
+  // Wholesale Orders state
+  List<WholesaleOrder> _wholesaleOrders = <WholesaleOrder>[];
+  bool _loadingWholesale = true;
+
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _loadAll();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadAll() async {
+    setState(() {
+      _loadingSuppliers = true;
+      _loadingWholesale = true;
+      _error = null;
+    });
+    try {
+      final sups = await _repo.listSuppliers();
+      final purs = await _repo.listSupplierPurchases();
+      final ords = await _repo.listWholesaleOrders();
+      if (mounted) {
+        setState(() {
+          _suppliers = sups;
+          _purchases = purs;
+          _wholesaleOrders = ords;
+          _loadingSuppliers = false;
+          _loadingWholesale = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loadingSuppliers = false;
+          _loadingWholesale = false;
+        });
+      }
+    }
+  }
+
+  void _toast(String msg, {bool error = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: error ? AppColors.error : AppColors.success,
+    ));
+  }
+
+  int get _totalSupplierDebt => _purchases.fold(0, (sum, p) => sum + p.reste);
+  int get _totalWholesaleReceivable => _wholesaleOrders.fold(0, (sum, o) => sum + o.reste);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Commerçants & Achats en Gros'),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: AppColors.primary,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.textSecondary,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
+          tabs: const [
+            Tab(icon: Icon(Icons.store_rounded), text: 'Fournisseurs (Crédits)'),
+            Tab(icon: Icon(Icons.local_shipping_rounded), text: 'Ventes en Gros'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildSuppliersTab(),
+          _buildWholesaleTab(),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // TAB 1: FOURNISSEURS & ACHATS À CRÉDIT
+  // ==========================================================================
+  Widget _buildSuppliersTab() {
+    if (_loadingSuppliers) return const Center(child: CircularProgressIndicator());
+    return RefreshIndicator(
+      onRefresh: _loadAll,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Stat Summary Card
+          Card(
+            color: AppColors.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 16,
+                runSpacing: 12,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.error, size: 28),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Dettes Fournisseurs Totales', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                          Text(formatFcfa(_totalSupplierDebt), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.error)),
+                        ],
+                      ),
+                    ],
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _openAddSupplierPurchaseModal(),
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Nouvel Achat'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Répertoire des Fournisseurs (Directory)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Répertoire des Fournisseurs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              TextButton.icon(
+                icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                label: const Text('Nouveau Fournisseur'),
+                onPressed: _openAddSupplierModal,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          if (_suppliers.isEmpty)
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Aucun fournisseur enregistré. Cliquez sur "+ Nouveau Fournisseur" pour en ajouter un.', style: TextStyle(color: AppColors.textMuted)),
+              ),
+            )
+          else
+            SizedBox(
+              height: 100,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _suppliers.length,
+                itemBuilder: (ctx, i) {
+                  final s = _suppliers[i];
+                  return Container(
+                    width: 210,
+                    margin: const EdgeInsets.only(right: 12),
+                    child: Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () => _openAddSupplierPurchaseModal(preselectedSupplier: s),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              if (s.phone.isNotEmpty) Text('Tél: ${s.phone}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                              const SizedBox(height: 4),
+                              Text('Dette: ${formatFcfa(s.totalDebt)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: s.totalDebt > 0 ? AppColors.error : AppColors.success)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          const SizedBox(height: 20),
+
+          const Text('Historique des Achats à Crédit', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+
+          if (_purchases.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: Text('Aucun achat à crédit enregistré.')),
+            )
+          else
+            ..._purchases.map((p) => _buildPurchaseCard(p)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPurchaseCard(SupplierPurchase p) {
+    final isPaid = p.reste <= 0;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: isPaid ? AppColors.success.withValues(alpha: 0.15) : AppColors.error.withValues(alpha: 0.15),
+          child: Icon(isPaid ? Icons.check_circle_rounded : Icons.pending_actions_rounded, color: isPaid ? AppColors.success : AppColors.error),
+        ),
+        title: Text(p.supplierName, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(p.description),
+            const SizedBox(height: 4),
+            Text('Date: ${p.purchaseDate} · Total: ${formatFcfa(p.totalAmount)}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          ],
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(isPaid ? 'PAYÉ' : 'Reste: ${formatFcfa(p.reste)}', style: TextStyle(fontWeight: FontWeight.bold, color: isPaid ? AppColors.success : AppColors.error)),
+            if (!isPaid)
+              TextButton(
+                style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(50, 24)),
+                onPressed: () => _openSupplierPaymentModal(p),
+                child: const Text('Régler'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // TAB 2: VENTES EN GROS (PRÊT-À-PORTER)
+  // ==========================================================================
+  Widget _buildWholesaleTab() {
+    if (_loadingWholesale) return const Center(child: CircularProgressIndicator());
+    return RefreshIndicator(
+      onRefresh: _loadAll,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Summary Card
+          Card(
+            color: AppColors.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 16,
+                runSpacing: 12,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.trending_up_rounded, color: AppColors.success, size: 28),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Créances Gros à Recouvrer', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                          Text(formatFcfa(_totalWholesaleReceivable), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                        ],
+                      ),
+                    ],
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _openAddWholesaleOrderModal,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Nouvelle Vente'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          const Text('Commandes & Distributions en Gros', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+
+          if (_wholesaleOrders.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: Text('Aucune commande en gros enregistrée.')),
+            )
+          else
+            ..._wholesaleOrders.map((o) => _buildWholesaleCard(o)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWholesaleCard(WholesaleOrder o) {
+    final isPaid = o.reste <= 0;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: ExpansionTile(
+        leading: CircleAvatar(
+          backgroundColor: isPaid ? AppColors.success.withValues(alpha: 0.15) : AppColors.primary.withValues(alpha: 0.15),
+          child: Icon(Icons.storefront_rounded, color: isPaid ? AppColors.success : AppColors.primary),
+        ),
+        title: Text(o.merchantName, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text('Date: ${o.orderDate} · Total: ${formatFcfa(o.totalAmount)} · Reste: ${formatFcfa(o.reste)}', style: const TextStyle(fontSize: 12)),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Divider(),
+                const Text('Articles distribués:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                ...o.items.map((i) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text('• ${i.model} x${i.qty}', maxLines: 2, overflow: TextOverflow.ellipsis),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('${formatFcfa(i.total)} (${formatFcfa(i.unitPrice)}/unité)'),
+                        ],
+                      ),
+                    )),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.primary),
+                        tooltip: 'Imprimer Facture',
+                        onPressed: () {
+                          final settings = context.read<ShopSettingsProvider>();
+                          MerchantInvoiceService.shareWholesaleInvoice(
+                            shopName: settings.shopName,
+                            order: o,
+                            logoUrl: settings.logoUrl,
+                          );
+                        },
+                      ),
+                      if (!isPaid)
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.payments_rounded, size: 18),
+                          label: const Text('Ajouter Règlement'),
+                          onPressed: () => _openWholesalePaymentModal(o),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // MODALS
+  // ==========================================================================
+  Future<void> _openAddSupplierModal() async {
+    final formKey = GlobalKey<FormState>();
+    String name = '';
+    String phone = '';
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Nouveau Fournisseur'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                decoration: const InputDecoration(labelText: 'Nom du Fournisseur'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                onSaved: (v) => name = v?.trim() ?? '',
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                decoration: const InputDecoration(labelText: 'Téléphone'),
+                keyboardType: TextInputType.phone,
+                onSaved: (v) => phone = v?.trim() ?? '',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              formKey.currentState!.save();
+              try {
+                await _repo.createSupplier(name: name, phone: phone);
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                _loadAll();
+                _toast('Fournisseur ajouté.');
+              } catch (e) {
+                if (ctx.mounted) _toast('Erreur: $e', error: true);
+              }
+            },
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openAddSupplierPurchaseModal({Supplier? preselectedSupplier}) async {
+    final formKey = GlobalKey<FormState>();
+    String supplierId = preselectedSupplier?.id ?? '';
+    String supplierName = preselectedSupplier?.name ?? '';
+    String description = '';
+    int totalAmount = 0;
+    int advanceAmount = 0;
+    final totalCtrl = TextEditingController();
+    final advanceCtrl = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(preselectedSupplier != null ? 'Nouvel Achat — ${preselectedSupplier.name}' : 'Nouvel Achat à Crédit'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (preselectedSupplier == null)
+                  TextFormField(
+                    initialValue: supplierName,
+                    decoration: const InputDecoration(labelText: 'Nom du Fournisseur'),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                    onSaved: (v) => supplierName = v?.trim() ?? '',
+                  ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  decoration: const InputDecoration(labelText: 'Description des marchandises (Tissu, Bazin...)'),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  onSaved: (v) => description = v?.trim() ?? '',
+                ),
+                const SizedBox(height: 12),
+                FormattedNumberField(
+                  controller: totalCtrl,
+                  label: 'Montant Total (FCFA)',
+                  validator: (v) => (v == null || v <= 0) ? 'Requis > 0' : null,
+                  onChanged: (v) => totalAmount = v ?? 0,
+                ),
+                const SizedBox(height: 12),
+                FormattedNumberField(
+                  controller: advanceCtrl,
+                  label: 'Acompte versé immédiatement (FCFA)',
+                  onChanged: (v) => advanceAmount = v ?? 0,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              formKey.currentState!.save();
+              try {
+                await _repo.createSupplierPurchase(
+                  supplierId: supplierId.isNotEmpty ? supplierId : null,
+                  supplierName: supplierName,
+                  description: description,
+                  totalAmount: totalAmount,
+                  advanceAmount: advanceAmount,
+                );
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                _loadAll();
+                _toast('Achat à crédit enregistré.');
+              } catch (e) {
+                if (ctx.mounted) _toast('Erreur: $e', error: true);
+              }
+            },
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openSupplierPaymentModal(SupplierPurchase p) async {
+    final formKey = GlobalKey<FormState>();
+    int amount = p.reste;
+    final amountCtrl = TextEditingController(text: formatThousands(amount));
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Règlement — ${p.supplierName}'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Reste à payer actuel: ${formatFcfa(p.reste)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              FormattedNumberField(
+                controller: amountCtrl,
+                label: 'Montant versé (FCFA)',
+                validator: (v) => (v == null || v <= 0) ? 'Montant invalide' : null,
+                onChanged: (v) => amount = v ?? 0,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              formKey.currentState!.save();
+              try {
+                await _repo.recordSupplierPayment(purchaseId: p.id, amount: amount);
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                _loadAll();
+                _toast('Paiement fournisseur enregistré.');
+              } catch (e) {
+                if (ctx.mounted) _toast('Erreur: $e', error: true);
+              }
+            },
+            child: const Text('Valider le Règlement'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openAddWholesaleOrderModal() async {
+    final formKey = GlobalKey<FormState>();
+    String merchantName = '';
+    String merchantPhone = '';
+    String modelName = '';
+    int qty = 1;
+    int unitPrice = 0;
+    int advanceAmount = 0;
+
+    final priceCtrl = TextEditingController();
+    final advanceCtrl = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Nouvelle Vente en Gros'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  decoration: const InputDecoration(labelText: 'Nom du Commerçant'),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  onSaved: (v) => merchantName = v?.trim() ?? '',
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  decoration: const InputDecoration(labelText: 'Téléphone'),
+                  keyboardType: TextInputType.phone,
+                  onSaved: (v) => merchantPhone = v?.trim() ?? '',
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  decoration: const InputDecoration(labelText: 'Modèle / Vêtement (Prêt-à-porter)'),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  onSaved: (v) => modelName = v?.trim() ?? '',
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  initialValue: '1',
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Quantité'),
+                  validator: (v) => (int.tryParse(v ?? '') ?? 0) <= 0 ? 'Qté > 0' : null,
+                  onSaved: (v) => qty = int.tryParse(v ?? '') ?? 1,
+                ),
+                const SizedBox(height: 8),
+                FormattedNumberField(
+                  controller: priceCtrl,
+                  label: 'Prix Unitaire en Gros (FCFA)',
+                  validator: (v) => (v == null || v <= 0) ? 'Prix > 0' : null,
+                  onChanged: (v) => unitPrice = v ?? 0,
+                ),
+                const SizedBox(height: 8),
+                FormattedNumberField(
+                  controller: advanceCtrl,
+                  label: 'Acompte reçu (FCFA)',
+                  onChanged: (v) => advanceAmount = v ?? 0,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              formKey.currentState!.save();
+              final total = qty * unitPrice;
+              try {
+                await _repo.createWholesaleOrder(
+                  merchantName: merchantName,
+                  merchantPhone: merchantPhone,
+                  items: [WholesaleOrderItem(model: modelName, qty: qty, unitPrice: unitPrice)],
+                  totalAmount: total,
+                  advanceAmount: advanceAmount,
+                );
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                _loadAll();
+                _toast('Vente en gros enregistrée.');
+              } catch (e) {
+                if (ctx.mounted) _toast('Erreur: $e', error: true);
+              }
+            },
+            child: const Text('Enregistrer Vente'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openWholesalePaymentModal(WholesaleOrder o) async {
+    final formKey = GlobalKey<FormState>();
+    int amount = o.reste;
+    final amountCtrl = TextEditingController(text: formatThousands(amount));
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Règlement — ${o.merchantName}'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Reste à payer actuel: ${formatFcfa(o.reste)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              FormattedNumberField(
+                controller: amountCtrl,
+                label: 'Montant versé (FCFA)',
+                validator: (v) => (v == null || v <= 0) ? 'Montant invalide' : null,
+                onChanged: (v) => amount = v ?? 0,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              formKey.currentState!.save();
+              try {
+                await _repo.recordWholesalePayment(orderId: o.id, amount: amount);
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                _loadAll();
+                _toast('Règlement gros enregistré.');
+              } catch (e) {
+                if (ctx.mounted) _toast('Erreur: $e', error: true);
+              }
+            },
+            child: const Text('Valider le Règlement'),
+          ),
+        ],
+      ),
+    );
+  }
+}

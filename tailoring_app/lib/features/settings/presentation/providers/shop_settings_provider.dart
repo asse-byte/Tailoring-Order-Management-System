@@ -16,7 +16,7 @@ class ShopSettingsProvider extends ChangeNotifier {
 
   final SettingsRepository _repo;
 
-  String _shopName = 'Rayan Couture';
+  String _shopName = '72 Couture';
   String? _logoUrl;
   int _defaultPieceRate = 0;
   String _promoGroupLink = '';
