@@ -1,4 +1,4 @@
-﻿# Build the web app + signed APK for ONE shop in a single command.
+# Build the web app + signed APK for ONE shop in a single command.
 # Runs on the DEV MACHINE (Windows), not the VPS.
 #
 #   .\scripts\build-shop-app.ps1 -ShopSlug rayan-couture `
@@ -27,7 +27,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
-if ($AppId -notmatch '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$') {
+if ($AppId -notmatch '^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$') {
     throw "AppId invalide: '$AppId' (attendu: com.exemple.monsalon, minuscules)"
 }
 if ($ApiUrl -notmatch '^https?://') { throw "ApiUrl doit commencer par http(s)://" }

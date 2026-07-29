@@ -1,4 +1,4 @@
-﻿# Deploy the web (PWA) build of EVERY shop from this dev machine, in one command.
+# Deploy the web (PWA) build of EVERY shop from this dev machine, in one command.
 #
 #   .\scripts\deploy-all-web.ps1 -Server root@1.2.3.4
 #   .\scripts\deploy-all-web.ps1 -Server root@1.2.3.4 -IncludeBackend
@@ -200,9 +200,9 @@ foreach ($s in $shops) {
         }
 
         $apiUrl = "https://$($s.Api)"
-        # appId is irrelevant for a web build (APK is built separately); derive a
-        # deterministic placeholder so the builder's validation passes.
-        $appId  = 'com.couturepro.' + ($s.Slug -replace '[^a-z0-9]', '')
+        $slugClean = $s.Slug -replace '[^a-z0-9]', ''
+        if ($slugClean -match '^[0-9]') { $slugClean = 'c' + $slugClean }
+        $appId  = 'com.couturepro.' + $slugClean
         $webDir = Join-Path $repoRoot "dist\$($s.Slug)\web"
 
         Write-Host "  build : $apiUrl"
