@@ -1,11 +1,11 @@
 {
-    "name": "72 Couture",
-    "short_name": "72 Couture",
+    "name": "CouturePro Demo",
+    "short_name": "CouturePro Demo",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0F766E",
     "theme_color": "#0F766E",
-    "description": "Rayan Couture",
+    "description": "CouturePro Demo",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
