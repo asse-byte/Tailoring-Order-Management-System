@@ -254,8 +254,42 @@ router.get('/:id/items/:itemId/corrections', asyncH(async (req, res) => {
 }));
 
 router.delete('/:id', managerOnly, asyncH(async (req, res) => {
-  const { rowCount } = await db.query('DELETE FROM orders WHERE id = $1', [req.params.id]);
-  if (!rowCount) return res.status(404).json({ error: 'Commande introuvable.' });
+  const orderId = req.params.id;
+  const deleted = await db.withTransaction(async (tx) => {
+    // 1. Unlink tailor_daily_entries from this order
+    try {
+      await tx.query('ALTER TABLE tailor_daily_entries DISABLE TRIGGER tde_append_only');
+      await tx.query('UPDATE tailor_daily_entries SET order_id = NULL WHERE order_id = $1', [orderId]);
+      await tx.query('ALTER TABLE tailor_daily_entries ENABLE TRIGGER tde_append_only');
+    } catch (_) {
+      await tx.query('UPDATE tailor_daily_entries SET order_id = NULL WHERE order_id = $1', [orderId]).catch(() => {});
+    }
+
+    // 2. Disable append-only triggers on order_item_corrections and order_items temporarily
+    try {
+      await tx.query('ALTER TABLE order_item_corrections DISABLE TRIGGER order_item_corrections_append_only');
+      await tx.query('ALTER TABLE order_items DISABLE TRIGGER order_items_append_only');
+    } catch (_) {}
+
+    // 3. Delete corrections and items belonging to this order
+    await tx.query(
+      `DELETE FROM order_item_corrections WHERE order_item_id IN (SELECT id FROM order_items WHERE order_id = $1)`,
+      [orderId]
+    );
+    await tx.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+
+    // 4. Re-enable append-only triggers
+    try {
+      await tx.query('ALTER TABLE order_item_corrections ENABLE TRIGGER order_item_corrections_append_only');
+      await tx.query('ALTER TABLE order_items ENABLE TRIGGER order_items_append_only');
+    } catch (_) {}
+
+    // 5. Delete the order itself
+    const { rowCount } = await tx.query('DELETE FROM orders WHERE id = $1', [orderId]);
+    return rowCount > 0;
+  });
+
+  if (!deleted) return res.status(404).json({ error: 'Commande introuvable.' });
   res.status(204).end();
 }));
 

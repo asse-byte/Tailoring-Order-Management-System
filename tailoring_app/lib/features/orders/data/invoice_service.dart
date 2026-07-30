@@ -183,19 +183,6 @@ class InvoiceService {
             ),
 
             pw.Spacer(),
-            if (promoGroupLink.isNotEmpty) ...<pw.Widget>[
-              pw.Divider(color: PdfColors.grey400),
-              pw.UrlLink(
-                destination: promoGroupLink,
-                child: pw.Text(
-                  'Rejoignez notre groupe: $promoGroupLink',
-                  style: const pw.TextStyle(
-                      color: _teal,
-                      decoration: pw.TextDecoration.underline,
-                      fontSize: 11),
-                ),
-              ),
-            ],
             pw.Center(
               child: pw.Text('Merci de votre confiance — $shopName',
                   style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
@@ -211,7 +198,7 @@ class InvoiceService {
   static Future<void> shareInvoice({
     required TailoringOrder order,
     required String shopName,
-    required String promoGroupLink,
+    String promoGroupLink = '',
     String? logoUrl,
   }) async {
     final bytes = await buildPdf(
@@ -238,7 +225,7 @@ class InvoiceService {
   static Future<bool> sendWhatsApp({
     required TailoringOrder order,
     required String shopName,
-    required String promoGroupLink,
+    String promoGroupLink = '',
   }) async {
     final phone = _waPhone(order.clientPhone);
     if (phone == null) return false;
@@ -252,9 +239,6 @@ class InvoiceService {
       ..writeln(lines)
       ..writeln('Total: ${formatFcfa(order.total)}')
       ..writeln('Avance: ${formatFcfa(order.advance)} — Reste: ${formatFcfa(order.reste)}');
-    if (promoGroupLink.isNotEmpty) {
-      msg.writeln('Rejoignez notre groupe: $promoGroupLink');
-    }
 
     final uri = Uri.parse(
         'https://wa.me/$phone?text=${Uri.encodeComponent(msg.toString())}');

@@ -1,4 +1,4 @@
-# Deploy the web (PWA) build of EVERY shop from this dev machine, in one command.
+﻿# Deploy the web (PWA) build of EVERY shop from this dev machine, in one command.
 #
 #   .\scripts\deploy-all-web.ps1 -Server root@1.2.3.4
 #   .\scripts\deploy-all-web.ps1 -Server root@1.2.3.4 -IncludeBackend

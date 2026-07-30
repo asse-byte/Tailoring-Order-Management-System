@@ -32,15 +32,45 @@
   <title>CouturePro Demo</title>
   <script>
     window.changeFavicon = function(src) {
-      var link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+      if (!src) return;
+      var link = document.querySelector("link[rel='icon']") || document.querySelector("link[rel*='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
       link.type = 'image/png';
       link.rel = 'shortcut icon';
       link.href = src;
-      document.getElementsByTagName('head')[0].appendChild(link);
+
+      var appleTouch = document.querySelector("link[rel='apple-touch-icon']");
+      if (!appleTouch) {
+        appleTouch = document.createElement('link');
+        appleTouch.rel = 'apple-touch-icon';
+        document.getElementsByTagName('head')[0].appendChild(appleTouch);
+      }
+      appleTouch.href = src;
     };
     window.changeTitle = function(title) {
+      if (!title) return;
       document.title = title;
+      var metaTitle = document.querySelector("meta[name='apple-mobile-web-app-title']");
+      if (metaTitle) {
+        metaTitle.setAttribute('content', title);
+      }
     };
+    (function() {
+      fetch('/api/settings/public')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data && data.shop_name) {
+            window.changeTitle(data.shop_name);
+          }
+          if (data && data.logo_url) {
+            window.changeFavicon(data.logo_url);
+          }
+        })
+        .catch(function(err) {});
+    })();
   </script>
   <link rel="manifest" href="manifest.json">
 </head>

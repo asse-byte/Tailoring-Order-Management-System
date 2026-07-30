@@ -32,7 +32,7 @@ function buildReadyMessage(order, shopName) {
   const resteFormatted = new Intl.NumberFormat('fr-FR').format(reste) + ' FCFA';
 
   return `Bonjour ${clientName},\n\n` +
-    `Bonne nouvelle ! Votre commande (${garment}) chez ${shopName || process.env.SHOP_NAME || '72 Couture'} est prête pour retrait !\n\n` +
+    `Bonne nouvelle ! Votre commande (${garment}) chez ${shopName || process.env.SHOP_NAME || '72H couture'} est prête pour retrait !\n\n` +
     `Reste à régler: ${resteFormatted}\n` +
     `Vous pouvez passer la récupérer à l'atelier à tout moment.\n\n` +
     `Merci beaucoup pour votre patience et votre confiance !`;

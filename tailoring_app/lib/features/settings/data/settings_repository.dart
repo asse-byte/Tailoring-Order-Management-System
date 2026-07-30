@@ -43,7 +43,7 @@ class SettingsRepository {
     final String? logo = res['logo_url'] as String?;
     final String? theme = res['theme_color'] as String?;
     return (
-      shopName: (res['shop_name'] as String?) ?? '72 Couture',
+      shopName: (res['shop_name'] as String?) ?? '72H couture',
       logoUrl: (logo != null && logo.isNotEmpty) ? logo : null,
       promoGroupLink: (res['promo_group_link'] as String?) ?? '',
       themeColor: (theme != null && theme.isNotEmpty) ? theme : null,
