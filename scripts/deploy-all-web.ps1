@@ -202,7 +202,9 @@ foreach ($s in $shops) {
         $apiUrl = "https://$($s.Api)"
         # appId is irrelevant for a web build (APK is built separately); derive a
         # deterministic placeholder so the builder's validation passes.
-        $appId  = 'com.couturepro.' + ($s.Slug -replace '[^a-z0-9]', '')
+        $slugClean = $s.Slug -replace '[^a-z0-9]', ''
+        if ($slugClean -match '^[0-9]') { $slugClean = 'c' + $slugClean }
+        $appId  = 'com.couturepro.' + $slugClean
         $webDir = Join-Path $repoRoot "dist\$($s.Slug)\web"
 
         Write-Host "  build : $apiUrl"
