@@ -41,6 +41,7 @@ test('activity stats: a new client + a delivered order move the counters by 1', 
   })).body.id;
   const orderId = (await asM(request(app).post('/api/orders')).send({
     client_id: clientId,
+    advance: 30000,
     items: [{ garment_type: 'Chemise', quantity: 1, unit_price: 30000 }],
   })).body.id;
   await asM(request(app).put(`/api/orders/${orderId}`)).send({ status: 'livre' });

@@ -53,12 +53,13 @@ router.get('/summary', asyncH(async (req, res) => {
       `SELECT COALESCE(SUM(total), 0)::bigint AS v FROM sales_effective
        WHERE NOT voided AND sold_at >= $1::date AND sold_at < $2::date + 1`,
       [from, to]),
-    // Tailoring revenue counts when the order is delivered. The total is the
-    // sum of the order's effective line items (append-only source of truth).
+    // Tailoring revenue counts when the order is delivered. The actual cash
+    // collected for delivered orders is the order's `advance` (paid amount).
+    // Unpaid balances (reste = total - advance) are receivables/debts, NOT revenue,
+    // until collected.
     db.query(
-      `SELECT COALESCE(SUM(oie.line_total), 0)::bigint AS v
-       FROM order_items_effective oie
-       JOIN orders o ON o.id = oie.order_id
+      `SELECT COALESCE(SUM(o.advance), 0)::bigint AS v
+       FROM orders o
        WHERE o.status = 'livre' AND o.delivered_date BETWEEN $1::date AND $2::date`,
       [from, to]),
     // Cost of goods sold: sum of (qty × cost_price) for products sold.

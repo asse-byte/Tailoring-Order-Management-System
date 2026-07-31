@@ -181,6 +181,36 @@ class InvoiceService {
                 ],
               ),
             ),
+            pw.SizedBox(height: 10),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(8),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.red300, width: 0.8),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                color: PdfColors.red50,
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: <pw.Widget>[
+                  pw.Text(
+                    'ATTENTION IMPORTANTE :',
+                    style: pw.TextStyle(
+                      fontSize: 8.5,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.red900,
+                    ),
+                  ),
+                  pw.SizedBox(height: 3),
+                  pw.Text(
+                    'Le client doit impérativement venir récupérer sa commande à la date prévue d\'achèvement indiquée. Passé cette date de livraison prévue, l\'atelier décline toute responsabilité quant à ce qui pourrait arriver à votre commande, et même légalement l\'atelier ne saura être tenu responsable.',
+                    style: const pw.TextStyle(
+                      fontSize: 7.5,
+                      color: PdfColors.grey900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
             pw.Spacer(),
             pw.Center(

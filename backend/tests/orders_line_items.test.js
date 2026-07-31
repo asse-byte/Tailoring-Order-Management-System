@@ -90,10 +90,12 @@ test('delivered order revenue equals its items total; same-day orders allowed', 
   // Two orders for the same client on the same day (no unique constraint).
   const o1 = (await asM(request(app).post('/api/orders')).send({
     client_id: clientId,
+    advance: 30000,
     items: [{ garment_type: 'Grand Boubou', quantity: 1, unit_price: 30000 }],
   })).body;
   const o2 = (await asM(request(app).post('/api/orders')).send({
     client_id: clientId,
+    advance: 12000,
     items: [{ garment_type: 'Création', quantity: 1, unit_price: 12000 }],
   })).body;
   expect(o1.id).not.toBe(o2.id);

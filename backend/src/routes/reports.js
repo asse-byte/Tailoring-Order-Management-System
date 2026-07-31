@@ -42,8 +42,8 @@ router.get('/summary', asyncH(async (req, res) => {
       `SELECT COALESCE(SUM(total), 0)::bigint AS v FROM sales_effective
        WHERE NOT voided AND sold_at >= $1::date AND sold_at < $2::date + 1`, [from, to]),
     db.query(
-      `SELECT COALESCE(SUM(oie.line_total), 0)::bigint AS v
-       FROM order_items_effective oie JOIN orders o ON o.id = oie.order_id
+      `SELECT COALESCE(SUM(o.advance), 0)::bigint AS v
+       FROM orders o
        WHERE o.status = 'livre' AND o.delivered_date BETWEEN $1::date AND $2::date`, [from, to]),
     db.query(
       `SELECT COALESCE(SUM(se.qty * p.cost_price), 0)::bigint AS v

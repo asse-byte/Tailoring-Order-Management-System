@@ -63,7 +63,7 @@ class WhatsAppService {
     }
 
     // Get shop name
-    let shopName = process.env.SHOP_NAME || '72 Couture';
+    let shopName = process.env.SHOP_NAME || '72H couture';
     try {
       const { rows } = await db.query("SELECT value #>> '{}' AS shop_name FROM settings WHERE key = 'shop_name'");
       if (rows[0] && rows[0].shop_name) {
