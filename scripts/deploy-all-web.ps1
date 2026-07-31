@@ -1,4 +1,4 @@
-# Deploy the web (PWA) build of EVERY shop from this dev machine, in one command.
+﻿# Deploy the web (PWA) build of EVERY shop from this dev machine, in one command.
 #
 #   .\scripts\deploy-all-web.ps1 -Server root@1.2.3.4
 #   .\scripts\deploy-all-web.ps1 -Server root@1.2.3.4 -IncludeBackend
@@ -200,9 +200,9 @@ foreach ($s in $shops) {
         }
 
         $apiUrl = "https://$($s.Api)"
-        $slugClean = $s.Slug -replace '[^a-z0-9]', ''
-        if ($slugClean -match '^[0-9]') { $slugClean = 'c' + $slugClean }
-        $appId  = 'com.couturepro.' + $slugClean
+        # appId is irrelevant for a web build (APK is built separately); derive a
+        # deterministic placeholder so the builder's validation passes.
+        $appId  = 'com.couturepro.' + ($s.Slug -replace '[^a-z0-9]', '')
         $webDir = Join-Path $repoRoot "dist\$($s.Slug)\web"
 
         Write-Host "  build : $apiUrl"
@@ -259,34 +259,6 @@ rm -f "$ARCH"
             if ($l -match 'FILES=(\d+)') { $count = $Matches[1] }
         }
         Good "$count fichiers deployes dans $r"
-
-        # Sync per-shop logo if custom logo exists in DB for this shop
-        $syncSh = @"
-set -e
-ROOT="$($s.Root)"
-CONTAINER="$($s.Slug)-api-1"
-DB_CONTAINER="$($s.Slug)-db-1"
-if docker ps --format '{{.Names}}' | grep -q "^`${CONTAINER}`$"; then
-  LOGO_FILE=`$(docker exec "`$DB_CONTAINER" psql -U couture -d couture_mali -t -A -c "SELECT value FROM settings WHERE key = 'logo_url';" 2>/dev/null | tr -d '"\r\n' || true)
-  if [ -n "`$LOGO_FILE" ] && [ "`$LOGO_FILE" != "null" ]; then
-    FILE_NAME=`$(basename "`$LOGO_FILE")
-    if [ -n "`$FILE_NAME" ]; then
-      docker cp "`${CONTAINER}:/app/uploads/`$FILE_NAME" /tmp/shop_logo.img 2>/dev/null || true
-      if [ -f /tmp/shop_logo.img ]; then
-        cp /tmp/shop_logo.img "`$ROOT/icons/Icon-192.png" 2>/dev/null || true
-        cp /tmp/shop_logo.img "`$ROOT/icons/Icon-512.png" 2>/dev/null || true
-        cp /tmp/shop_logo.img "`$ROOT/icons/Icon-maskable-192.png" 2>/dev/null || true
-        cp /tmp/shop_logo.img "`$ROOT/icons/Icon-maskable-512.png" 2>/dev/null || true
-        cp /tmp/shop_logo.img "`$ROOT/favicon.png" 2>/dev/null || true
-        cp /tmp/shop_logo.img "`$ROOT/apple-touch-icon.png" 2>/dev/null || true
-        rm -f /tmp/shop_logo.img
-        chmod -R o+rX "`$ROOT"
-      fi
-    fi
-  fi
-fi
-"@
-        Invoke-RemoteScript -Content $syncSh -Label "sync-logo-$($s.Slug)" | Out-Null
 
         # 5) verify over real HTTPS (not just 'no error')
         if (-not $SkipVerify -and -not [string]::IsNullOrWhiteSpace($s.App)) {
