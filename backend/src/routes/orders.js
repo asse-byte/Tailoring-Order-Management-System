@@ -123,6 +123,13 @@ router.post('/', asyncH(async (req, res) => {
          VALUES ($1, $2, $3, $4)`,
         [orderId, it.garment, it.qty, it.price]);
     }
+
+    if (advance > 0) {
+      await tx.query(
+        `INSERT INTO order_payments (order_id, amount, paid_at, note)
+         VALUES ($1, $2, CURRENT_DATE, 'Acompte initial')`,
+        [orderId, advance]);
+    }
     return orderId;
   });
 
@@ -145,35 +152,58 @@ router.put('/:id', asyncH(async (req, res) => {
   }
   const advance = req.body.advance === undefined ? null : intOrNull(req.body.advance);
   if (advance === undefined) return res.status(400).json({ error: 'Avance invalide.' });
-  const { rows } = await db.query(
-    `UPDATE orders SET
-       tailor_id      = COALESCE($1::uuid, tailor_id),
-       tailor_name_snapshot = CASE WHEN $1::uuid IS NOT NULL
-         THEN (SELECT full_name FROM staff WHERE id = $1::uuid)
-         ELSE tailor_name_snapshot END,
-       fabric         = COALESCE($2, fabric),
-       advance        = COALESCE($3, advance),
-       expected_date  = COALESCE($4::date, expected_date),
-       notes          = COALESCE($5, notes),
-       status         = COALESCE($6, status),
-       delivered_date = CASE
-         WHEN $6 = 'livre' AND status <> 'livre' THEN CURRENT_DATE
-         WHEN $6 IS NOT NULL AND $6 <> 'livre' THEN NULL
-         ELSE delivered_date END
-     WHERE id = $7 RETURNING id`,
-    [str(req.body.tailor_id), str(req.body.fabric), advance,
-      dateStr(req.body.expected_date), str(req.body.notes),
-      status || null, req.params.id]);
-  if (!rows[0]) return res.status(404).json({ error: 'Commande introuvable.' });
-  const { rows: full } = await db.query(`${ORDER_SELECT} WHERE o.id = $1`, [req.params.id]);
 
-  if (status === 'termine' && full[0]) {
-    whatsappService.sendOrderReadyMessage(full[0]).catch(err => {
+  const orderId = req.params.id;
+
+  const full = await db.withTransaction(async (tx) => {
+    const { rows: cur } = await tx.query('SELECT advance, status FROM orders WHERE id = $1', [orderId]);
+    if (!cur[0]) return null;
+    const oldAdvance = Number(cur[0].advance) || 0;
+
+    const { rows: updated } = await tx.query(
+      `UPDATE orders SET
+         tailor_id      = COALESCE($1::uuid, tailor_id),
+         tailor_name_snapshot = CASE WHEN $1::uuid IS NOT NULL
+           THEN (SELECT full_name FROM staff WHERE id = $1::uuid)
+           ELSE tailor_name_snapshot END,
+         fabric         = COALESCE($2, fabric),
+         advance        = COALESCE($3, advance),
+         expected_date  = COALESCE($4::date, expected_date),
+         notes          = COALESCE($5, notes),
+         status         = COALESCE($6, status),
+         delivered_date = CASE
+           WHEN $6 = 'livre' AND status <> 'livre' THEN CURRENT_DATE
+           WHEN $6 IS NOT NULL AND $6 <> 'livre' THEN NULL
+           ELSE delivered_date END
+       WHERE id = $7 RETURNING id`,
+      [str(req.body.tailor_id), str(req.body.fabric), advance,
+        dateStr(req.body.expected_date), str(req.body.notes),
+        status || null, orderId]);
+    if (!updated[0]) return null;
+
+    if (advance !== null && advance !== oldAdvance) {
+      const diff = advance - oldAdvance;
+      if (diff !== 0) {
+        await tx.query(
+          `INSERT INTO order_payments (order_id, amount, paid_at, note)
+           VALUES ($1, $2, CURRENT_DATE, $3)`,
+          [orderId, diff, diff > 0 ? 'Règlement / Acompte' : 'Ajustement acompte']);
+      }
+    }
+
+    const { rows: resRows } = await tx.query(`${ORDER_SELECT} WHERE o.id = $1`, [orderId]);
+    return resRows[0];
+  });
+
+  if (!full) return res.status(404).json({ error: 'Commande introuvable.' });
+
+  if (status === 'termine') {
+    whatsappService.sendOrderReadyMessage(full).catch(err => {
       console.error('[WhatsApp Background Send Error]:', err.message);
     });
   }
 
-  res.json(full[0]);
+  res.json(full);
 }));
 
 // Assign (or clear) the planned execution day — the programme. Send
