@@ -14,3 +14,11 @@ void updateWebTabFaviconAndTitle(String? logoUrl, String shopName) {
     } catch (_) {}
   }
 }
+
+void triggerPdfDownloadWeb(String base64Str, String filename) {
+  if (kIsWeb) {
+    try {
+      js.context.callMethod('downloadPdfFile', <dynamic>[base64Str, filename]);
+    } catch (_) {}
+  }
+}

@@ -1,5 +1,4 @@
 import 'dart:convert' show base64Encode;
-import 'dart:js' as js;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -12,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/utils/money.dart';
+import '../../../core/utils/web_helper.dart';
 import '../domain/entities/order.dart';
 
 /// Builds and shares the order invoice (PDF) and opens WhatsApp.
@@ -254,7 +254,7 @@ class InvoiceService {
   static void _downloadPdfWeb(Uint8List bytes, String filename) {
     try {
       final base64Str = base64Encode(bytes);
-      js.context.callMethod('downloadPdfFile', <dynamic>[base64Str, filename]);
+      triggerPdfDownloadWeb(base64Str, filename);
     } catch (_) {
       Printing.sharePdf(bytes: bytes, filename: filename);
     }
