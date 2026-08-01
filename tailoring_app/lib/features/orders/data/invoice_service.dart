@@ -1,5 +1,8 @@
+import 'dart:convert' show base64Encode;
+import 'dart:js' as js;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
@@ -181,30 +184,31 @@ class InvoiceService {
                 ],
               ),
             ),
-            pw.SizedBox(height: 10),
+            pw.SizedBox(height: 12),
             pw.Container(
-              padding: const pw.EdgeInsets.all(8),
+              padding: const pw.EdgeInsets.all(10),
               decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.red300, width: 0.8),
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                border: pw.Border.all(color: PdfColors.red400, width: 1.2),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
                 color: PdfColors.red50,
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: <pw.Widget>[
                   pw.Text(
-                    'ATTENTION IMPORTANTE :',
+                    'IMPORTANT :',
                     style: pw.TextStyle(
-                      fontSize: 8.5,
+                      fontSize: 11.5,
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColors.red900,
                     ),
                   ),
-                  pw.SizedBox(height: 3),
+                  pw.SizedBox(height: 4),
                   pw.Text(
-                    'Le client doit impérativement venir récupérer sa commande à la date prévue d\'achèvement indiquée. Passé cette date de livraison prévue, l\'atelier décline toute responsabilité quant à ce qui pourrait arriver à votre commande, et même légalement l\'atelier ne saura être tenu responsable.',
-                    style: const pw.TextStyle(
-                      fontSize: 7.5,
+                    'Merci de récupérer votre commande à la date prévue. Passé ce délai, l\'atelier décline toute responsabilité concernant votre article.',
+                    style: pw.TextStyle(
+                      fontSize: 10.0,
+                      fontWeight: pw.FontWeight.bold,
                       color: PdfColors.grey900,
                     ),
                   ),
@@ -237,8 +241,23 @@ class InvoiceService {
       promoGroupLink: promoGroupLink,
       logoBytes: await _logoBytes(logoUrl),
     );
-    await Printing.sharePdf(
-        bytes: bytes, filename: 'facture_${order.clientName}.pdf');
+    final safeClient = order.clientName.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_');
+    final fileName = 'facture_$safeClient.pdf';
+    if (kIsWeb) {
+      _downloadPdfWeb(bytes, fileName);
+    } else {
+      await Printing.sharePdf(
+          bytes: bytes, filename: fileName);
+    }
+  }
+
+  static void _downloadPdfWeb(Uint8List bytes, String filename) {
+    try {
+      final base64Str = base64Encode(bytes);
+      js.context.callMethod('downloadPdfFile', <dynamic>[base64Str, filename]);
+    } catch (_) {
+      Printing.sharePdf(bytes: bytes, filename: filename);
+    }
   }
 
   /// International phone for wa.me: keep digits, prepend Mali (223) when an
