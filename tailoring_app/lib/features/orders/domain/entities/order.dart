@@ -50,6 +50,7 @@ class TailoringOrder {
     required this.total,
     required this.advance,
     required this.status,
+    this.modelMedia = const <Map<String, String>>[],
     this.tailorId,
     this.tailorName,
     this.startDate,
@@ -70,6 +71,7 @@ class TailoringOrder {
   final String notes;
   final Map<String, dynamic> measurementsSnapshot;
   final List<OrderItemLine> items;
+  final List<Map<String, String>> modelMedia;
   final int total;
   final int advance;
   final String status;
@@ -104,6 +106,7 @@ class TailoringOrder {
 
     final dynamic snapshot = m['measurements_snapshot'];
     final dynamic rawItems = m['items'];
+    final dynamic rawMedia = m['model_media'];
     return TailoringOrder(
       id: m['id'] as String,
       clientId: (m['client_id'] as String?) ?? '',
@@ -120,6 +123,13 @@ class TailoringOrder {
               .map((e) => OrderItemLine.fromJson(e as Map<String, dynamic>))
               .toList()
           : <OrderItemLine>[],
+      modelMedia: rawMedia is List
+          ? rawMedia
+              .map((e) => e is Map
+                  ? Map<String, String>.from(e.map((k, v) => MapEntry(k.toString(), v.toString())))
+                  : <String, String>{})
+              .toList()
+          : <Map<String, String>>[],
       total: (m['total'] as num?)?.toInt() ?? 0,
       advance: (m['advance'] as num?)?.toInt() ?? 0,
       status: (m['status'] as String?) ?? AppConstants.statusEnAttente,

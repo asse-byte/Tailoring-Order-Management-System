@@ -81,6 +81,7 @@ class OrdersRepository {
     DateTime? startDate,
     DateTime? expectedDate,
     String? notes,
+    List<Map<String, String>> modelMedia = const <Map<String, String>>[],
   }) async {
     final dynamic res = await _api.post('/api/orders', body: {
       'client_id': clientId,
@@ -92,6 +93,7 @@ class OrdersRepository {
       if (startDate != null) 'start_date': _dateStr(startDate),
       if (expectedDate != null) 'expected_date': _dateStr(expectedDate),
       if (notes != null && notes.isNotEmpty) 'notes': notes,
+      if (modelMedia.isNotEmpty) 'model_media': modelMedia,
     });
     return TailoringOrder.fromJson(res as Map<String, dynamic>);
   }
@@ -107,6 +109,7 @@ class OrdersRepository {
     int? advance,
     DateTime? expectedDate,
     String? notes,
+    List<Map<String, String>>? modelMedia,
   }) async {
     final dynamic res = await _api.put('/api/orders/$id', body: {
       if (status != null) 'status': status,
@@ -115,6 +118,7 @@ class OrdersRepository {
       if (advance != null) 'advance': advance,
       if (expectedDate != null) 'expected_date': _dateStr(expectedDate),
       if (notes != null) 'notes': notes,
+      if (modelMedia != null) 'model_media': modelMedia,
     });
     return TailoringOrder.fromJson(res as Map<String, dynamic>);
   }

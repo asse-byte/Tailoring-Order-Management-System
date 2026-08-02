@@ -1,8 +1,12 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/garment_types.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/money.dart';
@@ -12,6 +16,7 @@ import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../clients/data/clients_repository.dart';
 import '../../../clients/domain/client.dart';
+import '../../../ready_to_wear/data/pret_a_porter_repository.dart';
 import '../../../staff/data/staff_repository.dart';
 import '../../data/orders_repository.dart';
 
@@ -216,6 +221,60 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
     );
   }
 
+  final List<Map<String, String>> _modelMedia = <Map<String, String>>[];
+  bool _uploadingMedia = false;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickModelPhoto(ImageSource source) async {
+    try {
+      final XFile? file = await _picker.pickImage(
+        source: source,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 85,
+      );
+      if (file != null) {
+        await _uploadModelMediaFile(file, 'image');
+      }
+    } catch (e) {
+      _toast('Erreur de sélection d\'image: $e', error: true);
+    }
+  }
+
+  Future<void> _pickModelVideo() async {
+    try {
+      final XFile? file = await _picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(minutes: 3),
+      );
+      if (file != null) {
+        await _uploadModelMediaFile(file, 'video');
+      }
+    } catch (e) {
+      _toast('Erreur de sélection de vidéo: $e', error: true);
+    }
+  }
+
+  Future<void> _uploadModelMediaFile(XFile file, String kind) async {
+    setState(() => _uploadingMedia = true);
+    try {
+      final PretAPorterRepository pretRepo = context.read<PretAPorterRepository>();
+      final uploaded = await pretRepo.uploadMedia(file);
+      setState(() {
+        _modelMedia.add(<String, String>{
+          'url': uploaded['url']!,
+          'kind': kind,
+          'thumb_url': uploaded['thumb_url'] ?? '',
+        });
+      });
+      _toast('Média du modèle ajouté !');
+    } catch (e) {
+      _toast('Erreur d\'envoi du média : $e', error: true);
+    } finally {
+      if (mounted) setState(() => _uploadingMedia = false);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_useExisting && _selectedClient == null) {
@@ -279,6 +338,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
         advance: parseThousands(_advance.text) ?? 0,
         expectedDate: _expected,
         notes: _notes.text.trim(),
+        modelMedia: _modelMedia,
       );
 
       if (!mounted) return;
@@ -473,6 +533,119 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                   label: 'Notes (optionnel)',
                   maxLines: 3,
                   minLines: 2,
+                ),
+                const SizedBox(height: 16),
+                // Modèle du client (Photos & Vidéos)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardTheme.color,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Theme.of(context).dividerColor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.photo_library_rounded, size: 20, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          const Text('Modèle du client (Photos & Vidéos)',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          if (_uploadingMedia) ...[
+                            const SizedBox(width: 8),
+                            const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      if (_modelMedia.isNotEmpty) ...[
+                        SizedBox(
+                          height: 80,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _modelMedia.length,
+                            itemBuilder: (ctx, idx) {
+                              final m = _modelMedia[idx];
+                              final isVid = m['kind'] == 'video';
+                              final rawUrl = m['url'] ?? '';
+                              final resolved = rawUrl.startsWith('http')
+                                  ? rawUrl
+                                  : '${ApiClient.baseUrl}$rawUrl';
+                              return Stack(
+                                children: [
+                                  Container(
+                                    width: 80,
+                                    margin: const EdgeInsets.only(right: 8),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.grey.shade300),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: isVid
+                                          ? Container(
+                                              color: Colors.black87,
+                                              child: const Center(
+                                                child: Icon(Icons.videocam_rounded, color: Colors.white, size: 28),
+                                              ),
+                                            )
+                                          : CachedNetworkImage(
+                                              imageUrl: resolved,
+                                              fit: BoxFit.cover,
+                                              placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                              errorWidget: (_, __, ___) => const Icon(Icons.broken_image_rounded),
+                                            ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 0,
+                                    right: 8,
+                                    child: InkWell(
+                                      onTap: () => setState(() => _modelMedia.removeAt(idx)),
+                                      child: Container(
+                                        decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                                        padding: const EdgeInsets.all(2),
+                                        child: const Icon(Icons.close, color: Colors.white, size: 14),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _uploadingMedia ? null : () => _pickModelPhoto(ImageSource.gallery),
+                              icon: const Icon(Icons.photo_outlined, size: 16),
+                              label: const Text('Galerie', style: TextStyle(fontSize: 12)),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _uploadingMedia ? null : () => _pickModelPhoto(ImageSource.camera),
+                              icon: const Icon(Icons.camera_alt_outlined, size: 16),
+                              label: const Text('Caméra', style: TextStyle(fontSize: 12)),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _uploadingMedia ? null : _pickModelVideo,
+                              icon: const Icon(Icons.videocam_outlined, size: 16),
+                              label: const Text('Vidéo', style: TextStyle(fontSize: 12)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(

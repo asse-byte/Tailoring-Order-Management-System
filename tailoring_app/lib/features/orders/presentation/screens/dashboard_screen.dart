@@ -62,7 +62,7 @@ class DashboardScreen extends StatelessWidget {
         route: '/admin/merchants',
       ),
       const _DashboardItem(
-        title: 'Mes Modèles',
+        title: 'Mon Album',
         icon: Icons.collections_rounded,
         route: '/admin/models-showcase',
       ),

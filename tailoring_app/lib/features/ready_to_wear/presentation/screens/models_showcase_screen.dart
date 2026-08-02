@@ -245,7 +245,7 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('$shopName — Mes Modèles'),
+        title: Text('$shopName — Mon Album'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),

@@ -14,6 +14,7 @@ const ORDER_SELECT = `
          COALESCE(c.full_name, o.client_name_snapshot) AS client_name,
          c.phone AS client_phone, (c.id IS NULL) AS client_deleted,
          COALESCE(s.full_name, o.tailor_name_snapshot) AS tailor_name,
+         COALESCE(o.model_media, '[]'::jsonb) AS model_media,
          COALESCE(it.total, 0) AS total,
          COALESCE(it.items, '[]') AS items
   FROM orders o
@@ -98,6 +99,9 @@ router.post('/', asyncH(async (req, res) => {
     snapshot = Object.fromEntries(m.map((r) => [r.garment_type, r.measures]));
   }
 
+  let modelMedia = req.body.model_media;
+  if (!Array.isArray(modelMedia)) modelMedia = [];
+
   const order = await db.withTransaction(async (tx) => {
     // Snapshot client + tailor names so a delivered order stays complete in
     // Historique even after the client or tailor is deleted (FKs are ON DELETE
@@ -106,16 +110,17 @@ router.post('/', asyncH(async (req, res) => {
       `INSERT INTO orders (client_id, tailor_id, client_name_snapshot,
                            tailor_name_snapshot, garment_type, fabric,
                            measurements_snapshot, price, advance,
-                           start_date, expected_date, status, notes)
+                           start_date, expected_date, status, notes, model_media)
        VALUES ($1, $2, (SELECT full_name FROM clients WHERE id = $1),
                (SELECT full_name FROM staff WHERE id = $2),
                $3, $4, $5, 0, $6,
                COALESCE($7::date, CURRENT_DATE), $8::date,
-               COALESCE($9, 'en_attente'), $10)
+               COALESCE($9, 'en_attente'), $10, $11)
        RETURNING id`,
       [clientId, tailorId, items[0].garment, str(req.body.fabric) || '',
         JSON.stringify(snapshot), advance, dateStr(req.body.start_date),
-        dateStr(req.body.expected_date), status || null, str(req.body.notes)]);
+        dateStr(req.body.expected_date), status || null, str(req.body.notes),
+        JSON.stringify(modelMedia)]);
     const orderId = rows[0].id;
     for (const it of items) {
       await tx.query(
@@ -154,6 +159,8 @@ router.put('/:id', asyncH(async (req, res) => {
   if (advance === undefined) return res.status(400).json({ error: 'Avance invalide.' });
 
   const orderId = req.params.id;
+  let modelMedia = req.body.model_media;
+  if (modelMedia !== undefined && !Array.isArray(modelMedia)) modelMedia = null;
 
   const full = await db.withTransaction(async (tx) => {
     const { rows: cur } = await tx.query('SELECT advance, status FROM orders WHERE id = $1', [orderId]);
@@ -171,14 +178,15 @@ router.put('/:id', asyncH(async (req, res) => {
          expected_date  = COALESCE($4::date, expected_date),
          notes          = COALESCE($5, notes),
          status         = COALESCE($6, status),
+         model_media    = COALESCE($7::jsonb, model_media),
          delivered_date = CASE
            WHEN $6 = 'livre' AND status <> 'livre' THEN CURRENT_DATE
            WHEN $6 IS NOT NULL AND $6 <> 'livre' THEN NULL
            ELSE delivered_date END
-       WHERE id = $7 RETURNING id`,
+       WHERE id = $8 RETURNING id`,
       [str(req.body.tailor_id), str(req.body.fabric), advance,
         dateStr(req.body.expected_date), str(req.body.notes),
-        status || null, orderId]);
+        status || null, modelMedia ? JSON.stringify(modelMedia) : null, orderId]);
     if (!updated[0]) return null;
 
     if (advance !== null && advance !== oldAdvance) {

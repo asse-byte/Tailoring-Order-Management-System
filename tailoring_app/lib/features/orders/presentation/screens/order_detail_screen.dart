@@ -1,8 +1,11 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/garment_types.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/money.dart';
@@ -502,9 +505,54 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
+  Future<String?> _getOrPromptPhone(String current) async {
+    var digits = current.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('00')) digits = digits.substring(2);
+    if (digits.length == 8) digits = '223$digits';
+    if (digits.length >= 8) return digits;
+
+    final ctrl = TextEditingController();
+    final String? res = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Envoyer sur WhatsApp'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Numéro WhatsApp du client (ex: 70000000) :'),
+            const SizedBox(height: 10),
+            TextField(
+              controller: ctrl,
+              keyboardType: TextInputType.phone,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'Numéro de téléphone',
+                prefixIcon: Icon(Icons.phone),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () {
+              var input = ctrl.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+              if (input.startsWith('00')) input = input.substring(2);
+              if (input.length == 8) input = '223$input';
+              Navigator.pop(ctx, input.length >= 8 ? input : null);
+            },
+            child: const Text('Ouvrir WhatsApp'),
+          ),
+        ],
+      ),
+    );
+    return res;
+  }
+
   Future<void> _shareInvoice() async {
     final shop = context.read<ShopSettingsProvider>();
-    _toast('Génération de la facture…');
+    _toast('Génération de la facture PDF…');
     try {
       await InvoiceService.shareInvoice(
         order: _order!,
@@ -512,21 +560,58 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         promoGroupLink: shop.promoGroupLink,
         logoUrl: shop.logoUrl,
       );
+
+      // Optionally open WhatsApp chat if phone is provided
+      final String? targetPhone = await _getOrPromptPhone(_order!.clientPhone);
+      if (targetPhone != null && targetPhone.isNotEmpty) {
+        final url = Uri.parse('https://wa.me/$targetPhone');
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        }
+      }
     } catch (e) {
       if (mounted) _toast('Impossible de générer la facture : $e', error: true);
     }
   }
 
-  Future<void> _sendWhatsApp() async {
+  Future<void> _sendWhatsAppText() async {
     final shop = context.read<ShopSettingsProvider>();
+    final String? targetPhone = await _getOrPromptPhone(_order!.clientPhone);
+    if (targetPhone == null || targetPhone.isEmpty) {
+      if (mounted) _toast('Numéro WhatsApp manquant.', error: true);
+      return;
+    }
+
+    final orderWithPhone = TailoringOrder(
+      id: _order!.id,
+      clientId: _order!.clientId,
+      clientName: _order!.clientName,
+      clientPhone: targetPhone,
+      garmentType: _order!.garmentType,
+      fabric: _order!.fabric,
+      notes: _order!.notes,
+      measurementsSnapshot: _order!.measurementsSnapshot,
+      items: _order!.items,
+      modelMedia: _order!.modelMedia,
+      total: _order!.total,
+      advance: _order!.advance,
+      status: _order!.status,
+      tailorId: _order!.tailorId,
+      tailorName: _order!.tailorName,
+      startDate: _order!.startDate,
+      expectedDate: _order!.expectedDate,
+      deliveredDate: _order!.deliveredDate,
+      plannedDate: _order!.plannedDate,
+      createdAt: _order!.createdAt,
+    );
+
     final ok = await InvoiceService.sendWhatsApp(
-      order: _order!,
+      order: orderWithPhone,
       shopName: shop.shopName,
       promoGroupLink: shop.promoGroupLink,
     );
     if (!ok && mounted) {
-      _toast('Numéro de téléphone du client manquant ou invalide.',
-          error: true);
+      _toast('Numéro de téléphone du client invalide.', error: true);
     }
   }
 
@@ -585,6 +670,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       const SectionHeader(title: 'Infos de commande'),
                       const SizedBox(height: 12),
                       _infoCard(_order!),
+                      if (_order!.modelMedia.isNotEmpty) ...<Widget>[
+                        const SizedBox(height: 20),
+                        const SectionHeader(title: 'Modèle du client (Photos & Vidéos)'),
+                        const SizedBox(height: 8),
+                        _modelMediaCard(_order!),
+                      ],
                       if (_order!.notes.isNotEmpty) ...<Widget>[
                         const SizedBox(height: 20),
                         const SectionHeader(title: 'Notes'),
@@ -602,6 +693,94 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     ],
                   ),
                 ),
+    );
+  }
+
+  Widget _modelMediaCard(TailoringOrder order) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: SizedBox(
+        height: 100,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: order.modelMedia.length,
+          itemBuilder: (context, index) {
+            final item = order.modelMedia[index];
+            final isVideo = item['kind'] == 'video';
+            final rawUrl = item['url'] ?? '';
+            final resolvedUrl = rawUrl.startsWith('http')
+                ? rawUrl
+                : '${ApiClient.baseUrl}$rawUrl';
+
+            return GestureDetector(
+              onTap: () async {
+                final Uri uri = Uri.parse(resolvedUrl);
+                if (isVideo) {
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                } else {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => Dialog(
+                      backgroundColor: Colors.transparent,
+                      child: Stack(
+                        alignment: Alignment.topRight,
+                        children: [
+                          InteractiveViewer(
+                            child: CachedNetworkImage(
+                              imageUrl: resolvedUrl,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: Container(
+                width: 100,
+                margin: const EdgeInsets.only(right: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Theme.of(context).dividerColor),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: isVideo
+                      ? Container(
+                          color: Colors.black87,
+                          child: const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 36),
+                              SizedBox(height: 4),
+                              Text('Vidéo', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        )
+                      : CachedNetworkImage(
+                          imageUrl: resolvedUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          errorWidget: (_, __, ___) => const Icon(Icons.broken_image_rounded),
+                        ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -879,16 +1058,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.picture_as_pdf_outlined),
-                  label: const Text('Facture'),
+                  label: const Text('Facture PDF (WhatsApp)', style: TextStyle(fontSize: 12)),
                   onPressed: _shareInvoice,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
-                  label: const Text('WhatsApp'),
-                  onPressed: _sendWhatsApp,
+                  label: const Text('Facture Textuelle', style: TextStyle(fontSize: 12)),
+                  onPressed: _sendWhatsAppText,
                 ),
               ),
             ],
