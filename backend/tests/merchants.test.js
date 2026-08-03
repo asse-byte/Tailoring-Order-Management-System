@@ -78,7 +78,7 @@ describe('Supplier Credit & Purchases', () => {
 
 describe('Wholesale Orders to Merchants', () => {
   test('Wholesale orders allow installment payments and status tracking', async () => {
-    const order = await asSec(request(app).post('/api/wholesale/orders'))
+    const order = await asM(request(app).post('/api/wholesale/orders'))
       .send({
         merchant_name: 'Boutique Sylla & Frères',
         merchant_phone: '76112233',
@@ -90,20 +90,34 @@ describe('Wholesale Orders to Merchants', () => {
     const orderId = order.body.id;
 
     // Pay remaining installment of 50,000 FCFA
-    const pay = await asSec(request(app).post(`/api/wholesale/orders/${orderId}/payments`))
+    const pay = await asM(request(app).post(`/api/wholesale/orders/${orderId}/payments`))
       .send({ amount: 50000, note: 'Règlement solde' });
     expect(pay.status).toBe(201);
 
-    const ordGet = await asSec(request(app).get(`/api/wholesale/orders/${orderId}`));
+    const ordGet = await asM(request(app).get(`/api/wholesale/orders/${orderId}`));
     expect(ordGet.body.reste).toBe(0);
 
     // Deleting wholesale order with existing payments -> 409 (append-only payment records protected)
-    expect((await asSec(request(app).delete(`/api/wholesale/orders/${orderId}`))).status).toBe(403);
     expect((await asM(request(app).delete(`/api/wholesale/orders/${orderId}`))).status).toBe(409);
 
     // Create empty order and delete as manager -> 204
-    const emptyOrder = await asSec(request(app).post('/api/wholesale/orders'))
+    const emptyOrder = await asM(request(app).post('/api/wholesale/orders'))
       .send({ merchant_name: 'Test Temp', total_amount: 10000 });
     expect((await asM(request(app).delete(`/api/wholesale/orders/${emptyOrder.body.id}`))).status).toBe(204);
+  });
+
+  // Wholesale exposes money (total, paid, outstanding balance), so it is
+  // manager-only like every other revenue module — owner decision 2026-08-03.
+  test('secretary is blocked from every wholesale route (403)', async () => {
+    expect((await asSec(request(app).get('/api/wholesale/orders'))).status).toBe(403);
+    expect((await asSec(request(app).post('/api/wholesale/orders'))
+      .send({ merchant_name: 'X', total_amount: 1000 })).status).toBe(403);
+
+    const own = await asM(request(app).post('/api/wholesale/orders'))
+      .send({ merchant_name: 'Interdit à la secrétaire', total_amount: 5000 });
+    expect((await asSec(request(app).get(`/api/wholesale/orders/${own.body.id}`))).status).toBe(403);
+    expect((await asSec(request(app).post(`/api/wholesale/orders/${own.body.id}/payments`))
+      .send({ amount: 1000 })).status).toBe(403);
+    expect((await asSec(request(app).delete(`/api/wholesale/orders/${own.body.id}`))).status).toBe(403);
   });
 });

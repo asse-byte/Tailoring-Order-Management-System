@@ -42,17 +42,57 @@ router.get('/settings/custom-garments', asyncH(async (req, res) => {
   res.json(rows[0] ? rows[0].value : { homme: {}, femme: {} });
 }));
 
+// The garment catalogue is Type-A master data: the secretary adds to it while
+// taking an order, but REMOVING an entry is a destructive master-data delete
+// and stays manager-only (CLAUDE.md). Her writes are therefore merged into
+// what is already stored — a payload missing a garment type can never wipe it.
+// The manager's PUT replaces the document outright.
 router.put('/settings/custom-garments', asyncH(async (req, res) => {
   const custom = req.body;
-  if (typeof custom !== 'object' || custom === null) {
+  if (typeof custom !== 'object' || custom === null || Array.isArray(custom)) {
     return res.status(400).json({ error: 'custom_garments doit être un objet.' });
   }
+
+  const isManager = req.user.role === 'MANAGER';
+  let next = custom;
+
+  if (!isManager) {
+    const { rows } = await db.query(
+      "SELECT value FROM settings WHERE key = 'custom_garments'");
+    const current = rows[0] ? rows[0].value : {};
+    next = { ...current };
+    for (const [gender, garments] of Object.entries(custom)) {
+      if (typeof garments !== 'object' || garments === null) continue;
+      next[gender] = { ...(current[gender] || {}), ...garments };
+    }
+  }
+
   await db.query(
     "UPDATE settings SET value = $1 WHERE key = 'custom_garments'",
-    [JSON.stringify(custom)]
-  );
+    [JSON.stringify(next)]);
   res.json({ ok: true });
 }));
+
+// Remove one garment type from the catalogue — manager only, like every
+// Type-A delete. Orders already placed keep their own garment_type text, so
+// removing a model here never rewrites history.
+router.delete('/settings/custom-garments/:gender/:garment', managerOnly,
+  asyncH(async (req, res) => {
+    const { gender, garment } = req.params;
+    const { rows } = await db.query(
+      "SELECT value FROM settings WHERE key = 'custom_garments'");
+    const current = rows[0] ? rows[0].value : {};
+    if (!current[gender] || !(garment in current[gender])) {
+      return res.status(404).json({ error: 'Modèle introuvable dans le catalogue.' });
+    }
+
+    const next = { ...current, [gender]: { ...current[gender] } };
+    delete next[gender][garment];
+    await db.query(
+      "UPDATE settings SET value = $1 WHERE key = 'custom_garments'",
+      [JSON.stringify(next)]);
+    res.status(204).end();
+  }));
 
 router.get('/:id', asyncH(async (req, res) => {
   const { rows } = await db.query('SELECT * FROM clients WHERE id = $1', [req.params.id]);

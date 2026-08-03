@@ -53,12 +53,14 @@ router.get('/summary', asyncH(async (req, res) => {
       `SELECT COALESCE(SUM(total), 0)::bigint AS v FROM sales_effective
        WHERE NOT voided AND sold_at >= $1::date AND sold_at < $2::date + 1`,
       [from, to]),
-    // Tailoring order cash revenue: sum of all cash payments collected in the window
-    // (advances upon order creation + subsequent balance settlements).
+    // Tailoring order cash revenue: sum of all cash payments collected in the
+    // window (advance at creation, settlements, and the balance captured at
+    // delivery). Reads the append-only effective view so corrected/voided
+    // payments are respected (migration 018).
     db.query(
       `SELECT COALESCE(SUM(amount), 0)::bigint AS v
-       FROM order_payments
-       WHERE paid_at BETWEEN $1::date AND $2::date`,
+       FROM order_payments_effective
+       WHERE NOT voided AND paid_at BETWEEN $1::date AND $2::date`,
       [from, to]),
     // Cost of goods sold: sum of (qty × cost_price) for products sold.
     // NB: sales.kind is 'produit' / 'pret_a_porter' (see 001_init.sql), NOT

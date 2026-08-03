@@ -5,7 +5,12 @@ const { asyncH, pagination, intOrNull, dateStr, str } = require('../util');
 const whatsappService = require('../services/whatsapp');
 
 const router = express.Router();
+// Statuses a client may SET on an order. 'annule' is deliberately absent:
+// cancelling goes through DELETE /orders/:id so it always records who/when/why.
 const STATUSES = ['en_attente', 'en_cours', 'termine', 'livre'];
+// Statuses a client may FILTER the list by — archived orders are reachable
+// only by asking for them explicitly.
+const LISTABLE_STATUSES = [...STATUSES, 'annule'];
 
 // Every list/detail row carries its line items (effective view) and the
 // derived total, so the client never computes money itself.
@@ -30,6 +35,33 @@ const ORDER_SELECT = `
     FROM order_items_effective WHERE order_id = o.id
   ) it ON true`;
 
+/**
+ * Lower the cash recorded against an order down to `target`, using correction
+ * rows only — `order_payments` is append-only (migration 018), so rows are
+ * never updated or deleted and negative amounts are rejected by CHECK.
+ * Newest payments are corrected first; each correction carries the mandatory
+ * reason, exactly like expense/sale corrections.
+ */
+async function correctCollectedDown(tx, orderId, target, userId, reason) {
+  const { rows } = await tx.query(
+    `SELECT id, amount FROM order_payments_effective
+     WHERE order_id = $1 AND NOT voided
+     ORDER BY paid_at DESC, created_at DESC`, [orderId]);
+
+  let remaining = rows.reduce((sum, r) => sum + Number(r.amount), 0) - target;
+  for (const row of rows) {
+    if (remaining <= 0) break;
+    const amount = Number(row.amount);
+    const newAmount = Math.max(0, amount - remaining);
+    remaining -= amount - newAmount;
+    await tx.query(
+      `INSERT INTO order_payment_corrections
+         (payment_id, new_amount, voided, reason, corrected_by)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [row.id, newAmount, newAmount === 0, reason, userId]);
+  }
+}
+
 /** Validate an items array from the request → [{garment_type, quantity, unit_price}]. */
 function parseItems(raw) {
   if (!Array.isArray(raw) || raw.length === 0) return null;
@@ -50,7 +82,7 @@ function parseItems(raw) {
 // (no planned_date, not yet delivered).
 router.get('/', asyncH(async (req, res) => {
   const { limit, offset } = pagination(req);
-  const status = STATUSES.includes(req.query.status) ? req.query.status : null;
+  const status = LISTABLE_STATUSES.includes(req.query.status) ? req.query.status : null;
   const clientId = str(req.query.client_id);
   const from = dateStr(req.query.from);
   const to = dateStr(req.query.to);
@@ -60,6 +92,9 @@ router.get('/', asyncH(async (req, res) => {
   const { rows } = await db.query(
     `${ORDER_SELECT}
      WHERE ($1::text IS NULL OR o.status = $1)
+       -- Cancelled orders are archived: never in the active list or in
+       -- Historique unless explicitly asked for with ?status=annule.
+       AND ($1::text = 'annule' OR o.status <> 'annule')
        AND ($2::uuid IS NULL OR o.client_id = $2)
        AND ($3::date IS NULL OR COALESCE(o.delivered_date, o.created_at::date) >= $3)
        AND ($4::date IS NULL OR COALESCE(o.delivered_date, o.created_at::date) <= $4)
@@ -189,13 +224,46 @@ router.put('/:id', asyncH(async (req, res) => {
         status || null, modelMedia ? JSON.stringify(modelMedia) : null, orderId]);
     if (!updated[0]) return null;
 
+    // Cash collected is append-only (migration 018): a raised advance is a NEW
+    // payment row, a lowered one is a CORRECTION of the rows already recorded —
+    // never a negative counter-row, which the CHECK now rejects anyway.
     if (advance !== null && advance !== oldAdvance) {
       const diff = advance - oldAdvance;
-      if (diff !== 0) {
+      if (diff > 0) {
         await tx.query(
           `INSERT INTO order_payments (order_id, amount, paid_at, note)
-           VALUES ($1, $2, CURRENT_DATE, $3)`,
-          [orderId, diff, diff > 0 ? 'Règlement / Acompte' : 'Ajustement acompte']);
+           VALUES ($1, $2, CURRENT_DATE, 'Règlement / Acompte')`,
+          [orderId, diff]);
+      } else {
+        await correctCollectedDown(tx, orderId, advance, req.user.id,
+          'Acompte corrigé à la baisse depuis la fiche commande.');
+      }
+    }
+
+    // Delivery collects the remaining balance. Without this the cash-basis
+    // revenue introduced in migration 016 never saw a delivered order that was
+    // paid in full at hand-over: the money was collected but no payment row
+    // existed, so tailoring revenue stayed at 0 for shops that take no advance.
+    if (status === 'livre' && cur[0].status !== 'livre') {
+      const { rows: bal } = await tx.query(
+        `SELECT COALESCE(it.total, 0)::int AS total,
+                COALESCE(pay.paid, 0)::int AS paid
+         FROM orders o
+         LEFT JOIN LATERAL (
+           SELECT SUM(line_total)::int AS total FROM order_items_effective
+           WHERE order_id = o.id
+         ) it ON true
+         LEFT JOIN LATERAL (
+           SELECT SUM(amount)::int AS paid FROM order_payments_effective
+           WHERE order_id = o.id AND NOT voided
+         ) pay ON true
+         WHERE o.id = $1`, [orderId]);
+      const reste = (bal[0]?.total || 0) - (bal[0]?.paid || 0);
+      if (reste > 0) {
+        await tx.query(
+          `INSERT INTO order_payments (order_id, amount, paid_at, note)
+           VALUES ($1, $2, CURRENT_DATE, 'Solde encaissé à la livraison')`,
+          [orderId, reste]);
       }
     }
 
@@ -205,10 +273,15 @@ router.put('/:id', asyncH(async (req, res) => {
 
   if (!full) return res.status(404).json({ error: 'Commande introuvable.' });
 
+  // Best-effort notification. It only actually sends when a WhatsApp provider
+  // is configured (see services/whatsapp.js); otherwise it is a no-op and the
+  // shop notifies the client with the wa.me button on the order screen.
   if (status === 'termine') {
-    whatsappService.sendOrderReadyMessage(full).catch(err => {
-      console.error('[WhatsApp Background Send Error]:', err.message);
-    });
+    whatsappService.sendOrderReadyMessage(full).then((r) => {
+      if (!r.sent && r.reason === 'provider_error') {
+        console.error('[WhatsApp] envoi échoué:', r.error);
+      }
+    }).catch((err) => console.error('[WhatsApp] erreur inattendue:', err.message));
   }
 
   res.json(full);
@@ -291,43 +364,31 @@ router.get('/:id/items/:itemId/corrections', asyncH(async (req, res) => {
   res.json({ items: rows });
 }));
 
+// Cancel (archive) an order — manager only. An order always carries
+// append-only order_items, so it is NEVER hard-deleted: cancelling is a status
+// change (migration 019), exactly like delivering moves it to Historique. The
+// line items, their corrections, the cash already collected and the tailor's
+// daily entries are all preserved untouched.
+//
+// Cash already collected stays counted as revenue on the day it came in — the
+// shop really did receive it. If the client is reimbursed, the manager voids
+// the payment through its correction endpoint, with a reason, like every other
+// financial change in this project.
 router.delete('/:id', managerOnly, asyncH(async (req, res) => {
   const orderId = req.params.id;
-  const deleted = await db.withTransaction(async (tx) => {
-    // 1. Unlink tailor_daily_entries from this order
-    try {
-      await tx.query('ALTER TABLE tailor_daily_entries DISABLE TRIGGER tde_append_only');
-      await tx.query('UPDATE tailor_daily_entries SET order_id = NULL WHERE order_id = $1', [orderId]);
-      await tx.query('ALTER TABLE tailor_daily_entries ENABLE TRIGGER tde_append_only');
-    } catch (_) {
-      await tx.query('UPDATE tailor_daily_entries SET order_id = NULL WHERE order_id = $1', [orderId]).catch(() => {});
-    }
+  const reason = str(req.body && req.body.reason) || null;
 
-    // 2. Disable append-only triggers on order_item_corrections and order_items temporarily
-    try {
-      await tx.query('ALTER TABLE order_item_corrections DISABLE TRIGGER order_item_corrections_append_only');
-      await tx.query('ALTER TABLE order_items DISABLE TRIGGER order_items_append_only');
-    } catch (_) {}
+  const { rows } = await db.query(
+    `UPDATE orders
+        SET status = 'annule', cancelled_at = now(), cancel_reason = $2
+      WHERE id = $1 AND status <> 'annule'
+      RETURNING id`, [orderId, reason]);
 
-    // 3. Delete corrections and items belonging to this order
-    await tx.query(
-      `DELETE FROM order_item_corrections WHERE order_item_id IN (SELECT id FROM order_items WHERE order_id = $1)`,
-      [orderId]
-    );
-    await tx.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
-
-    // 4. Re-enable append-only triggers
-    try {
-      await tx.query('ALTER TABLE order_item_corrections ENABLE TRIGGER order_item_corrections_append_only');
-      await tx.query('ALTER TABLE order_items ENABLE TRIGGER order_items_append_only');
-    } catch (_) {}
-
-    // 5. Delete the order itself
-    const { rowCount } = await tx.query('DELETE FROM orders WHERE id = $1', [orderId]);
-    return rowCount > 0;
-  });
-
-  if (!deleted) return res.status(404).json({ error: 'Commande introuvable.' });
+  if (!rows[0]) {
+    const { rows: exists } = await db.query('SELECT status FROM orders WHERE id = $1', [orderId]);
+    if (!exists[0]) return res.status(404).json({ error: 'Commande introuvable.' });
+    return res.status(409).json({ error: 'Commande déjà annulée.' });
+  }
   res.status(204).end();
 }));
 
