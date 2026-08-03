@@ -158,3 +158,92 @@ describe('Type-A delete access', () => {
     expect((await asSec(request(app).delete(`/api/pret-a-porter/${modelId}`))).status).toBe(204);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Garment catalogue — Type-A master data held as a settings document.
+// ---------------------------------------------------------------------------
+describe('Garment catalogue (custom_garments)', () => {
+  const path = '/api/clients/settings/custom-garments';
+
+  beforeAll(async () => {
+    await asM(request(app).put(path)).send({
+      homme: { 'Grand Boubou': ['epaule'], Chemise: ['col'] },
+      femme: { Robe: ['taille'] },
+    });
+  });
+
+  test('the secretary can add a model but can never remove one', async () => {
+    // She sends only her new model — the ones she omitted must survive.
+    const res = await asSec(request(app).put(path))
+      .send({ homme: { Veste: ['dos'] } });
+    expect(res.status).toBe(200);
+
+    const after = (await asSec(request(app).get(path))).body;
+    expect(after.homme).toHaveProperty('Veste');
+    expect(after.homme).toHaveProperty('Grand Boubou');
+    expect(after.homme).toHaveProperty('Chemise');
+    expect(after.femme).toHaveProperty('Robe');
+  });
+
+  test('deleting a garment type is manager-only', async () => {
+    expect((await asSec(request(app).delete(`${path}/homme/Chemise`))).status).toBe(403);
+    expect(((await asM(request(app).get(path))).body).homme).toHaveProperty('Chemise');
+  });
+
+  test('the manager removes a garment type; the rest of the catalogue stays', async () => {
+    expect((await asM(request(app).delete(`${path}/homme/Chemise`))).status).toBe(204);
+
+    const after = (await asM(request(app).get(path))).body;
+    expect(after.homme).not.toHaveProperty('Chemise');
+    expect(after.homme).toHaveProperty('Grand Boubou');
+    expect(after.femme).toHaveProperty('Robe');
+
+    // Removing it twice is a 404, not a silent success.
+    expect((await asM(request(app).delete(`${path}/homme/Chemise`))).status).toBe(404);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Appointments + suppliers — the remaining Type-A records.
+// ---------------------------------------------------------------------------
+describe('Appointments and suppliers deletion', () => {
+  test('a manual appointment can be deleted; order deliveries cannot (derived)', async () => {
+    const clientId = (await asM(request(app).post('/api/clients'))
+      .send({ full_name: 'Awa Traoré', phone: '75004000' })).body.id;
+
+    const appt = await asM(request(app).post('/api/appointments')).send({
+      client_id: clientId,
+      scheduled_at: '2026-08-20T10:00:00Z',
+      reason: 'essayage',
+    });
+    expect(appt.status).toBe(201);
+    expect((await asM(request(app).delete(`/api/appointments/${appt.body.id}`))).status).toBe(204);
+    expect((await asM(request(app).delete(`/api/appointments/${appt.body.id}`))).status).toBe(404);
+  });
+
+  test('deleting a supplier keeps its past purchases with the snapshotted name', async () => {
+    const supp = await asM(request(app).post('/api/suppliers'))
+      .send({ name: 'Tissus Bamako', phone: '76009000' });
+    const purchase = await asM(request(app).post('/api/suppliers/purchases')).send({
+      supplier_id: supp.body.id,
+      description: 'Bazin riche',
+      total_amount: 200000,
+      advance_amount: 50000,
+    });
+    expect(purchase.status).toBe(201);
+
+    expect((await asM(request(app).delete(`/api/suppliers/${supp.body.id}`))).status).toBe(204);
+
+    // The purchase survives, still named, and flagged as a former supplier.
+    const after = await asM(request(app).get(`/api/suppliers/purchases/${purchase.body.id}`));
+    expect(after.status).toBe(200);
+    expect(after.body.supplier_name).toBe('Tissus Bamako');
+    expect(after.body.supplier_deleted).toBe(true);
+    expect(after.body.total_amount).toBe(200000);
+  });
+
+  test('the secretary cannot delete suppliers (financial module)', async () => {
+    const supp = await asM(request(app).post('/api/suppliers')).send({ name: 'Fournisseur X' });
+    expect((await asSec(request(app).delete(`/api/suppliers/${supp.body.id}`))).status).toBe(403);
+  });
+});

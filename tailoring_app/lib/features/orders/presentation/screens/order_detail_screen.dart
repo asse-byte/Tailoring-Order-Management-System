@@ -550,6 +550,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return res;
   }
 
+  /// Builds the invoice PDF and hands it to the system share sheet (on the
+  /// web it downloads instead).
+  ///
+  /// PLATFORM CONSTRAINT — do not "improve" this into a direct WhatsApp send.
+  /// No mobile OS lets an app hand a file to WhatsApp *and* preselect the
+  /// recipient: wa.me/deep links carry text only, and attaching a document
+  /// always goes through the OS share sheet, where the user picks the contact.
+  /// The user therefore taps once here, then chooses WhatsApp and the contact.
+  /// Opening wa.me on top of the share sheet was tried and only confused
+  /// people — WhatsApp came up with no document attached.
+  /// The separate WhatsApp button sends the text recap, which deep links do
+  /// support.
   Future<void> _shareInvoice() async {
     final shop = context.read<ShopSettingsProvider>();
     _toast('Génération de la facture PDF…');
@@ -560,15 +572,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         promoGroupLink: shop.promoGroupLink,
         logoUrl: shop.logoUrl,
       );
-
-      // Optionally open WhatsApp chat if phone is provided
-      final String? targetPhone = await _getOrPromptPhone(_order!.clientPhone);
-      if (targetPhone != null && targetPhone.isNotEmpty) {
-        final url = Uri.parse('https://wa.me/$targetPhone');
-        if (await canLaunchUrl(url)) {
-          await launchUrl(url, mode: LaunchMode.externalApplication);
-        }
-      }
     } catch (e) {
       if (mounted) _toast('Impossible de générer la facture : $e', error: true);
     }

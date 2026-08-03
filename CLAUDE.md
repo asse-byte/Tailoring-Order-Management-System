@@ -195,6 +195,68 @@ Large batch of owner-requested changes, executed one tested commit per item
   based on those numbers should be revisited. Proven by
   `backend/tests/finance_calculations.test.js`.
 
+## Antigravity review + corrections (2026-08-03)
+
+A different tool (Antigravity) added 24 commits while Claude was away
+(`5dc578c..d6d608f`). Reviewed against this file; most of it was sound
+(suppliers/wholesale payments correctly append-only, staff-pay weekly fields
+correctly gated). Four things contradicted the rules here and were corrected:
+
+- **Cash-basis tailoring revenue was half-implemented (money bug).**
+  Migration 016 switched order revenue from accrual (delivered order total) to
+  cash-basis (`SUM(order_payments)`), but payment rows were only written for an
+  advance. **An order delivered and paid in full at hand-over produced no row,
+  so it never appeared in revenue at all** — reported for 72 Couture, equally
+  true for Rayan Couture. Net profit was UNDERSTATED from commit `1eecd32`
+  until this fix, so judgement calls made on those figures should be revisited
+  (same class of problem as the COGS bug in item 5). Delivering an order now
+  records the outstanding balance as collected cash.
+- **`order_payments` violated the append-only principle.** No trigger, no
+  corrections table, no effective view, `ON DELETE CASCADE` (deleting an order
+  erased its cash from every total) and `CHECK (amount <> 0)` allowing negative
+  rows. Migration 018 gives it the full treatment: `ON DELETE RESTRICT`,
+  `amount > 0`, `order_payment_corrections`, append-only triggers and
+  `order_payments_effective` (which finance + reports read). Lowering an
+  advance writes correction rows — never a negative counter-row.
+- **Order delete bypassed append-only.** The route ran
+  `ALTER TABLE ... DISABLE TRIGGER` on `order_items`,
+  `order_item_corrections` and `tailor_daily_entries`, deleted rows, then
+  re-enabled inside a silent `catch`. That is table-wide DDL, not
+  session-local: protection was off for **every** connection during the
+  delete. Orders always carry append-only line items, so **an order is never
+  hard-deleted** — cancelling is a status change to `annule` with
+  `cancelled_at` + `cancel_reason` (migration 019), exactly like delivery moves
+  an order to Historique. Items, corrections, cash and tailor entries survive.
+  Cancelled orders are excluded from the active list and the agenda.
+- **Wholesale/suppliers were visible to the secretary.** They expose totals,
+  amounts paid and outstanding balances — money — so they are `managerOnly`
+  like every other revenue module (owner decision 2026-08-03), hidden from her
+  dashboard and blocked in the router.
+
+Two further corrections, not rule violations but wrong-in-fact:
+
+- **WhatsApp auto-send was fictional.** The service claimed
+  `SENT_AUTOMATICALLY` while only pushing to an in-memory array, and ran
+  whenever an order became `termine` — so a shop believed clients had been
+  told their order was ready when nobody had. It now really posts to UltraMsg
+  or Green API when `WHATSAPP_PROVIDER` / `WHATSAPP_INSTANCE_ID` /
+  `WHATSAPP_API_KEY` are set, and otherwise reports `not_configured` and sends
+  nothing. **Never make this report success without a provider.** The flow the
+  shops actually use is the client-side `wa.me` button.
+- **One shop's logo shipped to all of them.** `assets/logo.jpeg` had been
+  replaced with 72H Couture's real logo, and one build serves every shop. The
+  bundled asset is gone (no Dart code read it any more); logos are per-shop via
+  `settings.logo_url` with the neutral initial placeholder. **Do not re-add a
+  bundled shop logo** — it supersedes the invoice fallback described in the
+  multi-shop section above. Web PWA icons are the neutral CouturePro icon and
+  are swapped per shop at deploy time by `scripts/sync-shop-logos.ps1`.
+
+Deliberately kept as Antigravity built it, on the owner's instruction:
+**`POST /api/sales` accepts a client-supplied `unit_price`** (VIP discounts).
+This relaxes the original "server-priced, the client never sends prices" rule —
+the server still computes `total` and decrements stock atomically, but the unit
+price is now the caller's to set, with no ceiling. Owner decision 2026-08-03.
+
 ## Master-data deletion — Type A vs Type B (NON-NEGOTIABLE, added 2026-07-17)
 
 The manager (never the secretary) has **full edit + hard-delete** of
@@ -203,9 +265,21 @@ append-only forever. This distinction is not up for debate:
 
 - **Type A (master data): direct full edit + hard delete, allowed.**
   `staff` (couturiers + monthly), `clients`, `products`,
-  `pret_a_porter_models`, garment catalogue, public settings. Every
-  Type-A `DELETE` is `managerOnly` (verified in
-  `backend/tests/master_data_delete.test.js`).
+  `pret_a_porter_models`, garment catalogue, `appointments` (the manual ones —
+  order-derived agenda entries are a read-only view of the order), `suppliers`,
+  `wholesale_orders`, public settings. Every Type-A `DELETE` is `managerOnly`
+  (verified in `backend/tests/master_data_delete.test.js`) EXCEPT the four the
+  owner opened to the secretary in rule 2 (`clients`, `staff`, `products`,
+  `pret-a-porter`).
+  - **Garment catalogue (`custom_garments`, 2026-08-03):** the secretary adds
+    models while taking an order, so her `PUT` is MERGED into what is stored —
+    a payload missing a model can no longer wipe it. Removing a model is
+    `DELETE /api/clients/settings/custom-garments/:gender/:garment`, manager
+    only. Orders keep their own `garment_type` text, so removing a model never
+    rewrites history.
+  - **Deleting a supplier or a wholesale order** keeps its financial history:
+    `supplier_purchases.supplier_name_snapshot` + `ON DELETE SET NULL`, and a
+    wholesale order carrying payments refuses deletion with 409.
 - **Type B (historical financial records): append-only forever, NO direct
   delete.** `tailor_daily_entries`, `sales`, `expenses`, `salary_payments`,
   `staff_pay_history` and all their `*_corrections`. Triggers still block
