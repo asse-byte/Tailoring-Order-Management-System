@@ -26,7 +26,8 @@ router.get('/', asyncH(async (req, res) => {
               o.expected_date::timestamptz AS scheduled_at,
               'livraison'::text AS reason, o.notes, o.id AS order_id
        FROM orders o JOIN clients c ON c.id = o.client_id
-       WHERE o.expected_date IS NOT NULL AND o.status <> 'livre'
+       WHERE o.expected_date IS NOT NULL
+         AND o.status <> 'livre' AND o.status <> 'annule'
      ) agenda
      WHERE ($1::timestamptz IS NULL OR scheduled_at >= $1)
        AND ($2::timestamptz IS NULL OR scheduled_at < $2)

@@ -89,7 +89,6 @@ function createApp() {
   app.use('/api/staff', staffOnly, staffRouter);              // CRUD both (roster; pay stays manager-only)
   app.use('/api/upload', staffOnly, uploadRouter);
   app.use('/api/whatsapp', staffOnly, whatsappRouter);
-  app.use('/api/wholesale', staffOnly, wholesaleRouter);      // DELETE & corrections manager-only
 
   // -- TAILOR work + piece rates: BOTH roles (owner decision 2026-07-20) -----
   // Piece prices vary per garment/model, so the secretary must be able to set
@@ -103,6 +102,10 @@ function createApp() {
   app.use('/api/salary-payments', managerOnly, salaryPaymentsRouter);
   app.use('/api/expenses', managerOnly, expensesRouter);
   app.use('/api/suppliers', managerOnly, suppliersRouter);
+  // Wholesale is a revenue stream (totals, amounts paid, outstanding balance),
+  // so it falls under the secretary's financial isolation like every other
+  // money module — owner decision 2026-08-03.
+  app.use('/api/wholesale', managerOnly, wholesaleRouter);
   app.use('/api/finance', managerOnly, financeRouter);
   app.use('/api/reports', managerOnly, reportsRouter);
   app.use('/api/settings/private', managerOnly, settings.privateRouter);

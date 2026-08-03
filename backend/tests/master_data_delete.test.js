@@ -30,7 +30,20 @@ beforeAll(async () => {
 
 afterAll(async () => { await db.closePool(); });
 
+/** Manager's finance wage total for the fixed July week used by this test. */
+async function wagesInTestWeek() {
+  const fin = await asM(request(app)
+    .get('/api/finance/summary?from=2026-07-06&to=2026-07-12'));
+  return fin.body.costs.tailor_wages;
+}
+
 test('deleting a tailor with past wages leaves the weekly total unchanged', async () => {
+  // The finance summary is a shop-wide total on a database shared by every
+  // suite, so assert the DELTA this test is responsible for — the same
+  // convention finance_calculations.test.js uses. Asserting the absolute
+  // total made the result depend on which suites Jest happened to run first.
+  const wagesBefore = await wagesInTestWeek();
+
   const tailorId = (await asM(request(app).post('/api/staff'))
     .send({ full_name: 'Ibrahim Diarra', phone: '76001000', type: 'couturier' })).body.id;
   // Two entries in the same ISO week: 3×5000 + 2×4000 = 23,000.
@@ -67,10 +80,9 @@ test('deleting a tailor with past wages leaves the weekly total unchanged', asyn
   expect(rowAfter.tailor_name).toBe('Ibrahim Diarra');
   expect(rowAfter.tailor_deleted).toBe(true);
 
-  // And the finance wage total for that period is unchanged too.
-  const fin = await asM(request(app)
-    .get('/api/finance/summary?from=2026-07-06&to=2026-07-12'));
-  expect(fin.body.costs.tailor_wages).toBe(23000);
+  // And the finance wage total for that period is unchanged by the delete:
+  // this tailor's 23 000 is still in there, not one franc more or less.
+  expect(await wagesInTestWeek()).toBe(wagesBefore + 23000);
 });
 
 test('deleting a client keeps their delivered order in Historique by snapshot', async () => {
