@@ -186,7 +186,9 @@ class AppRouter {
         if (auth.isSecretary &&
             (loc == '/admin/finance' ||
                 loc == '/admin/reports' ||
-                loc == '/admin/staff-pay')) {
+                loc == '/admin/staff-pay' ||
+                // Supplier debts + wholesale orders are money.
+                loc == '/admin/merchants')) {
           return '/admin';
         }
 

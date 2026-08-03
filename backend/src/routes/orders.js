@@ -273,10 +273,15 @@ router.put('/:id', asyncH(async (req, res) => {
 
   if (!full) return res.status(404).json({ error: 'Commande introuvable.' });
 
+  // Best-effort notification. It only actually sends when a WhatsApp provider
+  // is configured (see services/whatsapp.js); otherwise it is a no-op and the
+  // shop notifies the client with the wa.me button on the order screen.
   if (status === 'termine') {
-    whatsappService.sendOrderReadyMessage(full).catch(err => {
-      console.error('[WhatsApp Background Send Error]:', err.message);
-    });
+    whatsappService.sendOrderReadyMessage(full).then((r) => {
+      if (!r.sent && r.reason === 'provider_error') {
+        console.error('[WhatsApp] envoi échoué:', r.error);
+      }
+    }).catch((err) => console.error('[WhatsApp] erreur inattendue:', err.message));
   }
 
   res.json(full);

@@ -55,5 +55,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/logo.jpeg
+  # No shop logo is bundled on purpose: one build serves every shop, so a
+  # bundled logo would ship one customer's branding to all the others. The
+  # logo is fetched per shop from the settings `logo_url`, with the neutral
+  # initial placeholder when a shop has not uploaded one.

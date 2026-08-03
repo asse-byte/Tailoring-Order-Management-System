@@ -56,11 +56,15 @@ class DashboardScreen extends StatelessWidget {
           icon: Icons.account_balance_wallet_rounded,
           route: '/admin/finance',
         ),
-      const _DashboardItem(
-        title: 'Grossistes & Fournisseurs',
-        icon: Icons.storefront_rounded,
-        route: '/admin/merchants',
-      ),
+      // Manager only: supplier debts and wholesale orders are money (totals,
+      // amounts paid, outstanding balance), so they fall under the secretary's
+      // financial isolation. The API returns 403 for her on both.
+      if (!isSec)
+        const _DashboardItem(
+          title: 'Grossistes & Fournisseurs',
+          icon: Icons.storefront_rounded,
+          route: '/admin/merchants',
+        ),
       const _DashboardItem(
         title: 'Mon Album',
         icon: Icons.collections_rounded,
