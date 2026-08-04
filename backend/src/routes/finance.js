@@ -47,7 +47,7 @@ router.get('/summary', asyncH(async (req, res) => {
   const from = dateStr(req.query.from) || `${today.slice(0, 8)}01`;
   const to = dateStr(req.query.to) || today;
 
-  const [sales, ordersRevenue, salesCost, ordersCost, wages, expenses, salaries] = await Promise.all([
+  const [sales, ordersRevenue, salesCost, ordersCost, wages, expenses, salaries, salaryPayments] = await Promise.all([
     // Effective view: corrected quantities, voided sales excluded.
     db.query(
       `SELECT COALESCE(SUM(total), 0)::bigint AS v FROM sales_effective
@@ -63,8 +63,6 @@ router.get('/summary', asyncH(async (req, res) => {
        WHERE NOT voided AND paid_at BETWEEN $1::date AND $2::date`,
       [from, to]),
     // Cost of goods sold: sum of (qty × cost_price) for products sold.
-    // NB: sales.kind is 'produit' / 'pret_a_porter' (see 001_init.sql), NOT
-    // 'product' / 'model' — a wrong literal here silently zeroed all COGS.
     db.query(
       `SELECT COALESCE(SUM(se.qty * p.cost_price), 0)::bigint AS v
        FROM sales_effective se JOIN products p ON se.item_id = p.id
@@ -88,6 +86,11 @@ router.get('/summary', asyncH(async (req, res) => {
       `SELECT COALESCE(SUM(p.monthly_salary), 0)::bigint AS v
        FROM staff_pay p JOIN staff s ON s.id = p.staff_id
        WHERE s.active AND p.monthly_salary IS NOT NULL`),
+    // Actual salary disbursement payments recorded in salary_payments
+    db.query(
+      `SELECT COALESCE(SUM(amount), 0)::bigint AS v
+       FROM salary_payments_effective
+       WHERE NOT voided AND paid_at BETWEEN $1::date AND $2::date`, [from, to]),
   ]);
 
   const months = monthsTouched(from, to);
@@ -96,9 +99,9 @@ router.get('/summary', asyncH(async (req, res) => {
   const costOfSalesGoods = Number(salesCost.rows[0].v) + Number(ordersCost.rows[0].v);
   const wagesTotal = Number(wages.rows[0].v);
   const expensesTotal = Number(expenses.rows[0].v);
-  // Fixed monthly salaries are prorated to the selected window (FCFA has no
-  // decimals → round the fractional amount to the nearest whole franc).
-  const salariesTotal = Math.round(Number(salaries.rows[0].v) * salaryMonthsFactor(from, to));
+  const actualSalaryPaid = Number(salaryPayments.rows[0].v);
+  const proratedSalaries = Math.round(Number(salaries.rows[0].v) * salaryMonthsFactor(from, to));
+  const salariesTotal = Math.max(actualSalaryPaid, proratedSalaries);
   const revenue = salesTotal + ordersTotal;
   const costs = costOfSalesGoods + wagesTotal + salariesTotal + expensesTotal;
 

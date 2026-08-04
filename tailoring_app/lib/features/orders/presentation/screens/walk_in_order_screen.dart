@@ -258,7 +258,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
   Future<void> _uploadModelMediaFile(XFile file, String kind) async {
     setState(() => _uploadingMedia = true);
     try {
-      final PretAPorterRepository pretRepo = context.read<PretAPorterRepository>();
+      final PretAPorterRepository pretRepo = PretAPorterRepository();
       final uploaded = await pretRepo.uploadMedia(file);
       setState(() {
         _modelMedia.add(<String, String>{

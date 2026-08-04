@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/money.dart';
-import '../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../core/widgets/formatted_number_field.dart';
 import '../../settings/presentation/providers/shop_settings_provider.dart';
 import '../data/merchant_invoice_service.dart';

@@ -34,7 +34,7 @@ router.get('/summary', asyncH(async (req, res) => {
   const to = dateStr(req.query.to) || today;
 
   const [
-    sales, ordersRevenue, salesCost, ordersCost, wages, expenses, salaries,
+    sales, ordersRevenue, salesCost, ordersCost, wages, expenses, salaries, salaryPayments,
     newClients, servedClients, ordersCreated, ordersDelivered, ordersActive,
     productsUnits, topTailors,
   ] = await Promise.all([
@@ -65,6 +65,10 @@ router.get('/summary', asyncH(async (req, res) => {
       `SELECT COALESCE(SUM(p.monthly_salary), 0)::bigint AS v
        FROM staff_pay p JOIN staff s ON s.id = p.staff_id
        WHERE s.active AND p.monthly_salary IS NOT NULL`),
+    db.query(
+      `SELECT COALESCE(SUM(amount), 0)::bigint AS v
+       FROM salary_payments_effective
+       WHERE NOT voided AND paid_at BETWEEN $1::date AND $2::date`, [from, to]),
     // New clients registered in the window.
     db.query(
       `SELECT COUNT(*)::int AS v FROM clients
@@ -104,7 +108,9 @@ router.get('/summary', asyncH(async (req, res) => {
   const cogs = Number(salesCost.rows[0].v) + Number(ordersCost.rows[0].v);
   const wagesTotal = Number(wages.rows[0].v);
   const expensesTotal = Number(expenses.rows[0].v);
-  const salariesTotal = Math.round(Number(salaries.rows[0].v) * salaryMonthsFactor(from, to));
+  const actualSalaryPaid = Number(salaryPayments.rows[0].v);
+  const proratedSalaries = Math.round(Number(salaries.rows[0].v) * salaryMonthsFactor(from, to));
+  const salariesTotal = Math.max(actualSalaryPaid, proratedSalaries);
   const revenue = salesTotal + ordersTotal;
   const costs = cogs + wagesTotal + salariesTotal + expensesTotal;
 
