@@ -382,8 +382,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       ],
                     ),
                     content: const Text(
-                      'Le service d\'envoi automatique WhatsApp خلف الكواليس مفعّل وجاهز على السيرفر.\n\n'
-                      'عند تحويل أي طلب إلى "Terminé", يتم إرسال الإشعار فوراً وبشكل آلي إلى رقم العميل بدون الحاجة لضغط أي زر.',
+                      'Le service d\'envoi automatique WhatsApp en arrière-plan est activé et prêt sur le serveur.\n\n'
+                      'Lors du passage d\'une commande à "Terminé", la notification est envoyée immédiatement et automatiquement au numéro du client sans appuyer sur aucun bouton.',
                     ),
                     actions: [
                       TextButton(

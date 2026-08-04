@@ -10,7 +10,7 @@ import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../data/pret_a_porter_repository.dart';
 
-/// Screen "Mon Album" / "ألبوماتي" : Dedicated Showcase & Upload for Tailoring Models.
+/// Screen "Mon Album" : Dedicated Showcase & Upload for Tailoring Models.
 /// Allows uploading model photos & videos directly into the shop's album catalog.
 class ModelsShowcaseScreen extends StatefulWidget {
   const ModelsShowcaseScreen({super.key});
@@ -576,7 +576,7 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Mon Album (ألبوماتي)'),
+        title: const Text('Mon Album'),
         centerTitle: true,
       ),
       floatingActionButton: FloatingActionButton.extended(
