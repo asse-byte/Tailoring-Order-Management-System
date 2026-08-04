@@ -542,10 +542,10 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 onPressed: () async {
-                  final confirm = await ConfirmDeleteDialog.show(
+                  final confirm = await confirmDeleteByTyping(
                     context,
-                    title: 'Supprimer du catalogue',
-                    message: 'Voulez-vous supprimer ce modèle de Mon Album ?',
+                    itemName: m.name,
+                    itemLabel: 'ce modèle',
                     historyNote: 'Les commandes créées avec ce modèle restent enregistrées.',
                   );
                   if (confirm == true) {
