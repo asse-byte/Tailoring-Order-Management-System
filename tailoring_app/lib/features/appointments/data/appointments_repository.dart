@@ -83,5 +83,18 @@ class AppointmentsRepository {
     return Appointment.fromJson(res as Map<String, dynamic>);
   }
 
+  Future<void> update(
+    String id, {
+    required String scheduledAt,
+    required String reason,
+    String? notes,
+  }) async {
+    await _api.put('/api/appointments/$id', body: {
+      'scheduled_at': scheduledAt,
+      'reason': reason,
+      if (notes != null) 'notes': notes,
+    });
+  }
+
   Future<void> delete(String id) => _api.delete('/api/appointments/$id');
 }

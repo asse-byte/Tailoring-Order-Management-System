@@ -370,6 +370,7 @@ class _StaffScreenState extends State<StaffScreen> {
     int pieces = 1;
     int? rate;
     String garment = GarmentTypes.all.first;
+    String customClientName = '';
     String? linkedOrderId;
     DateTime date = DateTime.now();
     // Optional: link the day's work to an active order so the client name is
@@ -392,109 +393,122 @@ class _StaffScreenState extends State<StaffScreen> {
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDlgState) => AlertDialog(
+        builder: (ctx, setDlgState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Nouvelle Entrée Couture'),
           content: Form(
             key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  initialValue: tailorId,
-                  decoration: const InputDecoration(labelText: 'Couturier'),
-                  items: activeTailors
-                      .map((t) => DropdownMenuItem(value: t.staffId, child: Text(t.fullName)))
-                      .toList(),
-                  onChanged: (v) {
-                    tailorId = v ?? tailorId;
-                    // Refresh the rate field to the newly selected tailor's rate.
-                    final sel = activeTailors.firstWhere((t) => t.staffId == tailorId);
-                    setDlgState(() => rateController.text =
-                        sel.pieceRate != null ? formatThousands(sel.pieceRate!) : '');
-                  },
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: garment,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Type de vêtement'),
-                  items: GarmentTypes.all
-                      .map((g) => DropdownMenuItem(value: g, child: Text(g)))
-                      .toList(),
-                  onChanged: (v) => setDlgState(() => garment = v ?? garment),
-                ),
-                if (linkableOrders.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String?>(
-                    initialValue: linkedOrderId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Commande liée (optionnel)',
-                      helperText: 'Renseigne automatiquement le client',
-                    ),
-                    items: <DropdownMenuItem<String?>>[
-                      const DropdownMenuItem<String?>(
-                          value: null, child: Text('Aucune')),
-                      ...linkableOrders.map((o) => DropdownMenuItem<String?>(
-                            value: o.id,
-                            child: Text('${o.clientName} — ${o.garmentType}',
-                                overflow: TextOverflow.ellipsis),
-                          )),
-                    ],
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: tailorId,
+                    decoration: const InputDecoration(labelText: 'Couturier'),
+                    items: activeTailors
+                        .map((t) => DropdownMenuItem(value: t.staffId, child: Text(t.fullName)))
+                        .toList(),
                     onChanged: (v) {
-                      final ord = v == null
-                          ? null
-                          : linkableOrders.firstWhere((o) => o.id == v);
-                      setDlgState(() {
-                        linkedOrderId = v;
-                        if (ord != null && ord.garmentType.isNotEmpty) {
-                          garment = GarmentTypes.all.contains(ord.garmentType)
-                              ? ord.garmentType
-                              : garment;
-                        }
-                      });
+                      if (v != null) {
+                        tailorId = v;
+                        final sel = activeTailors.firstWhere((t) => t.staffId == tailorId);
+                        setDlgState(() {
+                          rate = sel.pieceRate;
+                          rateController.text = rate != null ? formatThousands(rate!) : '';
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'Nom du client (optionnel)',
+                      hintText: 'Ex: Mme Diallo',
+                    ),
+                    onSaved: (v) => customClientName = v?.trim() ?? '',
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: garment,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Type de vêtement'),
+                    items: GarmentTypes.all
+                        .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                        .toList(),
+                    onChanged: (v) => setDlgState(() => garment = v ?? garment),
+                  ),
+                  if (linkableOrders.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String?>(
+                      value: linkedOrderId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Commande liée (optionnel)',
+                        helperText: 'Renseigne automatiquement le client',
+                      ),
+                      items: <DropdownMenuItem<String?>>[
+                        const DropdownMenuItem<String?>(
+                            value: null, child: Text('Aucune')),
+                        ...linkableOrders.map((o) => DropdownMenuItem<String?>(
+                              value: o.id,
+                              child: Text('${o.clientName} — ${o.garmentType}',
+                                  overflow: TextOverflow.ellipsis),
+                            )),
+                      ],
+                      onChanged: (v) {
+                        final ord = v == null
+                            ? null
+                            : linkableOrders.firstWhere((o) => o.id == v);
+                        setDlgState(() {
+                          linkedOrderId = v;
+                          if (ord != null && ord.garmentType.isNotEmpty) {
+                            garment = GarmentTypes.all.contains(ord.garmentType)
+                                ? ord.garmentType
+                                : garment;
+                          }
+                        });
+                      },
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    initialValue: '1',
+                    decoration: const InputDecoration(labelText: 'Nombre de pièces'),
+                    keyboardType: TextInputType.number,
+                    validator: (v) {
+                      final val = int.tryParse(v ?? '');
+                      if (val == null || val < 1) return 'Quantité invalide';
+                      return null;
+                    },
+                    onSaved: (v) => pieces = int.tryParse(v ?? '') ?? 1,
+                  ),
+                  const SizedBox(height: 12),
+                  FormattedNumberField(
+                    controller: rateController,
+                    label: 'Prix par pièce (FCFA)',
+                    hint: 'Modifiable selon le type de vêtement',
+                    validator: (v) => (v == null || v < 1) ? 'Prix invalide' : null,
+                    onChanged: (v) => rate = v,
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    title: const Text('Date'),
+                    subtitle: Text('${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}'),
+                    trailing: const Icon(Icons.calendar_month_rounded),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: date,
+                        firstDate: DateTime(2026),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) {
+                        setDlgState(() => date = picked);
+                      }
                     },
                   ),
                 ],
-                const SizedBox(height: 12),
-                TextFormField(
-                  initialValue: '1',
-                  decoration: const InputDecoration(labelText: 'Nombre de pièces'),
-                  keyboardType: TextInputType.number,
-                  validator: (v) {
-                    final val = int.tryParse(v ?? '');
-                    if (val == null || val < 1) return 'Quantité invalide';
-                    return null;
-                  },
-                  onSaved: (v) => pieces = int.tryParse(v ?? '') ?? 1,
-                ),
-                const SizedBox(height: 12),
-                FormattedNumberField(
-                  controller: rateController,
-                  label: 'Prix par pièce (FCFA)',
-                  hint: 'Modifiable selon le type de vêtement',
-                  validator: (v) => (v == null || v < 1) ? 'Prix invalide' : null,
-                  onChanged: (v) => rate = v,
-                ),
-                const SizedBox(height: 12),
-                ListTile(
-                  title: const Text('Date'),
-                  subtitle: Text('${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}'),
-                  trailing: const Icon(Icons.calendar_month_rounded),
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: date,
-                      firstDate: DateTime(2026),
-                      lastDate: DateTime.now(),
-                    );
-                    if (picked != null) {
-                      setDlgState(() => date = picked);
-                    }
-                  },
-                ),
-              ],
+              ),
             ),
           ),
           actions: [
@@ -512,6 +526,7 @@ class _StaffScreenState extends State<StaffScreen> {
                       pieceRate: parseThousands(rateController.text) ?? rate,
                       garmentType: garment,
                       orderId: linkedOrderId,
+                      customClientName: customClientName,
                     );
                     if (!ctx.mounted) return;
                     Navigator.pop(ctx);
@@ -985,11 +1000,13 @@ class _StaffScreenState extends State<StaffScreen> {
       ...GarmentTypes.all,
     ];
     String garment = e.garmentType.isEmpty ? garmentChoices.first : e.garmentType;
+    String customClientName = e.clientName ?? '';
     int pieces = e.piecesCount;
     int rate = e.pieceRate;
     String reason = '';
     final piecesCtrl = TextEditingController(text: e.piecesCount.toString());
     final rateCtrl = TextEditingController(text: formatThousands(e.pieceRate));
+    final clientCtrl = TextEditingController(text: customClientName);
 
     Future<void> submit(bool voided) async {
       try {
@@ -998,6 +1015,7 @@ class _StaffScreenState extends State<StaffScreen> {
           newPieces: voided ? null : pieces,
           newPieceRate: voided ? null : rate,
           newGarmentType: voided ? null : garment,
+          newCustomClientName: voided ? null : customClientName,
           voided: voided ? true : null,
           reason: reason,
         );
@@ -1023,8 +1041,14 @@ class _StaffScreenState extends State<StaffScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
+                  TextFormField(
+                    controller: clientCtrl,
+                    decoration: const InputDecoration(labelText: 'Nom du client'),
+                    onSaved: (v) => customClientName = v?.trim() ?? '',
+                  ),
+                  const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: garment,
+                    value: garment,
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Modèle'),
                     items: garmentChoices
@@ -1042,6 +1066,7 @@ class _StaffScreenState extends State<StaffScreen> {
                       return (n == null || n < 1) ? 'Quantité invalide' : null;
                     },
                     onChanged: (v) => setDlg(() => pieces = int.tryParse(v) ?? pieces),
+                    onSaved: (v) => pieces = int.tryParse(v ?? '') ?? pieces,
                   ),
                   const SizedBox(height: 12),
                   FormattedNumberField(

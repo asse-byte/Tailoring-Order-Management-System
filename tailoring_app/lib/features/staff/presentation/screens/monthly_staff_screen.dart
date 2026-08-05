@@ -206,6 +206,8 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
 
   Future<void> _editPay(StaffPayInfo member) async {
     final formKey = GlobalKey<FormState>();
+    String name = member.fullName;
+    String phone = member.phone;
     String frequency = member.payFrequency;
     int monthlySalary = member.monthlySalary ?? 0;
     int weeklySalary = member.weeklySalary ?? 0;
@@ -221,7 +223,7 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: <Widget>[
-              Expanded(child: Text('Configuration Salaire — ${member.fullName}')),
+              Expanded(child: Text('Modifier l\'employé — ${member.fullName}')),
               IconButton(
                 tooltip: 'Supprimer définitivement',
                 icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
@@ -252,6 +254,20 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
+                  TextFormField(
+                    initialValue: name,
+                    decoration: const InputDecoration(labelText: 'Nom complet'),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                    onSaved: (v) => name = v?.trim() ?? '',
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    initialValue: phone,
+                    decoration: const InputDecoration(labelText: 'Téléphone'),
+                    keyboardType: TextInputType.phone,
+                    onSaved: (v) => phone = v?.trim() ?? '',
+                  ),
+                  const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: frequency,
                     decoration: const InputDecoration(labelText: 'Fréquence de paiement'),
@@ -301,6 +317,13 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                 if (!formKey.currentState!.validate()) return;
                 formKey.currentState!.save();
                 try {
+                  await _repo.updateStaff(
+                    member.staffId,
+                    fullName: name,
+                    phone: phone,
+                    type: 'autre',
+                    active: member.active,
+                  );
                   await _repo.updatePay(
                     member.staffId,
                     monthlySalary: frequency == 'mensuel' ? monthlySalary : 0,
@@ -311,7 +334,7 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                   if (!ctx.mounted) return;
                   Navigator.pop(ctx);
                   _load();
-                  _toast('Configuration salaire enregistrée.');
+                  _toast('Employé mis à jour.');
                 } catch (e) {
                   if (ctx.mounted) _toast('Erreur: $e', error: true);
                 }

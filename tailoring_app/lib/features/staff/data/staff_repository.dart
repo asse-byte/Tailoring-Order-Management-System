@@ -319,10 +319,11 @@ class StaffRepository {
     int? pieceRate,
     String? garmentType,
     String? orderId,
+    String? customClientName,
   }) async {
     // pieceRate is optional: when null the server falls back to the tailor's
-    // configured rate, then the shop default. garmentType/orderId are the
-    // item-6 descriptive fields (client name is derived from the order).
+    // configured rate, then the shop default. garmentType/orderId/customClientName are the
+    // descriptive fields.
     final dynamic res = await _api.post('/api/tailor-entries', body: {
       'tailor_id': tailorId,
       'entry_date': entryDate,
@@ -330,6 +331,7 @@ class StaffRepository {
       if (pieceRate != null) 'piece_rate': pieceRate,
       if (garmentType != null && garmentType.isNotEmpty) 'garment_type': garmentType,
       if (orderId != null) 'order_id': orderId,
+      if (customClientName != null && customClientName.isNotEmpty) 'custom_client_name': customClientName,
     });
     return TailorEntry.fromJson(res as Map<String, dynamic>);
   }
@@ -342,13 +344,14 @@ class StaffRepository {
   }
 
   /// Append-only correction of a daily entry. Any of quantity, garment type
-  /// (model) or price-per-piece may be changed; [voided] cancels the entry
+  /// (model), client name or price-per-piece may be changed; [voided] cancels the entry
   /// (counts 0). Omitted fields keep their current value. Reason is mandatory.
   Future<void> correctTailorEntry(
     String entryId, {
     int? newPieces,
     int? newPieceRate,
     String? newGarmentType,
+    String? newCustomClientName,
     bool? voided,
     required String reason,
   }) async {
@@ -356,6 +359,7 @@ class StaffRepository {
       if (newPieces != null) 'new_pieces': newPieces,
       if (newPieceRate != null) 'new_piece_rate': newPieceRate,
       if (newGarmentType != null) 'new_garment_type': newGarmentType,
+      if (newCustomClientName != null) 'new_custom_client_name': newCustomClientName,
       if (voided != null) 'voided': voided,
       'reason': reason,
     });

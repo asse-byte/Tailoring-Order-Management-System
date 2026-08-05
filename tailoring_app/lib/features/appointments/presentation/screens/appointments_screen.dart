@@ -139,39 +139,143 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                               '\n${isOrder ? 'Livraison prévue' : 'Planifié'} le: $formattedDate'
                               '${isOrder ? '' : '\nTél: ${a.clientPhone}'}',
                             ),
-                            trailing: isOrder
-                                ? const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted)
-                                : IconButton(
-                                    icon: const Icon(Icons.delete_outline_rounded,
-                                        color: AppColors.error, size: 20),
-                                    tooltip: 'Annuler RDV',
-                                    onPressed: () async {
-                                      final confirm = await showDialog<bool>(
-                                        context: context,
-                                        builder: (ctx) => AlertDialog(
-                                          title: const Text('Supprimer rendez-vous ?'),
-                                          content: Text('Voulez-vous supprimer le rendez-vous de ${a.clientName} ?'),
-                                          actions: [
-                                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-                                            ElevatedButton(
-                                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-                                              onPressed: () => Navigator.pop(ctx, true),
-                                              child: const Text('Supprimer'),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                      if (confirm == true) {
-                                        await _repo.delete(a.id);
-                                        _loadAppointments();
-                                      }
-                                    },
-                                  ),
-                            isThreeLine: true,
-                          ),
-                        );
-                      },
-                    ),
+                             trailing: isOrder
+                                 ? const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted)
+                                 : Row(
+                                     mainAxisSize: MainAxisSize.min,
+                                     children: [
+                                       IconButton(
+                                         icon: const Icon(Icons.edit_rounded, color: Colors.blue, size: 20),
+                                         tooltip: 'Modifier RDV',
+                                         onPressed: () => _openEditAppointmentModal(a),
+                                       ),
+                                       IconButton(
+                                         icon: const Icon(Icons.delete_outline_rounded,
+                                             color: AppColors.error, size: 20),
+                                         tooltip: 'Annuler RDV',
+                                         onPressed: () async {
+                                           final confirm = await showDialog<bool>(
+                                             context: context,
+                                             builder: (ctx) => AlertDialog(
+                                               title: const Text('Supprimer rendez-vous ?'),
+                                               content: Text('Voulez-vous supprimer le rendez-vous de ${a.clientName} ?'),
+                                               actions: [
+                                                 TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+                                                 ElevatedButton(
+                                                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                                                   onPressed: () => Navigator.pop(ctx, true),
+                                                   child: const Text('Supprimer'),
+                                                 ),
+                                               ],
+                                             ),
+                                           );
+                                           if (confirm == true) {
+                                             await _repo.delete(a.id);
+                                             _loadAppointments();
+                                           }
+                                         },
+                                       ),
+                                     ],
+                                   ),
+                             isThreeLine: true,
+                           ),
+                         );
+                       },
+                     ),
+    );
+  }
+
+  Future<void> _openEditAppointmentModal(Appointment a) async {
+    final formKey = GlobalKey<FormState>();
+    String reason = a.reason;
+    DateTime dt = DateTime.tryParse(a.scheduledAt)?.toLocal() ?? DateTime.now();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Modifier Rendez-vous - ${a.clientName}'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: ['mesure', 'essayage', 'livraison', 'autre'].contains(reason) ? reason : 'autre',
+                  decoration: const InputDecoration(labelText: 'Motif du RDV'),
+                  items: const [
+                    DropdownMenuItem(value: 'mesure', child: Text('Prise de mesures')),
+                    DropdownMenuItem(value: 'essayage', child: Text('Essayage')),
+                    DropdownMenuItem(value: 'livraison', child: Text('Livraison')),
+                    DropdownMenuItem(value: 'autre', child: Text('Autre')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setDlgState(() => reason = v);
+                  },
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  title: const Text('Date et heure'),
+                  subtitle: Text('${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} à ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}'),
+                  trailing: const Icon(Icons.calendar_today_rounded),
+                  onTap: () async {
+                    final pickedDate = await showDatePicker(
+                      context: context,
+                      initialDate: dt,
+                      firstDate: DateTime(2026),
+                      lastDate: DateTime(2030),
+                    );
+                    if (pickedDate != null && ctx.mounted) {
+                      final pickedTime = await showTimePicker(
+                        context: ctx,
+                        initialTime: TimeOfDay.fromDateTime(dt),
+                      );
+                      if (pickedTime != null) {
+                        setDlgState(() {
+                          dt = DateTime(
+                            pickedDate.year,
+                            pickedDate.month,
+                            pickedDate.day,
+                            pickedTime.hour,
+                            pickedTime.minute,
+                          );
+                        });
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+                formKey.currentState!.save();
+                try {
+                  await _repo.update(
+                    a.id,
+                    scheduledAt: dt.toUtc().toIso8601String(),
+                    reason: reason,
+                  );
+                  if (!ctx.mounted) return;
+                  Navigator.pop(ctx);
+                  _loadAppointments();
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+                    );
+                  }
+                }
+              },
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

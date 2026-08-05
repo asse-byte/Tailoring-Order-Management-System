@@ -41,16 +41,17 @@ router.post('/', asyncH(async (req, res) => {
   // name is derived from it at read time — never re-typed here.
   const garmentType = str(req.body.garment_type);
   const orderId = str(req.body.order_id);
+  const customClientName = str(req.body.custom_client_name);
   // Snapshot the tailor's name onto the row so the wage history survives even
   // if the tailor is later deleted (there is no FK any more — see migration 012).
   const { rows } = await db.query(
     `INSERT INTO tailor_daily_entries
        (tailor_id, tailor_name_snapshot, entry_date, pieces_count, piece_rate,
-        week_id, created_by, garment_type, order_id)
+        week_id, created_by, garment_type, order_id, custom_client_name)
      VALUES ($1, (SELECT full_name FROM staff WHERE id = $1),
-             $2, $3, $4, $5, $6, $7, $8::uuid) RETURNING *`,
+             $2, $3, $4, $5, $6, $7, $8::uuid, $9) RETURNING *`,
     [tailorId, entryDate, piecesCount, rate, isoWeekId(entryDate), req.user.id,
-      garmentType, orderId]);
+      garmentType, orderId, customClientName]);
   res.status(201).json(rows[0]);
 }));
 
@@ -87,11 +88,8 @@ router.get('/weekly-detail', asyncH(async (req, res) => {
   }
   const { rows } = await db.query(
     `SELECT e.id, e.entry_date, e.garment_type, e.pieces_count, e.piece_rate,
-            e.amount, e.order_id, e.corrected, e.voided,
-            COALESCE(c.full_name, o.client_name_snapshot) AS client_name
+            e.amount, e.order_id, e.corrected, e.voided, e.client_name
      FROM tailor_entries_effective e
-     LEFT JOIN orders o ON o.id = e.order_id
-     LEFT JOIN clients c ON c.id = o.client_id
      WHERE e.week_id = $1 AND e.tailor_id = $2
      ORDER BY e.entry_date, e.created_at`, [weekId, tailorId]);
   const total = rows.reduce((s, r) => s + Number(r.amount), 0);
@@ -151,7 +149,7 @@ router.post('/:id/corrections', asyncH(async (req, res) => {
   }
   // Snapshot the currently-effective values as the correction baseline.
   const { rows: current } = await db.query(
-    `SELECT pieces_count, piece_rate, garment_type
+    `SELECT pieces_count, piece_rate, garment_type, client_name
      FROM tailor_entries_effective WHERE id = $1`, [req.params.id]);
   if (!current[0]) return res.status(404).json({ error: 'Saisie introuvable.' });
 
@@ -162,6 +160,8 @@ router.post('/:id/corrections', asyncH(async (req, res) => {
     ? current[0].piece_rate : intOrNull(req.body.new_piece_rate);
   const newGarment = req.body.new_garment_type === undefined
     ? current[0].garment_type : str(req.body.new_garment_type);
+  const newClientName = req.body.new_custom_client_name === undefined
+    ? current[0].client_name : str(req.body.new_custom_client_name);
   if (newPieces == null || newPieces === undefined) {
     return res.status(400).json({ error: 'new_pieces invalide (entier ≥ 0).' });
   }
@@ -171,10 +171,10 @@ router.post('/:id/corrections', asyncH(async (req, res) => {
   const { rows } = await db.query(
     `INSERT INTO entry_corrections
        (entry_id, old_pieces, new_pieces, new_piece_rate, new_garment_type,
-        voided, reason, corrected_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        new_custom_client_name, voided, reason, corrected_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
     [req.params.id, current[0].pieces_count, newPieces, newRate, newGarment,
-      voided, reason, req.user.id]);
+      newClientName, voided, reason, req.user.id]);
   res.status(201).json(rows[0]);
 }));
 
