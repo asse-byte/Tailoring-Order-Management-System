@@ -229,6 +229,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final advanceCtrl = TextEditingController(text: formatThousands(order.advance));
     final fabricCtrl = TextEditingController(text: order.fabric);
     final notesCtrl = TextEditingController(text: order.notes);
+    DateTime? expectedDate = order.expectedDate;
     String? tailorId = order.tailorId;
 
     final bool? saved = await showModalBottomSheet<bool>(
@@ -270,6 +271,38 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             value: t.id, child: Text(t.fullName))),
                       ],
                       onChanged: (v) => setSheet(() => tailorId = v),
+                    ),
+                    const SizedBox(height: 12),
+                    Text('Date de livraison prévue',
+                        style: Theme.of(ctx).textTheme.labelMedium),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: ctx,
+                          initialDate: expectedDate ?? DateTime.now().add(const Duration(days: 7)),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) {
+                          setSheet(() => expectedDate = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.event_outlined, size: 20),
+                        ),
+                        child: Text(
+                          expectedDate != null
+                              ? DateFormatter.date(expectedDate!, locale: 'fr')
+                              : 'Choisir une date de livraison',
+                          style: TextStyle(
+                            color: expectedDate != null ? AppColors.textPrimary : AppColors.textMuted,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     AppTextField(
@@ -316,6 +349,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         tailorId: tailorId,
         fabric: fabricCtrl.text.trim(),
         advance: parseThousands(advanceCtrl.text) ?? 0,
+        expectedDate: expectedDate,
         notes: notesCtrl.text.trim(),
       );
       if (!mounted) return;

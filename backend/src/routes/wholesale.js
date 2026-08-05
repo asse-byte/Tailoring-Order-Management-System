@@ -56,18 +56,27 @@ router.put('/orders/:id', asyncH(async (req, res) => {
   if (status !== undefined && !STATUSES.includes(status)) {
     return res.status(400).json({ error: 'status invalide (en_cours|livre).' });
   }
+  const totalAmount = req.body.total_amount === undefined ? null : intOrNull(req.body.total_amount);
+  const advanceAmount = req.body.advance_amount === undefined ? null : intOrNull(req.body.advance_amount);
+  const items = req.body.items ? JSON.stringify(req.body.items) : null;
+
   const { rows } = await db.query(
     `UPDATE wholesale_orders SET
        merchant_name  = COALESCE($1, merchant_name),
        merchant_phone = COALESCE($2, merchant_phone),
        notes          = COALESCE($3, notes),
        status         = COALESCE($4, status),
+       items          = COALESCE($5::jsonb, items),
+       total_amount   = COALESCE($6, total_amount),
+       advance_amount = COALESCE($7, advance_amount),
+       order_date     = COALESCE($8::date, order_date),
        delivered_date = CASE
          WHEN $4 = 'livre' AND status <> 'livre' THEN CURRENT_DATE
          WHEN $4 IS NOT NULL AND $4 <> 'livre' THEN NULL
          ELSE delivered_date END
-     WHERE id = $5 RETURNING *`,
-    [str(req.body.merchant_name), str(req.body.merchant_phone), str(req.body.notes), status || null, req.params.id]);
+     WHERE id = $9 RETURNING *`,
+    [str(req.body.merchant_name), str(req.body.merchant_phone), str(req.body.notes),
+     status || null, items, totalAmount, advanceAmount, dateStr(req.body.order_date), req.params.id]);
   if (!rows[0]) return res.status(404).json({ error: 'Commande introuvable.' });
   res.json(rows[0]);
 }));

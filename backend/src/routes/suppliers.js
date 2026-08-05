@@ -108,6 +108,39 @@ router.get('/purchases/:id', asyncH(async (req, res) => {
   res.json(rows[0]);
 }));
 
+router.put('/purchases/:id', asyncH(async (req, res) => {
+  const supplierId = str(req.body.supplier_id);
+  const description = str(req.body.description);
+  const totalAmount = intOrNull(req.body.total_amount);
+  const advanceAmount = intOrNull(req.body.advance_amount);
+
+  let supplierName = str(req.body.supplier_name);
+  if (supplierId) {
+    const { rows: supp } = await db.query('SELECT name FROM suppliers WHERE id = $1', [supplierId]);
+    if (supp[0]) supplierName = supp[0].name;
+  }
+
+  const { rows } = await db.query(
+    `UPDATE supplier_purchases SET
+       supplier_id           = COALESCE($1::uuid, supplier_id),
+       supplier_name_snapshot= COALESCE($2, supplier_name_snapshot),
+       description           = COALESCE($3, description),
+       total_amount          = COALESCE($4, total_amount),
+       advance_amount        = COALESCE($5, advance_amount),
+       purchase_date         = COALESCE($6::date, purchase_date)
+     WHERE id = $7 RETURNING *`,
+    [supplierId || null, supplierName || null, description || null,
+     totalAmount, advanceAmount, dateStr(req.body.purchase_date), req.params.id]);
+  if (!rows[0]) return res.status(404).json({ error: 'Achat introuvable.' });
+  res.json(rows[0]);
+}));
+
+router.delete('/purchases/:id', asyncH(async (req, res) => {
+  const { rowCount } = await db.query('DELETE FROM supplier_purchases WHERE id = $1', [req.params.id]);
+  if (!rowCount) return res.status(404).json({ error: 'Achat introuvable.' });
+  res.status(204).end();
+}));
+
 // ---- Supplier Payments (Append-Only) ----
 router.get('/purchases/:id/payments', asyncH(async (req, res) => {
   const { rows } = await db.query(

@@ -14,8 +14,8 @@ class AppLocalizations {
   static final Map<String, Map<String, String>> _localizedValues = {
     'en': {
       // General
-      'appName': 'RAYAN COUTURE',
-      'tagline': 'Order. Track. Tailored.',
+      'appName': 'CouturePro',
+      'tagline': 'Atelier de Couture',
       'save': 'Save',
       'cancel': 'Cancel',
       'submit': 'Submit',
@@ -294,8 +294,8 @@ class AppLocalizations {
     },
     'fr': {
       // General
-      'appName': 'RAYAN COUTURE',
-      'tagline': 'Commander. Suivre. Personnalisé.',
+      'appName': 'CouturePro',
+      'tagline': 'Atelier de Couture',
       'save': 'Enregistrer',
       'cancel': 'Annuler',
       'submit': 'Soumettre',

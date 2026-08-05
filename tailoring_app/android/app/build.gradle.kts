@@ -31,11 +31,11 @@ android {
         // the first install — Android treats a new id as a different app.
         // Per-shop builds override it with -PappId (isolated instance per shop).
         applicationId = (project.findProperty("appId") as String?)
-            ?: "com.rayancouture.app"
+            ?: "com.couturepro.app"
         // Home-screen name. Each resold shop builds with its own:
         //   flutter build apk --release -PappName="Atelier Diallo"
         manifestPlaceholders["appName"] =
-            (project.findProperty("appName") as String?) ?: "Rayan Couture"
+            (project.findProperty("appName") as String?) ?: "CouturePro"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

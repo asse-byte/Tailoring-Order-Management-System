@@ -86,6 +86,30 @@ class MerchantRepository {
     return SupplierPurchase.fromJson(res as Map<String, dynamic>);
   }
 
+  Future<SupplierPurchase> updateSupplierPurchase(
+    String id, {
+    String? supplierId,
+    String? supplierName,
+    required String description,
+    required int totalAmount,
+    required int advanceAmount,
+    String? purchaseDate,
+  }) async {
+    final dynamic res = await _api.put('/api/suppliers/purchases/$id', body: {
+      if (supplierId != null) 'supplier_id': supplierId,
+      if (supplierName != null) 'supplier_name': supplierName,
+      'description': description,
+      'total_amount': totalAmount,
+      'advance_amount': advanceAmount,
+      if (purchaseDate != null) 'purchase_date': purchaseDate,
+    });
+    return SupplierPurchase.fromJson(res as Map<String, dynamic>);
+  }
+
+  Future<void> deleteSupplierPurchase(String id) async {
+    await _api.delete('/api/suppliers/purchases/$id');
+  }
+
   Future<List<SupplierPayment>> listSupplierPayments(String purchaseId) async {
     final dynamic res = await _api.get('/api/suppliers/purchases/$purchaseId/payments');
     return (res['items'] as List)
@@ -151,12 +175,20 @@ class MerchantRepository {
     String id, {
     String? merchantName,
     String? merchantPhone,
+    List<WholesaleOrderItem>? items,
+    int? totalAmount,
+    int? advanceAmount,
+    String? orderDate,
     String? status,
     String? notes,
   }) async {
     final dynamic res = await _api.put('/api/wholesale/orders/$id', body: {
       if (merchantName != null) 'merchant_name': merchantName,
       if (merchantPhone != null) 'merchant_phone': merchantPhone,
+      if (items != null) 'items': items.map((i) => i.toJson()).toList(),
+      if (totalAmount != null) 'total_amount': totalAmount,
+      if (advanceAmount != null) 'advance_amount': advanceAmount,
+      if (orderDate != null) 'order_date': orderDate,
       if (status != null) 'status': status,
       if (notes != null) 'notes': notes,
     });

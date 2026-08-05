@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/money.dart';
+import '../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../core/widgets/formatted_number_field.dart';
 import '../../settings/presentation/providers/shop_settings_provider.dart';
 import '../data/merchant_invoice_service.dart';
@@ -197,7 +198,7 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                 itemBuilder: (ctx, i) {
                   final s = _suppliers[i];
                   return Container(
-                    width: 210,
+                    width: 230,
                     margin: const EdgeInsets.only(right: 12),
                     child: Card(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -206,14 +207,31 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                         onTap: () => _openAddSupplierPurchaseModal(preselectedSupplier: s),
                         child: Padding(
                           padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          child: Row(
                             children: [
-                              Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                              if (s.phone.isNotEmpty) Text('Tél: ${s.phone}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                              const SizedBox(height: 4),
-                              Text('Dette: ${formatFcfa(s.totalDebt)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: s.totalDebt > 0 ? AppColors.error : AppColors.success)),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    if (s.phone.isNotEmpty) Text('Tél: ${s.phone}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                    const SizedBox(height: 4),
+                                    Text('Dette: ${formatFcfa(s.totalDebt)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: s.totalDebt > 0 ? AppColors.error : AppColors.success)),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert_rounded, size: 18),
+                                onSelected: (val) {
+                                  if (val == 'edit') _openEditSupplierModal(s);
+                                  if (val == 'delete') _confirmDeleteSupplier(s);
+                                },
+                                itemBuilder: (ctx) => [
+                                  const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_rounded, size: 16), SizedBox(width: 8), Text('Modifier')])),
+                                  const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 16), SizedBox(width: 8), Text('Supprimer', style: TextStyle(color: AppColors.error))])),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -260,17 +278,33 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
             Text('Date: ${p.purchaseDate} · Total: ${formatFcfa(p.totalAmount)}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           ],
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(isPaid ? 'PAYÉ' : 'Reste: ${formatFcfa(p.reste)}', style: TextStyle(fontWeight: FontWeight.bold, color: isPaid ? AppColors.success : AppColors.error)),
-            if (!isPaid)
-              TextButton(
-                style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(50, 24)),
-                onPressed: () => _openSupplierPaymentModal(p),
-                child: const Text('Régler'),
-              ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(isPaid ? 'PAYÉ' : 'Reste: ${formatFcfa(p.reste)}', style: TextStyle(fontWeight: FontWeight.bold, color: isPaid ? AppColors.success : AppColors.error)),
+                if (!isPaid)
+                  TextButton(
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(50, 24)),
+                    onPressed: () => _openSupplierPaymentModal(p),
+                    child: const Text('Régler'),
+                  ),
+              ],
+            ),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded, size: 20),
+              onSelected: (val) {
+                if (val == 'edit') _openEditSupplierPurchaseModal(p);
+                if (val == 'delete') _confirmDeleteSupplierPurchase(p);
+              },
+              itemBuilder: (ctx) => [
+                const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_rounded, size: 16), SizedBox(width: 8), Text('Modifier')])),
+                const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 16), SizedBox(width: 8), Text('Supprimer', style: TextStyle(color: AppColors.error))])),
+              ],
+            ),
           ],
         ),
       ),
@@ -399,6 +433,16 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                           );
                         },
                       ),
+                      IconButton(
+                        icon: const Icon(Icons.edit_rounded, color: AppColors.primary),
+                        tooltip: 'Modifier Vente',
+                        onPressed: () => _openEditWholesaleOrderModal(o),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                        tooltip: 'Supprimer Vente',
+                        onPressed: () => _confirmDeleteWholesaleOrder(o),
+                      ),
                       if (!isPaid)
                         ElevatedButton.icon(
                           icon: const Icon(Icons.payments_rounded, size: 18),
@@ -417,8 +461,304 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
   }
 
   // ==========================================================================
-  // MODALS
+  // EDIT & DELETE MODALS
   // ==========================================================================
+  Future<void> _openEditSupplierModal(Supplier s) async {
+    final formKey = GlobalKey<FormState>();
+    String name = s.name;
+    String phone = s.phone;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Modifier le Fournisseur'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                initialValue: name,
+                decoration: const InputDecoration(labelText: 'Nom du Fournisseur'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                onSaved: (v) => name = v?.trim() ?? '',
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                initialValue: phone,
+                decoration: const InputDecoration(labelText: 'Téléphone'),
+                keyboardType: TextInputType.phone,
+                onSaved: (v) => phone = v?.trim() ?? '',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              formKey.currentState!.save();
+              try {
+                await _repo.updateSupplier(s.id, name: name, phone: phone);
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                _loadAll();
+                _toast('Fournisseur mis à jour.');
+              } catch (e) {
+                if (ctx.mounted) _toast('Erreur: $e', error: true);
+              }
+            },
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteSupplier(Supplier s) async {
+    final confirm = await confirmDeleteByTyping(
+      context,
+      itemName: s.name,
+      itemLabel: 'ce fournisseur',
+      historyNote: 'Tous ses achats et historiques restent sauvegardés sur le serveur.',
+    );
+    if (confirm == true) {
+      try {
+        await _repo.deleteSupplier(s.id);
+        _loadAll();
+        _toast('Fournisseur supprimé.');
+      } catch (e) {
+        _toast('Erreur lors de la suppression: $e', error: true);
+      }
+    }
+  }
+
+  Future<void> _openEditSupplierPurchaseModal(SupplierPurchase p) async {
+    final formKey = GlobalKey<FormState>();
+    String description = p.description;
+    int totalAmount = p.totalAmount;
+    int advanceAmount = p.advanceAmount;
+    final totalCtrl = TextEditingController(text: formatThousands(totalAmount));
+    final advanceCtrl = TextEditingController(text: formatThousands(advanceAmount));
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Modifier Achat — ${p.supplierName}'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  initialValue: description,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  onSaved: (v) => description = v?.trim() ?? '',
+                ),
+                const SizedBox(height: 12),
+                FormattedNumberField(
+                  controller: totalCtrl,
+                  label: 'Montant Total (FCFA)',
+                  validator: (v) => (v == null || v <= 0) ? 'Requis > 0' : null,
+                  onChanged: (v) => totalAmount = v ?? 0,
+                ),
+                const SizedBox(height: 12),
+                FormattedNumberField(
+                  controller: advanceCtrl,
+                  label: 'Acompte versé (FCFA)',
+                  onChanged: (v) => advanceAmount = v ?? 0,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              formKey.currentState!.save();
+              try {
+                await _repo.updateSupplierPurchase(
+                  p.id,
+                  description: description,
+                  totalAmount: totalAmount,
+                  advanceAmount: advanceAmount,
+                );
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                _loadAll();
+                _toast('Achat mis à jour.');
+              } catch (e) {
+                if (ctx.mounted) _toast('Erreur: $e', error: true);
+              }
+            },
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteSupplierPurchase(SupplierPurchase p) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Supprimer l\'achat'),
+        content: Text('Voulez-vous vraiment supprimer cet achat de ${formatFcfa(p.totalAmount)} chez ${p.supplierName} ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      try {
+        await _repo.deleteSupplierPurchase(p.id);
+        _loadAll();
+        _toast('Achat supprimé.');
+      } catch (e) {
+        _toast('Erreur: $e', error: true);
+      }
+    }
+  }
+
+  Future<void> _openEditWholesaleOrderModal(WholesaleOrder o) async {
+    final formKey = GlobalKey<FormState>();
+    String merchantName = o.merchantName;
+    String merchantPhone = o.merchantPhone;
+    String modelName = o.items.isNotEmpty ? o.items.first.model : '';
+    int qty = o.items.isNotEmpty ? o.items.first.qty : 1;
+    int unitPrice = o.items.isNotEmpty ? o.items.first.unitPrice : 0;
+    int advanceAmount = o.advanceAmount;
+
+    final priceCtrl = TextEditingController(text: formatThousands(unitPrice));
+    final advanceCtrl = TextEditingController(text: formatThousands(advanceAmount));
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Modifier Vente en Gros'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  initialValue: merchantName,
+                  decoration: const InputDecoration(labelText: 'Nom du Commerçant'),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  onSaved: (v) => merchantName = v?.trim() ?? '',
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  initialValue: merchantPhone,
+                  decoration: const InputDecoration(labelText: 'Téléphone'),
+                  keyboardType: TextInputType.phone,
+                  onSaved: (v) => merchantPhone = v?.trim() ?? '',
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  initialValue: modelName,
+                  decoration: const InputDecoration(labelText: 'Modèle / Vêtement'),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  onSaved: (v) => modelName = v?.trim() ?? '',
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  initialValue: '$qty',
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Quantité'),
+                  validator: (v) => (int.tryParse(v ?? '') ?? 0) <= 0 ? 'Qté > 0' : null,
+                  onSaved: (v) => qty = int.tryParse(v ?? '') ?? 1,
+                ),
+                const SizedBox(height: 8),
+                FormattedNumberField(
+                  controller: priceCtrl,
+                  label: 'Prix Unitaire en Gros (FCFA)',
+                  validator: (v) => (v == null || v <= 0) ? 'Prix > 0' : null,
+                  onChanged: (v) => unitPrice = v ?? 0,
+                ),
+                const SizedBox(height: 8),
+                FormattedNumberField(
+                  controller: advanceCtrl,
+                  label: 'Acompte reçu (FCFA)',
+                  onChanged: (v) => advanceAmount = v ?? 0,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              formKey.currentState!.save();
+              final total = qty * unitPrice;
+              try {
+                await _repo.updateWholesaleOrder(
+                  o.id,
+                  merchantName: merchantName,
+                  merchantPhone: merchantPhone,
+                  items: [WholesaleOrderItem(model: modelName, qty: qty, unitPrice: unitPrice)],
+                  totalAmount: total,
+                  advanceAmount: advanceAmount,
+                );
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                _loadAll();
+                _toast('Vente en gros mise à jour.');
+              } catch (e) {
+                if (ctx.mounted) _toast('Erreur: $e', error: true);
+              }
+            },
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteWholesaleOrder(WholesaleOrder o) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Supprimer Vente en Gros'),
+        content: Text('Voulez-vous vraiment supprimer cette vente de ${formatFcfa(o.totalAmount)} pour ${o.merchantName} ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      try {
+        await _repo.deleteWholesaleOrder(o.id);
+        _loadAll();
+        _toast('Vente en gros supprimée.');
+      } catch (e) {
+        _toast('Erreur: $e', error: true);
+      }
+    }
+  }
   Future<void> _openAddSupplierModal() async {
     final formKey = GlobalKey<FormState>();
     String name = '';
