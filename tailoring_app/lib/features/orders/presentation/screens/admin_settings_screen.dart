@@ -366,8 +366,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             const SizedBox(height: 10),
             _ActionTile(
               icon: Icons.mark_chat_read_rounded,
-              title: 'Service WhatsApp Automatique',
-              subtitle: 'Envoi 100% automatique en arrière-plan (Actif)',
+              title: 'Service WhatsApp automatique',
+              subtitle: 'Dépend d\'un fournisseur configuré sur le serveur',
               color: const Color(0xFF25D366),
               onTap: () {
                 showDialog(
@@ -376,14 +376,22 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     title: const Row(
                       children: [
-                        Icon(Icons.check_circle_rounded, color: Color(0xFF25D366)),
+                        Icon(Icons.info_rounded, color: Color(0xFF25D366)),
                         SizedBox(width: 8),
-                        Text('WhatsApp Automatique'),
+                        Text('WhatsApp automatique'),
                       ],
                     ),
+                    // Deliberately does NOT promise that messages go out: they
+                    // only do when a WhatsApp provider is configured on the
+                    // server. Telling the manager otherwise makes the shop stop
+                    // calling clients who were never notified.
                     content: const Text(
-                      'Le service d\'envoi automatique WhatsApp en arrière-plan est activé et prêt sur le serveur.\n\n'
-                      'Lors du passage d\'une commande à "Terminé", la notification est envoyée immédiatement et automatiquement au numéro du client sans appuyer sur aucun bouton.',
+                      'L\'envoi automatique fonctionne uniquement si un fournisseur '
+                      'WhatsApp est configuré sur le serveur de la boutique.\n\n'
+                      'Lorsqu\'il est configuré, le client est prévenu dès qu\'une '
+                      'commande passe à « Terminé ».\n\n'
+                      'Sinon, aucun message n\'est envoyé automatiquement : utilisez '
+                      'le bouton WhatsApp de la commande pour prévenir le client.',
                     ),
                     actions: [
                       TextButton(

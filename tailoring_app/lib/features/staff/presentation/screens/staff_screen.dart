@@ -1097,6 +1097,11 @@ class _StaffScreenState extends State<StaffScreen> {
                         (v == null || v.trim().isEmpty) ? 'Motif requis' : null,
                     onSaved: (v) => reason = v?.trim() ?? '',
                   ),
+                  // Audit trail, collapsed so the edit form stays as simple as
+                  // it was. Both the manager and the secretary may correct
+                  // entries, so the owner needs to see who touched a tailor's
+                  // numbers if the pay is ever disputed.
+                  if (e.corrected) _EntryCorrectionHistory(entryId: e.id, repo: _repo),
                 ],
               ),
             ),
@@ -1349,6 +1354,143 @@ class _StaffScreenState extends State<StaffScreen> {
                   onRefresh: _loadData,
                   child: _buildManagerStaffTab(),
                 ),
+    );
+  }
+}
+
+/// Collapsed "who changed this entry" log shown inside the correction dialog.
+///
+/// A tailor's weekly entries decide their pay, and BOTH the manager and the
+/// secretary are allowed to correct them (deliberate owner decision, see
+/// CLAUDE.md). Attribution is therefore not decoration: if a tailor disputes
+/// their pay, this is where the owner sees exactly who changed what, when, and
+/// why. The data comes from the append-only correction log — the entry itself
+/// is never edited in place.
+class _EntryCorrectionHistory extends StatefulWidget {
+  const _EntryCorrectionHistory({required this.entryId, required this.repo});
+
+  final String entryId;
+  final StaffRepository repo;
+
+  @override
+  State<_EntryCorrectionHistory> createState() => _EntryCorrectionHistoryState();
+}
+
+class _EntryCorrectionHistoryState extends State<_EntryCorrectionHistory> {
+  bool _open = false;
+  bool _loading = false;
+  String? _error;
+  List<Map<String, dynamic>> _items = const <Map<String, dynamic>>[];
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final items = await widget.repo.listEntryCorrections(widget.entryId);
+      if (mounted) setState(() => _items = items);
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// "4 → 6 pièces", "2 500 → 3 000 FCFA/pièce", "Chemise → Boubou".
+  List<String> _changes(Map<String, dynamic> c) {
+    final List<String> out = <String>[];
+    final int? oldP = c['old_pieces'] as int?;
+    final int? newP = c['new_pieces'] as int?;
+    if (oldP != null && newP != null && oldP != newP) {
+      out.add('$oldP → $newP pièces');
+    }
+    final int? oldR = c['old_piece_rate'] as int?;
+    final int? newR = c['new_piece_rate'] as int?;
+    if (oldR != null && newR != null && oldR != newR) {
+      out.add('${formatThousands(oldR)} → ${formatThousands(newR)} FCFA/pièce');
+    }
+    final String? oldG = c['old_garment_type'] as String?;
+    final String? newG = c['new_garment_type'] as String?;
+    if (oldG != null && newG != null && oldG != newG) {
+      out.add('$oldG → $newG');
+    }
+    if (c['voided'] == true) out.add('Entrée annulée');
+    return out;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            style: TextButton.styleFrom(padding: EdgeInsets.zero),
+            icon: Icon(_open ? Icons.expand_less_rounded : Icons.history_rounded, size: 18),
+            label: const Text('Historique des modifications'),
+            onPressed: () {
+              setState(() => _open = !_open);
+              if (_open && _items.isEmpty && !_loading) _load();
+            },
+          ),
+        ),
+        if (_open)
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: SizedBox(
+                height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else if (_error != null)
+            Text('Erreur: $_error',
+                style: const TextStyle(color: AppColors.error, fontSize: 12))
+          else if (_items.isEmpty)
+            const Text('Aucune modification.',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary))
+          else
+            Column(
+              children: _items.map((c) {
+                final String who = (c['corrected_by_name'] as String?) ?? 'Inconnu';
+                final String when =
+                    (c['corrected_at'] as String?)?.replaceFirst('T', ' ').split('.').first ?? '';
+                final List<String> changes = _changes(c);
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.textSecondary.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text('$who · $when',
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textSecondary)),
+                      if (changes.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(changes.join(' · '),
+                              style: const TextStyle(fontSize: 12)),
+                        ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text('Motif : ${c['reason'] ?? ''}',
+                            style: const TextStyle(
+                                fontSize: 11, fontStyle: FontStyle.italic)),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+      ],
     );
   }
 }

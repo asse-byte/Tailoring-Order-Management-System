@@ -257,6 +257,49 @@ This relaxes the original "server-priced, the client never sends prices" rule �
 the server still computes `total` and decrements stock atomically, but the unit
 price is now the caller's to set, with no ceiling. Owner decision 2026-08-03.
 
+## Correcting the tailors' weekly programme (owner decision 2026-08-06)
+
+Shop owners asked repeatedly for every hand-entered item to be editable and
+deletable, above all the tailors' page and their weekly programme (the daily
+piece counts that decide each tailor's pay). Entry mistakes are routine — wrong
+quantity, wrong tailor, wrong date — and must be fixable on the spot.
+
+**`tailor_daily_entries` stays append-only. That is not negotiable and was not
+weakened.** What the shop sees as "edit" and "delete" is the correction log:
+
+- "Modifier" on an entry writes a NEW `entry_corrections` row (quantity, piece
+  rate and/or garment type) with a mandatory reason — never an `UPDATE`.
+- "Annuler cette entrée" writes a correction with `voided = true`: the entry
+  drops out of `tailor_entries_effective` totals (contributes 0) and shows
+  struck through, without being removed from the database.
+- The base row is never edited or deleted, and the append-only triggers are
+  never disabled. (Migration 013 built this; 2026-08-06 added the visible
+  history described below.)
+
+**DELIBERATE EXCEPTION — do not "fix" this in a later session:** both the
+MANAGER *and* the SECRETARY have full edit/delete power over the weekly
+programme, including piece rates and amounts. This follows from rule 2 (tailors
+are fully open to her) and was reaffirmed by the owner on 2026-08-06 after an
+explicit discussion of the tension with the secretary's financial isolation.
+It is a conscious business decision, not an oversight.
+
+**Because both roles can change pay figures, attribution is mandatory.** Every
+correction records `corrected_by` (the real `users.id`, never a generic role)
+and `corrected_at`. `GET /api/tailor-entries/:id/corrections` returns the full
+chain resolved to from → to for pieces, rate, garment and amount, and the app
+shows it as "Historique des modifications" inside the correction dialog. If a
+tailor ever disputes their pay, the owner can see exactly who changed what,
+when and why. **Never remove that attribution or hide that history.**
+
+Do NOT extend this correction-as-edit pattern to any other financial table
+(`sales`, `expenses`, `staff_pay_history`, `salary_payments`,
+`order_payments`) without an explicit decision from the owner.
+
+Non-financial hand-entered data is plain editable/deletable in place, both
+roles: order notes/fabric/advance/tailor, the order's reference photos and
+videos (`model_media`, add + remove on the order detail screen), and manual
+appointments. Cancelling an order stays manager-only — it carries money.
+
 ## Master-data deletion — Type A vs Type B (NON-NEGOTIABLE, added 2026-07-17)
 
 The manager (never the secretary) has **full edit + hard-delete** of
