@@ -116,6 +116,22 @@ test('secretary can correct tailor entries and records corrected_by', async () =
   expect(row.corrected_by_name).toBe('secretaire');
 });
 
+test('correcting client name and linked order updates client_name on effective view', async () => {
+  const e = await asM(request(app).post('/api/tailor-entries')).send({
+    tailor_id: tailorId, entry_date: '2027-03-06', pieces_count: 1,
+    piece_rate: 3000, garment_type: 'Robe', custom_client_name: 'Client Original',
+  });
+  const entryId = e.body.id;
+
+  const res = await asM(request(app).post(`/api/tailor-entries/${entryId}/corrections`))
+    .send({ new_custom_client_name: 'Client Modifié', reason: 'Correction du nom du client' });
+  expect(res.status).toBe(201);
+
+  const d = await detail();
+  const row = d.items.find((i) => i.id === entryId);
+  expect(row.client_name).toBe('Client Modifié');
+});
+
 test('a correction still requires a mandatory reason', async () => {
   const e = await asM(request(app).post('/api/tailor-entries')).send({
     tailor_id: tailorId, entry_date: '2027-03-04', pieces_count: 1,

@@ -1120,6 +1120,15 @@ class _StaffScreenState extends State<StaffScreen> {
   Future<void> _correctWeeklyEntry(
       WeeklyDetailEntry e, Future<void> Function() reload) async {
     final formKey = GlobalKey<FormState>();
+    // Fetch active orders to allow linking/changing linked order
+    List<TailoringOrder> linkableOrders = <TailoringOrder>[];
+    try {
+      final allOrders = await OrdersRepository().list(limit: 100);
+      linkableOrders = allOrders
+          .where((o) => !o.isLivre || o.id == e.orderId)
+          .toList();
+    } catch (_) {}
+
     // Ensure the current garment type is selectable even if not in the constant.
     final List<String> garmentChoices = <String>[
       if (e.garmentType.isNotEmpty && !GarmentTypes.all.contains(e.garmentType))
@@ -1128,6 +1137,7 @@ class _StaffScreenState extends State<StaffScreen> {
     ];
     String garment = e.garmentType.isEmpty ? garmentChoices.first : e.garmentType;
     String customClientName = e.clientName ?? '';
+    String? linkedOrderId = e.orderId;
     int pieces = e.piecesCount;
     int rate = e.pieceRate;
     String reason = '';
@@ -1143,6 +1153,7 @@ class _StaffScreenState extends State<StaffScreen> {
           newPieceRate: voided ? null : rate,
           newGarmentType: voided ? null : garment,
           newCustomClientName: voided ? null : customClientName,
+          newOrderId: voided ? null : linkedOrderId,
           voided: voided ? true : null,
           reason: reason,
         );
@@ -1213,6 +1224,41 @@ class _StaffScreenState extends State<StaffScreen> {
                             ),
                         ],
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (linkableOrders.isNotEmpty) ...<Widget>[
+                    DropdownButtonFormField<String?>(
+                      value: linkedOrderId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Commande liée (optionnel)',
+                        helperText: 'Associe la saisie à une commande et son client',
+                      ),
+                      items: <DropdownMenuItem<String?>>[
+                        const DropdownMenuItem<String?>(
+                            value: null, child: Text('Aucune commande liée')),
+                        ...linkableOrders.map((o) => DropdownMenuItem<String?>(
+                              value: o.id,
+                              child: Text('${o.clientName} — ${o.garmentType}',
+                                  overflow: TextOverflow.ellipsis),
+                            )),
+                      ],
+                      onChanged: (v) {
+                        final ord = v == null
+                            ? null
+                            : linkableOrders.firstWhere((o) => o.id == v);
+                        setDlg(() {
+                          linkedOrderId = v;
+                          if (ord != null) {
+                            clientCtrl.text = ord.clientName;
+                            customClientName = ord.clientName;
+                            if (ord.garmentType.isNotEmpty && GarmentTypes.all.contains(ord.garmentType)) {
+                              garment = ord.garmentType;
+                            }
+                          }
+                        });
+                      },
                     ),
                     const SizedBox(height: 12),
                   ],

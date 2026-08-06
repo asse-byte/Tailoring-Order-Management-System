@@ -150,7 +150,7 @@ router.post('/:id/corrections', asyncH(async (req, res) => {
   }
   // Snapshot the currently-effective values as the correction baseline.
   const { rows: current } = await db.query(
-    `SELECT pieces_count, piece_rate, garment_type, client_name
+    `SELECT pieces_count, piece_rate, garment_type, client_name, order_id
      FROM tailor_entries_effective WHERE id = $1`, [req.params.id]);
   if (!current[0]) return res.status(404).json({ error: 'Saisie introuvable.' });
 
@@ -163,6 +163,8 @@ router.post('/:id/corrections', asyncH(async (req, res) => {
     ? current[0].garment_type : str(req.body.new_garment_type);
   const newClientName = req.body.new_custom_client_name === undefined
     ? current[0].client_name : str(req.body.new_custom_client_name);
+  const newOrderId = req.body.new_order_id === undefined
+    ? current[0].order_id : (req.body.new_order_id ? str(req.body.new_order_id) : null);
   if (newPieces == null || newPieces === undefined) {
     return res.status(400).json({ error: 'new_pieces invalide (entier ≥ 0).' });
   }
@@ -172,10 +174,10 @@ router.post('/:id/corrections', asyncH(async (req, res) => {
   const { rows } = await db.query(
     `INSERT INTO entry_corrections
        (entry_id, old_pieces, new_pieces, new_piece_rate, new_garment_type,
-        new_custom_client_name, voided, reason, corrected_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        new_custom_client_name, new_order_id, voided, reason, corrected_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::uuid, $8, $9, $10) RETURNING *`,
     [req.params.id, current[0].pieces_count, newPieces, newRate, newGarment,
-      newClientName, voided, reason, req.user.id]);
+      newClientName, newOrderId, voided, reason, req.user.id]);
   res.status(201).json(rows[0]);
 }));
 

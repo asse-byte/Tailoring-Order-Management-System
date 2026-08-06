@@ -367,6 +367,7 @@ class StaffRepository {
     int? newPieceRate,
     String? newGarmentType,
     String? newCustomClientName,
+    String? newOrderId,
     bool? voided,
     required String reason,
   }) async {
@@ -375,6 +376,7 @@ class StaffRepository {
       if (newPieceRate != null) 'new_piece_rate': newPieceRate,
       if (newGarmentType != null) 'new_garment_type': newGarmentType,
       if (newCustomClientName != null) 'new_custom_client_name': newCustomClientName,
+      if (newOrderId != null) 'new_order_id': newOrderId,
       if (voided != null) 'voided': voided,
       'reason': reason,
     });
