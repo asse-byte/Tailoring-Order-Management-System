@@ -7,13 +7,15 @@
 const request = require('supertest');
 const { createApp } = require('../src/app');
 const db = require('../src/db');
-const { MANAGER, seedUsers, login } = require('./helpers');
+const { MANAGER, SECRETARY, seedUsers, login } = require('./helpers');
 
 let app;
 let token;
+let secretaryToken;
 let tailorId;
 let weekId;
 const asM = (r) => r.set('Authorization', `Bearer ${token}`);
+const asS = (r) => r.set('Authorization', `Bearer ${secretaryToken}`);
 
 async function detail() {
   const res = await asM(request(app)
@@ -25,6 +27,7 @@ beforeAll(async () => {
   app = createApp();
   await seedUsers();
   token = await login(app, MANAGER);
+  secretaryToken = await login(app, SECRETARY);
   tailorId = (await asM(request(app).post('/api/staff'))
     .send({ full_name: 'Aboubacar', phone: '76009000', type: 'couturier' })).body.id;
 });
@@ -55,6 +58,8 @@ test('correcting quantity, model and price recomputes the montant', async () => 
   expect(row.garment_type).toBe('Grand Boubou');
   expect(row.amount).toBe(15000); // 3 × 5000, recomputed
   expect(row.corrected).toBe(true);
+  expect(row.corrected_by_name).toBeDefined();
+  expect(row.correction_reason).toBe('Erreur de saisie');
   expect(d.total).toBe(15000);
 });
 
@@ -72,7 +77,7 @@ test('correcting only the price keeps quantity and model', async () => {
   expect(row.amount).toBe(12000);           // 2 × 6000
 });
 
-test('voiding an entry cancels it (counts 0) but keeps it in the log', async () => {
+test('voiding an entry cancels it (counts 0 pieces and 0 amount) but keeps it in log', async () => {
   const e = await asM(request(app).post('/api/tailor-entries')).send({
     tailor_id: tailorId, entry_date: '2027-03-03', pieces_count: 5,
     piece_rate: 3000, garment_type: 'Pantalon',
@@ -88,8 +93,27 @@ test('voiding an entry cancels it (counts 0) but keeps it in the log', async () 
   const row = d.items.find((i) => i.id === entryId);
   expect(row).toBeDefined();       // still present in the audit trail
   expect(row.voided).toBe(true);
+  expect(row.pieces_count).toBe(0); // voided entry contributes 0 pieces
   expect(row.amount).toBe(0);      // contributes nothing
+  expect(row.correction_reason).toBe('Saisie en double');
   expect(d.total).toBe(before - 15000); // 5 × 3000 removed
+});
+
+test('secretary can correct tailor entries and records corrected_by', async () => {
+  const e = await asS(request(app).post('/api/tailor-entries')).send({
+    tailor_id: tailorId, entry_date: '2027-03-05', pieces_count: 4,
+    piece_rate: 2500, garment_type: 'Veste',
+  });
+  const entryId = e.body.id;
+  const res = await asS(request(app).post(`/api/tailor-entries/${entryId}/corrections`))
+    .send({ new_pieces: 2, reason: 'Correction par la secrétaire' });
+  expect(res.status).toBe(201);
+
+  const d = await detail();
+  const row = d.items.find((i) => i.id === entryId);
+  expect(row.pieces_count).toBe(2);
+  expect(row.amount).toBe(5000);
+  expect(row.corrected_by_name).toBe('secretaire');
 });
 
 test('a correction still requires a mandatory reason', async () => {

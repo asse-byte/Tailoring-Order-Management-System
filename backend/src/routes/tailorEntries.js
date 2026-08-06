@@ -79,7 +79,7 @@ router.get('/', asyncH(async (req, res) => {
 }));
 
 // Detailed week for ONE tailor: every entry (garment type, pieces, client,
-// amount) so the UI can group Monday→Sunday. Manager-only like the rest.
+// amount) so the UI can group Monday→Sunday. Both roles (manager + secretary).
 router.get('/weekly-detail', asyncH(async (req, res) => {
   const weekId = str(req.query.week_id);
   const tailorId = str(req.query.tailor_id);
@@ -88,7 +88,8 @@ router.get('/weekly-detail', asyncH(async (req, res) => {
   }
   const { rows } = await db.query(
     `SELECT e.id, e.entry_date, e.garment_type, e.pieces_count, e.piece_rate,
-            e.amount, e.order_id, e.corrected, e.voided, e.client_name
+            e.amount, e.order_id, e.corrected, e.voided, e.client_name,
+            e.corrected_by, e.corrected_by_name, e.corrected_at, e.correction_reason
      FROM tailor_entries_effective e
      WHERE e.week_id = $1 AND e.tailor_id = $2
      ORDER BY e.entry_date, e.created_at`, [weekId, tailorId]);

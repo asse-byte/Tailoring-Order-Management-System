@@ -808,6 +808,7 @@ class _StaffScreenState extends State<StaffScreen> {
                                       byDay[_ymd(days[i])] ??
                                           const <WeeklyDetailEntry>[],
                                       (e) => _correctWeeklyEntry(e, load),
+                                      (e) => _confirmVoidWeeklyEntry(e, load),
                                     ),
                                 ],
                               ),
@@ -890,7 +891,7 @@ class _StaffScreenState extends State<StaffScreen> {
   Widget _tcell(Widget child) => TableCell(
         verticalAlignment: TableCellVerticalAlignment.middle,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
           child: child,
         ),
       );
@@ -898,13 +899,14 @@ class _StaffScreenState extends State<StaffScreen> {
   /// A single Monday→Sunday row of the tailor weekly table, matching the
   /// requested layout: Jours | Nom client | Qté | Modèle(s) | Montant(s).
   /// The Modèle and Montant cells stack one fixed-height line per entry so the
-  /// two columns stay aligned; each line is tappable to open a correction.
+  /// two columns stay aligned; each line offers explicit Edit & Delete actions.
   TableRow _tailorDayRow(
       String dayName,
       DateTime day,
       List<WeeklyDetailEntry> entries,
-      void Function(WeeklyDetailEntry) onCorrect) {
-    const double lineH = 30;
+      void Function(WeeklyDetailEntry) onCorrect,
+      void Function(WeeklyDetailEntry) onVoid) {
+    const double lineH = 32;
     final int qty = entries.fold<int>(0, (s, e) => s + e.piecesCount);
     final String clients = <String>{
       for (final e in entries)
@@ -932,24 +934,19 @@ class _StaffScreenState extends State<StaffScreen> {
                       height: lineH,
                       child: InkWell(
                         onTap: () => onCorrect(e),
-                        child: Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: Text(
-                                '${e.garmentType.isEmpty ? 'Pièce' : e.garmentType}'
-                                '${e.piecesCount > 1 ? ' ×${e.piecesCount}' : ''}',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  decoration: e.voided
-                                      ? TextDecoration.lineThrough
-                                      : null,
-                                  color: e.voided ? AppColors.textSecondary : null,
-                                ),
-                              ),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            '${e.garmentType.isEmpty ? 'Pièce' : e.garmentType}'
+                            '${e.piecesCount > 1 ? ' ×${e.piecesCount}' : ''}',
+                            style: TextStyle(
+                              fontSize: 12.0,
+                              decoration: e.voided
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                              color: e.voided ? AppColors.textSecondary : null,
                             ),
-                            Icon(Icons.edit_outlined,
-                                size: 13, color: AppColors.primary.withValues(alpha: 0.55)),
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -964,24 +961,154 @@ class _StaffScreenState extends State<StaffScreen> {
                   for (final e in entries)
                     SizedBox(
                       height: lineH,
-                      child: InkWell(
-                        onTap: () => onCorrect(e),
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            e.voided ? 'Annulé' : formatFcfa(e.amount),
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              color: e.voided ? AppColors.textSecondary : null,
-                              fontStyle: e.voided ? FontStyle.italic : null,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: <Widget>[
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => onCorrect(e),
+                              child: Text(
+                                e.voided ? 'Annulé' : formatFcfa(e.amount),
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: e.voided ? AppColors.textSecondary : null,
+                                  fontStyle: e.voided ? FontStyle.italic : null,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                          const SizedBox(width: 4),
+                          Tooltip(
+                            message: 'Modifier',
+                            child: InkWell(
+                              onTap: () => onCorrect(e),
+                              child: Padding(
+                                padding: const EdgeInsets.all(2),
+                                child: Icon(
+                                  Icons.edit_rounded,
+                                  size: 15,
+                                  color: AppColors.primary.withValues(alpha: 0.8),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (!e.voided) ...[
+                            const SizedBox(width: 2),
+                            Tooltip(
+                              message: 'Annuler / Supprimer',
+                              child: InkWell(
+                                onTap: () => onVoid(e),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(2),
+                                  child: Icon(
+                                    Icons.delete_outline_rounded,
+                                    size: 15,
+                                    color: AppColors.error,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                 ],
               )),
       ],
+    );
+  }
+
+  /// Confirm and execute a void correction (delete) for a weekly entry.
+  Future<void> _confirmVoidWeeklyEntry(
+      WeeklyDetailEntry e, Future<void> Function() reload) async {
+    final formKey = GlobalKey<FormState>();
+    String reason = '';
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: <Widget>[
+            Icon(Icons.warning_amber_rounded, color: AppColors.error),
+            SizedBox(width: 8),
+            Expanded(child: Text('Annuler la saisie', style: TextStyle(fontSize: 18))),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                'Voulez-vous annuler cette saisie (${e.garmentType.isEmpty ? "Pièce" : e.garmentType} - ${formatFcfa(e.amount)}) ?',
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'L\'entrée sera masquée des calculs (0 FCFA) tout en conservant l\'historique d\'audit.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                decoration: const InputDecoration(
+                  labelText: 'Motif d\'annulation (obligatoire)',
+                  hintText: 'ex: Erreur de saisie, doublon...',
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Motif requis' : null,
+                onSaved: (v) => reason = v?.trim() ?? '',
+              ),
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Fermer'),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.delete_rounded, size: 18),
+            label: const Text('Confirmer l\'annulation'),
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              formKey.currentState!.save();
+              Navigator.pop(ctx);
+              try {
+                await _repo.correctTailorEntry(
+                  e.id,
+                  voided: true,
+                  reason: reason,
+                );
+                await reload();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Saisie annulée avec succès.'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                }
+              } catch (err) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Erreur: $err'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -1041,6 +1168,54 @@ class _StaffScreenState extends State<StaffScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
+                  if (e.corrected || e.voided) ...<Widget>[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: (e.voided ? AppColors.error : AppColors.warning).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: (e.voided ? AppColors.error : AppColors.warning).withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              Icon(
+                                e.voided ? Icons.block_rounded : Icons.history_rounded,
+                                size: 16,
+                                color: e.voided ? AppColors.error : Colors.amber[900],
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  e.voided ? 'Saisie actuellement annulée' : 'Dernière modification enregistrée',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: e.voided ? AppColors.error : Colors.amber[900],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if ((e.correctedByName ?? '').isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                'Par: ${e.correctedByName}'
+                                '${(e.correctionReason ?? '').isNotEmpty ? ' (Motif: ${e.correctionReason})' : ''}',
+                                style: const TextStyle(fontSize: 11.5),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   TextFormField(
                     controller: clientCtrl,
                     decoration: const InputDecoration(labelText: 'Nom du client'),

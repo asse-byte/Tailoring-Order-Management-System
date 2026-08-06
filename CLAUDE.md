@@ -18,16 +18,20 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
    backed by DB constraints), never only by hiding UI. Any finance
    endpoint must return 403 to the secretary, and the test suite in
    `backend/tests/` proving this must always pass.
-   - **TAILORS are fully open to the secretary (owner decision 2026-07-20,
-     "option B"):** piece prices differ per garment/model and there are many
-     models, so routing every price through the manager was unworkable. The
-     secretary therefore has the manager's full powers over tailors: she creates
-     and corrects daily entries INCLUDING `piece_rate`, and sees amounts,
-     weekly totals and the monthly ranking. `/api/tailor-entries` is both-roles;
-     `/api/staff-pay` is both-roles but the secretary is confined to
-     `type = 'couturier'` and to `piece_rate` — `monthly_salary` /
-     `salary_due_day` are stripped from her reads, ignored on her writes, and
-     any staff-pay route for a non-couturier returns 403 to her.
+   - **TAILORS are fully open to the secretary (owner decision 2026-07-20 & 2026-08-06):**
+     piece prices differ per garment/model and there are many models, so routing
+     every price or schedule correction through the manager was unworkable. The
+     secretary therefore has full powers over tailors: she creates, edits and
+     voids/deletes daily entries in the weekly schedule (via append-only corrections
+     `entry_corrections`), INCLUDING `piece_rate`, and sees amounts, weekly totals
+     and monthly rankings.
+     **Audit & Accountability**: Every edit or void records the exact user
+     (`corrected_by` = Manager or Secretary user ID) and timestamp (`corrected_at`),
+     so the shop owner can audit who modified or voided any entry. `/api/tailor-entries`
+     is both-roles; `/api/staff-pay` is both-roles but the secretary is confined to
+     `type = 'couturier'` and to `piece_rate` — `monthly_salary` / `salary_due_day` are
+     stripped from her reads, ignored on her writes, and any staff-pay route for a
+     non-couturier returns 403 to her.
      Still MANAGER-ONLY: monthly salaries, `/api/salary-payments`,
      `/api/finance`, `/api/reports`, `/api/expenses`, `GET /api/sales`,
      product/model `cost_price` + `/stats`, `/api/settings/private`, `/api/users`.

@@ -122,6 +122,11 @@ class WeeklyDetailEntry {
   final String? clientName;
   final String? orderId;
   final bool voided;
+  final bool corrected;
+  final String? correctedBy;
+  final String? correctedByName;
+  final String? correctedAt;
+  final String? correctionReason;
 
   const WeeklyDetailEntry({
     required this.id,
@@ -133,6 +138,11 @@ class WeeklyDetailEntry {
     this.clientName,
     this.orderId,
     this.voided = false,
+    this.corrected = false,
+    this.correctedBy,
+    this.correctedByName,
+    this.correctedAt,
+    this.correctionReason,
   });
 
   factory WeeklyDetailEntry.fromJson(Map<String, dynamic> json) =>
@@ -146,6 +156,11 @@ class WeeklyDetailEntry {
         clientName: json['client_name'] as String?,
         orderId: json['order_id'] as String?,
         voided: json['voided'] as bool? ?? false,
+        corrected: json['corrected'] as bool? ?? false,
+        correctedBy: json['corrected_by'] as String?,
+        correctedByName: json['corrected_by_name'] as String?,
+        correctedAt: json['corrected_at'] as String?,
+        correctionReason: json['correction_reason'] as String?,
       );
 }
 
