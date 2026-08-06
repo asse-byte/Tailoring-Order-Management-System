@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,6 +19,7 @@ import '../../../../core/widgets/section_header.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
+import '../../../ready_to_wear/data/pret_a_porter_repository.dart';
 import '../../../staff/data/staff_repository.dart';
 import '../../data/invoice_service.dart';
 import '../../data/orders_repository.dart';
@@ -47,7 +49,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   };
   List<StaffContact> _tailors = <StaffContact>[];
   bool _loading = true;
+  bool _uploadingMedia = false;
   String? _error;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -673,12 +677,44 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       const SectionHeader(title: 'Infos de commande'),
                       const SizedBox(height: 12),
                       _infoCard(_order!),
-                      if (_order!.modelMedia.isNotEmpty) ...<Widget>[
-                        const SizedBox(height: 20),
-                        const SectionHeader(title: 'Modèle du client (Photos & Vidéos)'),
-                        const SizedBox(height: 8),
+                      // Always shown, even with no media yet: reference photos
+                      // are entered by hand and the shop must be able to add,
+                      // replace or remove them after the order was created.
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          const SectionHeader(title: 'Modèle du client (Photos & Vidéos)'),
+                          if (_uploadingMedia)
+                            const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2))
+                          else
+                            Row(
+                              children: <Widget>[
+                                IconButton(
+                                  tooltip: 'Ajouter une photo',
+                                  icon: const Icon(Icons.add_a_photo_rounded,
+                                      color: AppColors.primary),
+                                  onPressed: _addModelPhoto,
+                                ),
+                                IconButton(
+                                  tooltip: 'Ajouter une vidéo',
+                                  icon: const Icon(Icons.video_call_rounded,
+                                      color: AppColors.primary),
+                                  onPressed: _addModelVideo,
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (_order!.modelMedia.isEmpty)
+                        const Text('Aucun média pour ce modèle.',
+                            style: TextStyle(color: AppColors.textSecondary))
+                      else
                         _modelMediaCard(_order!),
-                      ],
                       if (_order!.notes.isNotEmpty) ...<Widget>[
                         const SizedBox(height: 20),
                         const SectionHeader(title: 'Notes'),
@@ -697,6 +733,70 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   ),
                 ),
     );
+  }
+
+  Future<void> _addModelPhoto() async {
+    try {
+      final XFile? file =
+          await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      if (file != null) await _uploadModelMedia(file, 'image');
+    } catch (e) {
+      _toast('Erreur de sélection de l\'image : $e', error: true);
+    }
+  }
+
+  Future<void> _addModelVideo() async {
+    try {
+      final XFile? file = await _picker.pickVideo(
+          source: ImageSource.gallery, maxDuration: const Duration(minutes: 3));
+      if (file != null) await _uploadModelMedia(file, 'video');
+    } catch (e) {
+      _toast('Erreur de sélection de la vidéo : $e', error: true);
+    }
+  }
+
+  /// Uploads the file, then persists the whole media list on the order. The
+  /// list is plain descriptive data on the order row (not financial history),
+  /// so it is edited in place like the notes.
+  Future<void> _uploadModelMedia(XFile file, String kind) async {
+    setState(() => _uploadingMedia = true);
+    try {
+      final uploaded = await PretAPorterRepository().uploadMedia(file);
+      final List<Map<String, String>> next =
+          List<Map<String, String>>.from(_order!.modelMedia)
+            ..add(<String, String>{
+              'url': uploaded['url']!,
+              'kind': kind,
+              'thumb_url': uploaded['thumb_url'] ?? '',
+            });
+      final updated = await _repo.update(_order!.id, modelMedia: next);
+      if (mounted) setState(() => _order = updated);
+      _toast('Média ajouté.');
+    } catch (e) {
+      _toast('Erreur d\'envoi du média : $e', error: true);
+    } finally {
+      if (mounted) setState(() => _uploadingMedia = false);
+    }
+  }
+
+  Future<void> _removeModelMedia(int index) async {
+    final bool ok = await showConfirmDialog(
+      context,
+      title: 'Supprimer ce média ?',
+      message: 'Le fichier ne sera plus rattaché à cette commande.',
+      confirmLabel: 'Supprimer',
+      destructive: true,
+    );
+    if (!ok) return;
+    try {
+      final List<Map<String, String>> next =
+          List<Map<String, String>>.from(_order!.modelMedia)..removeAt(index);
+      final updated = await _repo.update(_order!.id, modelMedia: next);
+      if (mounted) setState(() => _order = updated);
+      _toast('Média supprimé.');
+    } catch (e) {
+      _toast('Erreur : $e', error: true);
+    }
   }
 
   Widget _modelMediaCard(TailoringOrder order) {
@@ -751,34 +851,55 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   );
                 }
               },
-              child: Container(
-                width: 100,
-                margin: const EdgeInsets.only(right: 10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Theme.of(context).dividerColor),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: isVideo
-                      ? Container(
-                          color: Colors.black87,
-                          child: const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 36),
-                              SizedBox(height: 4),
-                              Text('Vidéo', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        )
-                      : CachedNetworkImage(
-                          imageUrl: resolvedUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                          errorWidget: (_, __, ___) => const Icon(Icons.broken_image_rounded),
+              child: Stack(
+                children: <Widget>[
+                  Container(
+                    width: 100,
+                    margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Theme.of(context).dividerColor),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: isVideo
+                          ? Container(
+                              color: Colors.black87,
+                              child: const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 36),
+                                  SizedBox(height: 4),
+                                  Text('Vidéo', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: resolvedUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                              errorWidget: (_, __, ___) => const Icon(Icons.broken_image_rounded),
+                            ),
+                    ),
+                  ),
+                  // Remove this reference photo/video from the order.
+                  Positioned(
+                    top: 2,
+                    right: 12,
+                    child: GestureDetector(
+                      onTap: () => _removeModelMedia(index),
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
                         ),
-                ),
+                        child: const Icon(Icons.close_rounded,
+                            color: Colors.white, size: 16),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             );
           },

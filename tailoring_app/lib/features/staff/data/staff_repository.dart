@@ -122,6 +122,9 @@ class WeeklyDetailEntry {
   final String? clientName;
   final String? orderId;
   final bool voided;
+  /// True once at least one correction has been recorded against this entry —
+  /// drives the "modification history" section in the correction dialog.
+  final bool corrected;
 
   const WeeklyDetailEntry({
     required this.id,
@@ -133,6 +136,7 @@ class WeeklyDetailEntry {
     this.clientName,
     this.orderId,
     this.voided = false,
+    this.corrected = false,
   });
 
   factory WeeklyDetailEntry.fromJson(Map<String, dynamic> json) =>
@@ -146,6 +150,7 @@ class WeeklyDetailEntry {
         clientName: json['client_name'] as String?,
         orderId: json['order_id'] as String?,
         voided: json['voided'] as bool? ?? false,
+        corrected: json['corrected'] as bool? ?? false,
       );
 }
 
@@ -359,6 +364,14 @@ class StaffRepository {
       if (voided != null) 'voided': voided,
       'reason': reason,
     });
+  }
+
+  /// Who changed a daily entry, when, from → to, and why — newest first.
+  /// Both roles may correct entries, so this is what lets the owner see
+  /// exactly who touched a tailor's numbers if the pay is ever disputed.
+  Future<List<Map<String, dynamic>>> listEntryCorrections(String entryId) async {
+    final dynamic res = await _api.get('/api/tailor-entries/$entryId/corrections');
+    return (res['items'] as List).cast<Map<String, dynamic>>();
   }
 
   Future<List<WeeklyTailorSummary>> listWeeklyTotals(String weekId) async {
