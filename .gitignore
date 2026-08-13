@@ -83,6 +83,10 @@ android-sdk/
 .env
 .env.*
 *.env
+# Templates carry variable NAMES only, never values — they are the documented
+# starting point for every new shop (`cp backend/.env.example .env`), so they
+# must stay committable despite the blanket .env.* rule above.
+!**/.env.example
 credentials.json
 *.key
 .credentials
