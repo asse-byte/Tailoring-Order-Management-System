@@ -131,7 +131,12 @@ class WhatsAppService {
     }
   }
 
-  getStatus() {
+  /**
+   * Gateway status. The recent-send log carries CLIENT PHONE NUMBERS, so it is
+   * manager-only: the secretary sees whether the gateway works and how many
+   * messages went out, never who they went to.
+   */
+  getStatus({ includeRecipients = false } = {}) {
     return {
       configured: this.configured,
       provider: this.provider || null,
@@ -141,7 +146,7 @@ class WhatsAppService {
         : "Envoi automatique inactif : aucun fournisseur WhatsApp configuré. "
           + "Utilisez le bouton WhatsApp de la commande pour prévenir le client.",
       total_sent: this.logs.filter((l) => l.status === 'SENT').length,
-      recent_logs: this.logs.slice(0, 10),
+      recent_logs: includeRecipients ? this.logs.slice(0, 10) : [],
     };
   }
 }

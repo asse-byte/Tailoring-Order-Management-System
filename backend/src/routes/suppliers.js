@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { managerOnly } = require('../middleware/auth');
-const { asyncH, pagination, intOrNull, dateStr, str } = require('../util');
+const { asyncH, pagination, intOrNull, dateStr, str, likeEscape } = require('../util');
 
 // Mounted manager-only in app.js (financial debt & supplier purchases).
 const router = express.Router();
@@ -19,7 +19,7 @@ router.get('/', asyncH(async (req, res) => {
        LEFT JOIN supplier_purchases_effective spe ON spe.supplier_id = s.id
        WHERE lower(s.name) LIKE lower($1) || '%' OR s.phone LIKE '%' || $1 || '%'
        GROUP BY s.id ORDER BY s.name LIMIT $2 OFFSET $3`,
-      [search, limit, offset]));
+      [likeEscape(search), limit, offset]));
   } else {
     ({ rows } = await db.query(
       `SELECT s.*,

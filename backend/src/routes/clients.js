@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { managerOnly } = require('../middleware/auth');
-const { asyncH, pagination, str } = require('../util');
+const { asyncH, pagination, str, likeEscape } = require('../util');
 
 const router = express.Router();
 
@@ -15,7 +15,7 @@ router.get('/', asyncH(async (req, res) => {
       `SELECT * FROM clients
        WHERE lower(full_name) LIKE lower($1) || '%' OR phone LIKE '%' || $1 || '%'
        ORDER BY full_name LIMIT $2 OFFSET $3`,
-      [search, limit, offset]));
+      [likeEscape(search), limit, offset]));
   } else {
     ({ rows } = await db.query(
       'SELECT * FROM clients ORDER BY created_at DESC LIMIT $1 OFFSET $2',

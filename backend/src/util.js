@@ -38,4 +38,17 @@ function dateStr(v) {
   return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
 }
 
-module.exports = { asyncH, pagination, intOrNull, str, isoWeekId, dateStr };
+/**
+ * Neutralise LIKE wildcards in a user-typed search term.
+ * Parameter binding stops SQL injection, but it does NOT stop the VALUE from
+ * being read as a pattern: a search for "%" would otherwise match every row
+ * and throw away the lower(full_name) prefix index. Backslash is PostgreSQL's
+ * default LIKE escape character, so escaping it here needs no ESCAPE clause.
+ */
+function likeEscape(s) {
+  return typeof s === 'string' ? s.replace(/[\\%_]/g, '\\$&') : s;
+}
+
+module.exports = {
+  asyncH, pagination, intOrNull, str, isoWeekId, dateStr, likeEscape,
+};

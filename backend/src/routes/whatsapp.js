@@ -5,11 +5,14 @@ const { asyncH, str } = require('../util');
 
 const router = express.Router();
 
-// Gateway status: whether automatic sending is actually configured, and what
-// went out. Both roles — it carries no financial data, and the secretary is
-// the one who marks orders ready.
+// Gateway status: whether automatic sending is actually configured, and how
+// much went out. Both roles — it carries no financial data, and the secretary
+// is the one who marks orders ready. The detailed send log names the CLIENTS
+// contacted (phone numbers), so it is returned to the manager only.
 router.get('/status', asyncH(async (req, res) => {
-  res.json(whatsappService.getStatus());
+  res.json(whatsappService.getStatus({
+    includeRecipients: req.user.role === 'MANAGER',
+  }));
 }));
 
 // Manager-only: once a provider is configured this really does send a message
