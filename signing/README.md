@@ -3,10 +3,31 @@
 `rayan-couture-keystore.tar.gz.gpg` is the **encrypted** backup of the release
 signing keystore for `com.rayancouture.app`.
 
-It is safe to keep in this (private) repo: the contents are encrypted with
-**AES-256** (GPG symmetric, SHA512 s2k). Without the passphrase the file is
-useless. The passphrase is **not** stored here — it lives in the owner's
-password manager, and nowhere in this repository.
+> ⚠️ **This repository is PUBLIC** (verified against the GitHub API on
+> 2026-08-13: `visibility: public`). An earlier version of this file called the
+> repo private and concluded the backup was safe to keep here. That was wrong,
+> and the conclusion it supported does not hold.
+>
+> Anyone on the internet can download this file. The contents are encrypted
+> with **AES-256** (GPG symmetric, SHA512 s2k), so the passphrase is the *only*
+> thing standing between a stranger and the ability to sign APKs as
+> `com.rayancouture.app`. Unlike a leaked password on a live service, there is
+> no rate limit and no lockout: an attacker cracks it offline, at their own
+> pace, forever. Assume the ciphertext is already in someone else's hands.
+>
+> **What to do, in order:**
+> 1. Confirm the passphrase is long and random (a 5+ word diceware phrase or
+>    32+ random characters). A human-memorable password is not sufficient here.
+> 2. If it is anything weaker, treat the signing key as compromised: generate a
+>    new keystore and move to Play App Signing (which lets Google hold the key
+>    and makes an upload-key rotation possible).
+> 3. Either way, prefer removing this file from the repo and keeping the backup
+>    offline. Deleting it in a new commit does **not** remove it from history —
+>    the blob stays fetchable until the history is rewritten and the repo is
+>    force-pushed, or the repo is made private.
+>
+> The passphrase itself is **not** stored here — it lives in the owner's
+> password manager, and nowhere in this repository.
 
 ## What's inside
 

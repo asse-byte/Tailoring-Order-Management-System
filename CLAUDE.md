@@ -358,6 +358,37 @@ clients. Fixed + regression test ("secretary DELETE /clients → 403").
   auth for the login screen) and private rows (manager-only).
 - Flutter app data layer runs entirely on the REST API. All Firebase SDK dependencies, Firebase configurations, cloud functions, and local mock database files have been completely cleaned up.
 
+## Known accepted risks (audit 2026-08-13)
+
+Reviewed and deliberately left as-is. Documented so a future reader does not
+mistake them for oversights — or assume a protection that is not there.
+
+- **`/uploads` is public: no authentication at all.** `app.js` mounts
+  `express.static('/uploads')` *before* `app.use('/api', authenticate)` and
+  outside `/api`, so every uploaded image and video is readable by anyone who
+  knows the URL. That includes order `model_media`, which can hold photos of a
+  client's garment. The only thing protecting a file is that its name is
+  `<Date.now()>_<9 random chars>` (upload.js), which is unguessable in practice
+  but is *obscurity, not access control*.
+  Accepted because putting the mount behind `authenticate` would break every
+  plain `<img>`/`CachedNetworkImage` request (they send no Authorization
+  header), which is a real redesign — signed URLs or a token query parameter —
+  not a one-line change. **If uploads ever start carrying anything more
+  sensitive than shop media, revisit this first.**
+  The stored files are still hardened in the ways that matter for serving:
+  magic-byte sniffing on upload, images re-encoded through Jimp, and
+  `X-Content-Type-Options: nosniff` + a sandbox CSP on every response.
+- **Uploaded files are never deleted.** Replacing a product's or model's images
+  removes the DB rows (`DELETE FROM product_images` / `model_media`) but never
+  unlinks the file, so `/uploads` grows without bound on the VPS. Left alone
+  because deleting on replace is unsafe while nothing guarantees two records
+  don't reference the same URL. A periodic sweep of files unreferenced by any
+  table is the safer shape if disk ever becomes a problem.
+- **The GitHub repo is PUBLIC**, and `signing/rayan-couture-keystore.tar.gz.gpg`
+  is committed. It is GPG AES-256 encrypted, so the passphrase is the only
+  protection, and an attacker attacks it offline with no rate limit. See
+  `signing/README.md` for what to check and how to respond.
+
 ## Working conventions
 
 - Work module by module; a module must run end-to-end before moving on.
