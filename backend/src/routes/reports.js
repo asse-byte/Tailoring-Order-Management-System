@@ -29,6 +29,9 @@ function salaryMonthsFactor(from, to) {
 }
 
 router.get('/summary', asyncH(async (req, res) => {
+  if (req.user && req.user.role !== 'manager') {
+    return res.status(403).json({ error: 'Accès réservé au manager.' });
+  }
   const today = new Date().toISOString().slice(0, 10);
   const from = dateStr(req.query.from) || `${today.slice(0, 8)}01`;
   const to = dateStr(req.query.to) || today;
