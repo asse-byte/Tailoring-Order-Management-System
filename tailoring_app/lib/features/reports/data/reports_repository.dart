@@ -105,4 +105,116 @@ class ReportsRepository {
         .get('/api/reports/summary?from=${_d(from)}&to=${_d(to)}');
     return ReportSummary.fromJson(res as Map<String, dynamic>);
   }
+
+  /// Live KPI tiles for the home dashboard. Manager-only (carries cash + debt).
+  Future<DashboardKpis> dashboard() async {
+    final dynamic res = await _api.get('/api/reports/dashboard');
+    return DashboardKpis.fromJson(res as Map<String, dynamic>);
+  }
+
+  /// Delivered orders that still owe money — the debt-reminder list.
+  Future<UnpaidOrdersPage> unpaidOrders({int limit = 50, int offset = 0}) async {
+    final dynamic res = await _api
+        .get('/api/reports/unpaid-orders', query: <String, String>{
+      'limit': '$limit',
+      'offset': '$offset',
+    });
+    return UnpaidOrdersPage.fromJson(res as Map<String, dynamic>);
+  }
+}
+
+/// Snapshot behind the dashboard tiles.
+class DashboardKpis {
+  final int ordersToday;
+  final int paymentsToday;
+  final int enAttente;
+  final int enCours;
+  final int termine;
+  final int livre;
+  final int debtOrders;
+  final int debtClients;
+  final int debtTotal;
+
+  const DashboardKpis({
+    required this.ordersToday,
+    required this.paymentsToday,
+    required this.enAttente,
+    required this.enCours,
+    required this.termine,
+    required this.livre,
+    required this.debtOrders,
+    required this.debtClients,
+    required this.debtTotal,
+  });
+
+  factory DashboardKpis.fromJson(Map<String, dynamic> j) {
+    final Map<String, dynamic> today =
+        (j['today'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+    final Map<String, dynamic> orders =
+        (j['orders'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+    final Map<String, dynamic> debt =
+        (j['debt'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+    return DashboardKpis(
+      ordersToday: today['orders_created'] as int? ?? 0,
+      paymentsToday: today['payments_collected'] as int? ?? 0,
+      enAttente: orders['en_attente'] as int? ?? 0,
+      enCours: orders['en_cours'] as int? ?? 0,
+      termine: orders['termine'] as int? ?? 0,
+      livre: orders['livre'] as int? ?? 0,
+      debtOrders: debt['orders_count'] as int? ?? 0,
+      debtClients: debt['clients_count'] as int? ?? 0,
+      debtTotal: debt['total'] as int? ?? 0,
+    );
+  }
+}
+
+/// One delivered-but-unpaid order, with what is needed for the reminder.
+class UnpaidOrder {
+  final String id;
+  final String clientName;
+  final String clientPhone;
+  final int total;
+  final int paid;
+  final int reste;
+  final String? deliveredDate;
+
+  const UnpaidOrder({
+    required this.id,
+    required this.clientName,
+    required this.clientPhone,
+    required this.total,
+    required this.paid,
+    required this.reste,
+    this.deliveredDate,
+  });
+
+  factory UnpaidOrder.fromJson(Map<String, dynamic> j) => UnpaidOrder(
+        id: j['id'] as String,
+        clientName: j['client_name'] as String? ?? 'Client supprimé',
+        clientPhone: j['client_phone'] as String? ?? '',
+        total: j['total'] as int? ?? 0,
+        paid: j['paid'] as int? ?? 0,
+        reste: j['reste'] as int? ?? 0,
+        deliveredDate: j['delivered_date'] as String?,
+      );
+}
+
+class UnpaidOrdersPage {
+  final List<UnpaidOrder> items;
+  final int totalDue;
+  final int totalCount;
+
+  const UnpaidOrdersPage({
+    required this.items,
+    required this.totalDue,
+    required this.totalCount,
+  });
+
+  factory UnpaidOrdersPage.fromJson(Map<String, dynamic> j) => UnpaidOrdersPage(
+        items: ((j['items'] as List<dynamic>?) ?? <dynamic>[])
+            .map((dynamic e) => UnpaidOrder.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        totalDue: j['total_due'] as int? ?? 0,
+        totalCount: j['total_count'] as int? ?? 0,
+      );
 }

@@ -22,6 +22,7 @@ import '../../features/staff/presentation/screens/staff_screen.dart';
 import '../../features/staff/presentation/screens/monthly_staff_screen.dart';
 import '../../features/finance/presentation/screens/finance_screen.dart';
 import '../../features/reports/presentation/screens/reports_screen.dart';
+import '../../features/reports/presentation/screens/unpaid_orders_screen.dart';
 import '../../features/ready_to_wear/presentation/screens/ready_to_wear_screen.dart';
 import '../../features/ready_to_wear/presentation/screens/models_showcase_screen.dart';
 import '../../features/appointments/presentation/screens/appointments_screen.dart';
@@ -132,6 +133,10 @@ class AppRouter {
               builder: (_, __) => const ReportsScreen(),
             ),
             GoRoute(
+              path: 'unpaid-orders',
+              builder: (_, __) => const UnpaidOrdersScreen(),
+            ),
+            GoRoute(
               path: 'ready-to-wear',
               builder: (_, __) => const ReadyToWearScreen(),
             ),
@@ -183,12 +188,21 @@ class AppRouter {
         // NOTE: /admin/monthly-staff and /admin/settings are allowed — those
         // screens render reduced views for the secretary (roster without
         // salaries; own-account settings without shop/financial settings).
+        // Matched by prefix, not equality: a sub-route such as
+        // /admin/merchants/<id> must be blocked too, and an exact-match list
+        // silently lets the next one added slip through.
+        const List<String> managerOnlyRoutes = <String>[
+          '/admin/finance',
+          '/admin/reports',
+          '/admin/staff-pay',
+          // Supplier debts + wholesale orders are money.
+          '/admin/merchants',
+          // Outstanding client debt across the shop.
+          '/admin/unpaid-orders',
+        ];
         if (auth.isSecretary &&
-            (loc == '/admin/finance' ||
-                loc == '/admin/reports' ||
-                loc == '/admin/staff-pay' ||
-                // Supplier debts + wholesale orders are money.
-                loc == '/admin/merchants')) {
+            managerOnlyRoutes
+                .any((String p) => loc == p || loc.startsWith('$p/'))) {
           return '/admin';
         }
 

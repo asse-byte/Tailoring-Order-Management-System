@@ -397,4 +397,86 @@ class StaffRepository {
         .map((e) => TailorMonthlyRank.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  /// Lifetime performance + settlement for one staff member.
+  /// The secretary receives the piece-work side only; the salary fields come
+  /// back null for her because the server strips them (see staff.js).
+  Future<StaffAllTimeSummary> allTimeSummary(String staffId) async {
+    final dynamic res = await _api.get('/api/staff/$staffId/all-time-summary');
+    return StaffAllTimeSummary.fromJson(res as Map<String, dynamic>);
+  }
+}
+
+/// One row of the per-model breakdown ("Veste: 12 pièces, 60 000 FCFA").
+class GarmentTally {
+  final String garmentType;
+  final int pieces;
+  final int amount;
+
+  const GarmentTally({
+    required this.garmentType,
+    required this.pieces,
+    required this.amount,
+  });
+
+  factory GarmentTally.fromJson(Map<String, dynamic> j) => GarmentTally(
+        garmentType: j['garment_type'] as String? ?? 'Non précisé',
+        pieces: j['pieces'] as int? ?? 0,
+        amount: j['amount'] as int? ?? 0,
+      );
+}
+
+/// All-time sheet for a tailor or a monthly employee.
+///
+/// [salaryPaidTotal] and [netBalance] are null when the caller is the
+/// secretary (the server never sends them to her), and [netBalance] is also
+/// null for monthly staff, who have no piece work to net a payment against.
+class StaffAllTimeSummary {
+  final String staffId;
+  final String fullName;
+  final String type;
+  final int piecesTotal;
+  final int earnedTotal;
+  final int daysWorked;
+  final String? firstEntryDate;
+  final String? lastEntryDate;
+  final List<GarmentTally> byGarment;
+  final int? salaryPaidTotal;
+  final int? netBalance;
+
+  const StaffAllTimeSummary({
+    required this.staffId,
+    required this.fullName,
+    required this.type,
+    required this.piecesTotal,
+    required this.earnedTotal,
+    required this.daysWorked,
+    required this.byGarment,
+    this.firstEntryDate,
+    this.lastEntryDate,
+    this.salaryPaidTotal,
+    this.netBalance,
+  });
+
+  bool get showsMoneyOwed => salaryPaidTotal != null && netBalance != null;
+
+  factory StaffAllTimeSummary.fromJson(Map<String, dynamic> j) {
+    final Map<String, dynamic> s =
+        (j['staff'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+    return StaffAllTimeSummary(
+      staffId: s['id'] as String? ?? '',
+      fullName: s['full_name'] as String? ?? '',
+      type: s['type'] as String? ?? 'couturier',
+      piecesTotal: j['pieces_total'] as int? ?? 0,
+      earnedTotal: j['earned_total'] as int? ?? 0,
+      daysWorked: j['days_worked'] as int? ?? 0,
+      firstEntryDate: j['first_entry_date'] as String?,
+      lastEntryDate: j['last_entry_date'] as String?,
+      byGarment: ((j['by_garment'] as List<dynamic>?) ?? <dynamic>[])
+          .map((dynamic e) => GarmentTally.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      salaryPaidTotal: j['salary_paid_total'] as int?,
+      netBalance: j['net_balance'] as int?,
+    );
+  }
 }

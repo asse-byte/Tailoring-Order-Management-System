@@ -149,6 +149,211 @@ class _StaffScreenState extends State<StaffScreen> {
     );
   }
 
+  /// All-time performance + settlement sheet for one staff member.
+  ///
+  /// The money block (paid / net balance) is rendered only when the server
+  /// actually sent it — it strips those fields for the secretary, so this is
+  /// driven by the response, never by a local role check that could drift out
+  /// of step with the API.
+  Future<void> _showAllTimeSummary(String staffId, String fullName) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    StaffAllTimeSummary? summary;
+    String? error;
+    try {
+      summary = await _repo.allTimeSummary(staffId);
+    } catch (e) {
+      error = e.toString();
+    }
+
+    if (!mounted) return;
+    Navigator.pop(context); // dismiss the spinner
+
+    if (summary == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bilan indisponible: $error'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final StaffAllTimeSummary s = summary;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (BuildContext ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        builder: (_, ScrollController scrollCtrl) => ListView(
+          controller: scrollCtrl,
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          children: <Widget>[
+            Text(fullName,
+                style: const TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.w900)),
+            Text(
+              s.type == 'couturier' ? 'Couturier — depuis le début' : 'Employé mensuel',
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+
+            // --- production ---------------------------------------------
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: _SummaryStat(
+                    label: 'Pièces cousues',
+                    value: '${s.piecesTotal}',
+                    icon: Icons.content_cut_rounded,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _SummaryStat(
+                    label: 'Total gagné',
+                    value: formatFcfa(s.earnedTotal),
+                    icon: Icons.trending_up_rounded,
+                    color: AppColors.success,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: _SummaryStat(
+                    label: 'Jours travaillés',
+                    value: '${s.daysWorked}',
+                    icon: Icons.event_available_rounded,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _SummaryStat(
+                    label: 'Dernière saisie',
+                    value: s.lastEntryDate?.split('T').first ?? '—',
+                    icon: Icons.history_rounded,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+
+            // --- settlement (manager only) --------------------------------
+            if (s.showsMoneyOwed) ...<Widget>[
+              const SizedBox(height: 18),
+              const Text('Règlement',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+              const SizedBox(height: 8),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _SummaryStat(
+                      label: 'Déjà payé',
+                      value: formatFcfa(s.salaryPaidTotal!),
+                      icon: Icons.payments_rounded,
+                      color: AppColors.warning,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _SummaryStat(
+                      label: s.netBalance! >= 0 ? 'Reste à payer' : 'Avance versée',
+                      value: formatFcfa(s.netBalance!.abs()),
+                      icon: Icons.account_balance_wallet_rounded,
+                      color: s.netBalance! >= 0
+                          ? AppColors.error
+                          : AppColors.success,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                s.netBalance! >= 0
+                    ? 'Le salon doit encore ${formatFcfa(s.netBalance!)} à ce couturier.'
+                    : 'Ce couturier a reçu ${formatFcfa(s.netBalance!.abs())} de plus que ses pièces.',
+                style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+              ),
+            ],
+
+            // --- per-model breakdown ---------------------------------------
+            const SizedBox(height: 20),
+            const Text('Détail par modèle',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+            const SizedBox(height: 8),
+            if (s.byGarment.isEmpty)
+              Text('Aucune pièce enregistrée pour le moment.',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12))
+            else
+              Table(
+                border: TableBorder.all(color: Theme.of(ctx).dividerColor),
+                columnWidths: const <int, TableColumnWidth>{
+                  0: FlexColumnWidth(2),
+                  1: FlexColumnWidth(1),
+                  2: FlexColumnWidth(1.4),
+                },
+                children: <TableRow>[
+                  TableRow(
+                    decoration: BoxDecoration(color: Colors.grey[100]),
+                    children: const <Widget>[
+                      Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text('Modèle',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text('Pièces',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text('Montant',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                  for (final GarmentTally g in s.byGarment)
+                    TableRow(
+                      children: <Widget>[
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(g.garmentType,
+                              style: const TextStyle(fontSize: 12)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text('${g.pieces}',
+                              style: const TextStyle(fontSize: 12)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(formatFcfa(g.amount),
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // Roster edit — contact fields only, no pay. Used by BOTH roles (takes
   // primitives so the secretary's StaffContact and the manager's StaffPayInfo
   // both feed it).
@@ -606,6 +811,13 @@ class _StaffScreenState extends State<StaffScreen> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          IconButton(
+                            icon: const Icon(Icons.insights_rounded,
+                                color: AppColors.primary),
+                            tooltip: 'Bilan & Performance',
+                            onPressed: () =>
+                                _showAllTimeSummary(m.staffId, m.fullName),
+                          ),
                           IconButton(
                             icon: const Icon(Icons.edit_rounded, color: Colors.blue),
                             tooltip: 'Modifier Contact',
@@ -1570,6 +1782,63 @@ class _StaffScreenState extends State<StaffScreen> {
                   onRefresh: _loadData,
                   child: _buildManagerStaffTab(),
                 ),
+    );
+  }
+}
+
+/// One stat box in the all-time performance sheet.
+class _SummaryStat extends StatelessWidget {
+  const _SummaryStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(icon, size: 15, color: color),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w900, color: color),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 }

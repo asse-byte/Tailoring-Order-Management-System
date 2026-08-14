@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/money.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../reports/data/reports_repository.dart';
 import '../../../../features/settings/presentation/providers/shop_settings_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/network/api_client.dart';
@@ -210,6 +212,11 @@ class DashboardScreen extends StatelessWidget {
                           ],
                         ),
                       ),
+                      // Live KPI tiles. Manager only: they carry the day's
+                      // cash and the outstanding client debt, which rule 1
+                      // keeps away from the secretary (the endpoint is
+                      // manager-only server-side too).
+                      if (!isSec) const _KpiStrip(),
                       Expanded(
                         child: GridView.builder(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -230,6 +237,158 @@ class DashboardScreen extends StatelessWidget {
                 ),
               );
             },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact KPI row above the module grid: today's activity, the production
+/// pipeline, and what clients still owe.
+///
+/// Loads once and fails SILENTLY: the dashboard is the app's front door, so a
+/// KPI request that errors (offline, server restarting) must never replace the
+/// module grid with an error screen — the strip simply does not appear.
+class _KpiStrip extends StatefulWidget {
+  const _KpiStrip();
+
+  @override
+  State<_KpiStrip> createState() => _KpiStripState();
+}
+
+class _KpiStripState extends State<_KpiStrip> {
+  DashboardKpis? _kpis;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final DashboardKpis k = await ReportsRepository().dashboard();
+      if (mounted) setState(() => _kpis = k);
+    } catch (_) {
+      // Silent by design — see the class comment.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final DashboardKpis? k = _kpis;
+    if (k == null) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 92,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        children: <Widget>[
+          _KpiTile(
+            label: 'Encaissé aujourd\'hui',
+            value: formatFcfa(k.paymentsToday),
+            sub: '${k.ordersToday} commande${k.ordersToday > 1 ? 's' : ''}',
+            icon: Icons.payments_rounded,
+            color: AppColors.success,
+          ),
+          _KpiTile(
+            label: 'En production',
+            value: '${k.enCours}',
+            sub: '${k.enAttente} en attente',
+            icon: Icons.content_cut_rounded,
+            color: AppColors.primary,
+          ),
+          _KpiTile(
+            label: 'Prêtes à retirer',
+            value: '${k.termine}',
+            sub: 'à prévenir',
+            icon: Icons.inventory_2_rounded,
+            color: AppColors.warning,
+          ),
+          _KpiTile(
+            label: 'Impayés',
+            value: formatFcfa(k.debtTotal),
+            sub: '${k.debtClients} client${k.debtClients > 1 ? 's' : ''}',
+            icon: Icons.account_balance_wallet_rounded,
+            color: AppColors.error,
+            onTap: () => context.push('/admin/unpaid-orders'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KpiTile extends StatelessWidget {
+  const _KpiTile({
+    required this.label,
+    required this.value,
+    required this.sub,
+    required this.icon,
+    required this.color,
+    this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final String sub;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 172,
+      margin: const EdgeInsets.only(right: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(icon, size: 16, color: color),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                style: TextStyle(
+                    fontSize: 17, fontWeight: FontWeight.w900, color: color),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                sub,
+                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
         ),
       ),

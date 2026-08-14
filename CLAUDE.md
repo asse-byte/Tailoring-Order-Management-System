@@ -35,6 +35,16 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
      Still MANAGER-ONLY: monthly salaries, `/api/salary-payments`,
      `/api/finance`, `/api/reports`, `/api/expenses`, `GET /api/sales`,
      product/model `cost_price` + `/stats`, `/api/settings/private`, `/api/users`.
+     - `GET /api/staff/:id/all-time-summary` (added 2026-08-14) is both-roles and
+       follows exactly the same split: the secretary gets the piece-work side
+       (pieces, amounts, per-garment breakdown) for **couturiers only**, while
+       `salary_paid_total` / `net_balance` / `salary_payments_count` are stripped
+       from her response and any non-couturier returns her a 403.
+     - `GET /api/reports/dashboard` and `GET /api/reports/unpaid-orders` (added
+       2026-08-14) sit under the existing manager-only `/api/reports` mount —
+       they carry the day's cash and the outstanding client debt. The Flutter
+       dashboard therefore renders its KPI strip for the manager only, and
+       `/admin/unpaid-orders` is in the router's manager-only list.
    - **Secretary CRUD on master data (owner decision 2026-07-19, "interpretation
      A"):** the secretary MAY fully manage the roster/catalog on four pages —
      Tailleurs, Staff mensuel, Prêt-à-porter, Produits (create/edit/delete the

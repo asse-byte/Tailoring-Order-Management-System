@@ -9,6 +9,7 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/utils/whatsapp.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
@@ -166,19 +167,92 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ? 'Commande livrée — déplacée vers l\'Historique.'
           : 'Statut mis à jour.');
 
-      if (chosen == AppConstants.statusTermine) {
-        final settings = context.read<ShopSettingsProvider>();
-        final bool sent = await InvoiceService.sendOrderReadyWhatsApp(
-          order: _order!,
-          shopName: settings.shopName,
-        );
-        if (sent && mounted) {
-          _toast('Notification WhatsApp "Commande prête" envoyée au client !');
-        }
+      // Terminé → "your order is ready"; Livré → thank-you + balance note.
+      // ASK FIRST: opening WhatsApp switches the user to another app, so doing
+      // it unprompted on every status change interrupts whoever is mid-flow at
+      // the counter. The dialog also lets them skip a client who was already
+      // told in person.
+      if (chosen == AppConstants.statusTermine ||
+          chosen == AppConstants.statusLivre) {
+        await _offerWhatsAppNotice(chosen);
       }
     } catch (e) {
       if (mounted) _toast('Impossible de mettre à jour : $e', error: true);
     }
+  }
+
+  /// Offers to notify the client on WhatsApp after the order reached
+  /// `termine` (ready for pickup) or `livre` (handed over).
+  ///
+  /// Nothing is sent without an explicit tap: `wa.me` leaves the app, so an
+  /// automatic jump would yank the user out of the counter flow. If the client
+  /// has no usable number the offer is skipped silently — the status change
+  /// already succeeded and is not worth an error.
+  Future<void> _offerWhatsAppNotice(String status) async {
+    final order = _order;
+    if (order == null || !mounted) return;
+    if (!canWhatsApp(order.clientPhone)) return;
+
+    final bool ready = status == AppConstants.statusTermine;
+    final String question = ready
+        ? 'Envoyer un message WhatsApp à ${order.clientName} pour l\'informer '
+            'que sa commande est prête à être retirée ?'
+        : 'Envoyer un message WhatsApp de remerciement à ${order.clientName} ?'
+            '${order.reste > 0 ? '\n\nLe message rappellera le solde de '
+                '${formatFcfa(order.reste)}.' : ''}';
+
+    final bool? send = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(ready ? 'Prévenir le client ?' : 'Remercier le client ?'),
+        content: Text(question),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Plus tard'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.chat_rounded, size: 18),
+            label: const Text('Envoyer'),
+          ),
+        ],
+      ),
+    );
+    if (send != true || !mounted) return;
+
+    final ShopSettingsProvider settings = context.read<ShopSettingsProvider>();
+    final bool ok = ready
+        ? await InvoiceService.sendOrderReadyWhatsApp(
+            order: order, shopName: settings.shopName)
+        : await openWhatsApp(
+            order.clientPhone,
+            text: _deliveredMessage(order, settings.shopName),
+          );
+    if (!mounted) return;
+    if (!ok) {
+      _toast('Impossible d\'ouvrir WhatsApp pour ce numéro.', error: true);
+    }
+  }
+
+  /// Thank-you note sent once the order has been handed over, mentioning any
+  /// balance still outstanding.
+  String _deliveredMessage(TailoringOrder order, String shopName) {
+    final StringBuffer msg = StringBuffer()
+      ..writeln('Bonjour ${order.clientName},')
+      ..writeln()
+      ..writeln('Merci d\'avoir retiré votre commande chez $shopName !')
+      ..writeln('Nous espérons qu\'elle vous plaît.');
+    if (order.reste > 0) {
+      msg
+        ..writeln()
+        ..writeln('Solde restant à régler : ${formatFcfa(order.reste)}.');
+    }
+    msg
+      ..writeln()
+      ..writeln('À très bientôt !');
+    return msg.toString();
   }
 
   Future<void> _markAsPaid() async {

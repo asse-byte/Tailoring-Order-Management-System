@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/whatsapp.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../domain/client.dart';
 import '../providers/clients_provider.dart';
@@ -163,7 +164,32 @@ class _ClientsListScreenState extends State<ClientsListScreen> {
               title: Text(client.fullName,
                   style: const TextStyle(fontWeight: FontWeight.w600)),
               subtitle: Text(client.phone),
-              trailing: const Icon(Icons.chevron_right_rounded),
+              // Direct WhatsApp chat. Shown only when the stored number can
+              // actually be dialled, so the button never opens on nothing.
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  if (canWhatsApp(client.phone))
+                    IconButton(
+                      icon: const Icon(Icons.chat_rounded,
+                          color: AppColors.success),
+                      tooltip: 'Contacter sur WhatsApp',
+                      onPressed: () async {
+                        final bool ok = await openWhatsApp(client.phone);
+                        if (!ok && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Impossible d\'ouvrir WhatsApp pour ce numéro.'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  const Icon(Icons.chevron_right_rounded),
+                ],
+              ),
               onTap: () async {
                 final ClientsProvider provider =
                     context.read<ClientsProvider>();

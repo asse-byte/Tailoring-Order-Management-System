@@ -6,6 +6,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/garment_types.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/money.dart';
+import '../../../../core/utils/whatsapp.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../data/clients_repository.dart';
@@ -68,6 +69,20 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           _loading = false;
         });
       }
+    }
+  }
+
+  /// Opens the WhatsApp conversation with this client (no prefilled text —
+  /// this is a plain "contact the client" shortcut, not an order message).
+  Future<void> _openWhatsApp() async {
+    final bool ok = await openWhatsApp(_client?.phone);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible d\'ouvrir WhatsApp pour ce numéro.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -281,6 +296,13 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         appBar: AppBar(
           title: Text(_client?.fullName ?? 'Client'),
           actions: <Widget>[
+            // Direct WhatsApp chat, only when the number is usable.
+            if (_client != null && canWhatsApp(_client!.phone))
+              IconButton(
+                icon: const Icon(Icons.chat_rounded, color: AppColors.success),
+                tooltip: 'Contacter sur WhatsApp',
+                onPressed: _openWhatsApp,
+              ),
             if (_client != null)
               IconButton(
                 icon: const Icon(Icons.edit_rounded),
