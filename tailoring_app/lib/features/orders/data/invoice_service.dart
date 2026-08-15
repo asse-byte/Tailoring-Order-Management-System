@@ -24,6 +24,8 @@ class InvoiceService {
   static const PdfColor _gold = PdfColor.fromInt(0xFFC9A84C);
 
   /// Resolves the logo bytes for the invoice, in priority order:
+  static Future<Uint8List?> fetchLogoBytes(String? logoUrl) => _logoBytes(logoUrl);
+
   static Future<Uint8List?> _logoBytes(String? logoUrl) async {
     if (logoUrl != null && logoUrl.isNotEmpty) {
       try {
@@ -417,77 +419,172 @@ class InvoiceService {
     required int unitPrice,
     required int total,
     required String shopName,
+    Uint8List? logoBytes,
   }) async {
     final pdf = pw.Document();
+    final logo = logoBytes != null ? pw.MemoryImage(logoBytes) : null;
 
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
+        margin: const pw.EdgeInsets.all(28),
         build: (pw.Context ctx) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: <pw.Widget>[
+            // Header: Shop Branding & Receipt Title
             pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: <pw.Widget>[
+                pw.Container(
+                  width: 52,
+                  height: 52,
+                  decoration: pw.BoxDecoration(
+                    color: _teal,
+                    shape: pw.BoxShape.circle,
+                    image: logo != null
+                        ? pw.DecorationImage(image: logo, fit: pw.BoxFit.cover)
+                        : null,
+                  ),
+                  alignment: pw.Alignment.center,
+                  child: logo == null
+                      ? pw.Text(
+                          shopName.trim().isNotEmpty ? shopName.trim()[0].toUpperCase() : 'C',
+                          style: pw.TextStyle(
+                              color: PdfColors.white,
+                              fontSize: 26,
+                              fontWeight: pw.FontWeight.bold))
+                      : null,
+                ),
+                pw.SizedBox(width: 14),
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: <pw.Widget>[
-                    pw.Text(shopName,
-                        style: const pw.TextStyle(
-                            fontSize: 22,
-                            fontWeight: pw.FontWeight.bold,
-                            color: _teal)),
-                    pw.Text('Reçu de vente comptoir',
-                        style: const pw.TextStyle(fontSize: 14, color: PdfColors.grey700)),
+                    pw.Text(
+                      shopName,
+                      style: pw.TextStyle(
+                        fontSize: 20,
+                        fontWeight: pw.FontWeight.bold,
+                        color: _teal,
+                      ),
+                    ),
+                    pw.Text(
+                      'Boutique & Vente Prêt-à-Porter',
+                      style: const pw.TextStyle(fontSize: 9.5, color: _gold),
+                    ),
                   ],
                 ),
-                pw.Text('Date: ${_fmtDate(DateTime.now())}',
-                    style: const pw.TextStyle(fontSize: 12)),
+                pw.Spacer(),
+                pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                    border: pw.Border.all(color: PdfColors.grey300, width: 0.8),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: <pw.Widget>[
+                      pw.Text(
+                        'REÇU DE VENTE',
+                        style: pw.TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: pw.FontWeight.bold,
+                          color: _teal,
+                        ),
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        'Date: ${_fmtDate(DateTime.now())}',
+                        style: const pw.TextStyle(fontSize: 9.5, color: PdfColors.grey800),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-            pw.SizedBox(height: 12),
-            pw.Divider(thickness: 1, color: _teal),
-            pw.SizedBox(height: 20),
+            pw.SizedBox(height: 14),
+            pw.Divider(color: _teal, thickness: 1.5),
+            pw.SizedBox(height: 14),
+
+            // Item table
             pw.Table(
-              border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+              border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+              columnWidths: const <int, pw.TableColumnWidth>{
+                0: pw.FlexColumnWidth(3.5),
+                1: pw.FlexColumnWidth(1.8),
+                2: pw.FlexColumnWidth(1),
+                3: pw.FlexColumnWidth(2),
+                4: pw.FlexColumnWidth(2),
+              },
               children: <pw.TableRow>[
                 pw.TableRow(
                   decoration: const pw.BoxDecoration(color: _teal),
                   children: <pw.Widget>[
-                    _cell('Article', bold: true, color: PdfColors.white),
-                    _cell('Type', bold: true, color: PdfColors.white),
-                    _cell('Quantité', bold: true, color: PdfColors.white),
-                    _cell('Prix Unitaire', bold: true, color: PdfColors.white),
-                    _cell('Total', bold: true, color: PdfColors.white),
+                    _cell('Désignation de l\'article', bold: true, color: PdfColors.white),
+                    _cell('Catégorie', bold: true, color: PdfColors.white),
+                    _cell('Qté', bold: true, color: PdfColors.white, align: pw.TextAlign.center),
+                    _cell('Prix Unitaire', bold: true, color: PdfColors.white, align: pw.TextAlign.right),
+                    _cell('Total', bold: true, color: PdfColors.white, align: pw.TextAlign.right),
                   ],
                 ),
                 pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfColors.white),
                   children: <pw.Widget>[
-                    _cell(itemName),
-                    _cell(itemKind),
-                    _cell(qty.toString()),
-                    _cell(formatFcfa(unitPrice)),
-                    _cell(formatFcfa(total), bold: true),
+                    _cell(itemName, bold: true),
+                    _cell(itemKind == 'pret_a_porter' ? 'Prêt-à-Porter' : 'Produit / Accessoire'),
+                    _cell('$qty', align: pw.TextAlign.center),
+                    _cell(formatFcfa(unitPrice), align: pw.TextAlign.right),
+                    _cell(formatFcfa(total), bold: true, align: pw.TextAlign.right),
                   ],
                 ),
               ],
             ),
-            pw.SizedBox(height: 20),
+            pw.SizedBox(height: 16),
+
+            // Summary Totals Badge
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.end,
-              children: <pw.Widget>[
-                pw.Text('TOTAL PAYÉ : ${formatFcfa(total)}',
-                    style: const pw.TextStyle(
-                        fontSize: 16,
-                        fontWeight: pw.FontWeight.bold,
-                        color: _gold)),
+              children: [
+                pw.Container(
+                  width: 220,
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                    border: pw.Border.all(color: PdfColors.grey300, width: 0.8),
+                  ),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        'TOTAL PAYÉ:',
+                        style: pw.TextStyle(
+                          fontSize: 11,
+                          fontWeight: pw.FontWeight.bold,
+                          color: _teal,
+                        ),
+                      ),
+                      pw.Text(
+                        formatFcfa(total),
+                        style: pw.TextStyle(
+                          fontSize: 13,
+                          fontWeight: pw.FontWeight.bold,
+                          color: _teal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
+
             pw.Spacer(),
+            pw.Divider(color: PdfColors.grey300, thickness: 0.5),
             pw.Center(
-              child: pw.Text('Merci pour votre achat chez $shopName ! À bientôt.',
-                  style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+              child: pw.Text(
+                'Merci pour votre achat chez $shopName ! — Couture Pro',
+                style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+              ),
             ),
           ],
         ),

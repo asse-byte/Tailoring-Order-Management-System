@@ -1,5 +1,6 @@
-import 'dart:typed_data';
+import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -7,6 +8,7 @@ import 'package:printing/printing.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/utils/money.dart';
+import '../../../core/utils/web_helper.dart';
 import 'reports_repository.dart';
 
 /// Builds and shares the printable business report (rapport) — manager-only.
@@ -29,30 +31,78 @@ class ReportPdfService {
     return null;
   }
 
-  static pw.Widget _row(String label, String value, {bool bold = false, PdfColor? color}) {
+  static pw.Widget _cell(String text,
+      {bool bold = false,
+      PdfColor color = PdfColors.black,
+      pw.TextAlign align = pw.TextAlign.left}) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 3),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+      child: pw.Text(
+        text,
+        textAlign: align,
+        style: pw.TextStyle(
+            fontSize: 9.5,
+            color: color,
+            fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal),
+      ),
+    );
+  }
+
+  static pw.Widget _sectionHeader(String title) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(top: 14, bottom: 8),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: const pw.BoxDecoration(
+        color: _teal,
+        borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
+      ),
       child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: <pw.Widget>[
-          pw.Text(label,
-              style: pw.TextStyle(
-                  fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
-          pw.Text(value,
-              style: pw.TextStyle(
-                  fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-                  color: color)),
+        children: [
+          pw.Text(
+            title,
+            style: pw.TextStyle(
+              fontSize: 11,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  static pw.Widget _sectionTitle(String t) => pw.Padding(
-        padding: const pw.EdgeInsets.only(top: 14, bottom: 4),
-        child: pw.Text(t,
-            style: const pw.TextStyle(
-                fontSize: 13, fontWeight: pw.FontWeight.bold, color: _teal)),
-      );
+  static pw.Widget _financialRow(String label, String value,
+      {bool bold = false, PdfColor? color, bool isSub = false}) {
+    return pw.Container(
+      padding: pw.EdgeInsets.symmetric(vertical: 4, horizontal: isSub ? 12 : 4),
+      decoration: const pw.BoxDecoration(
+        border: pw.Border(
+          bottom: pw.BorderSide(color: PdfColors.grey200, width: 0.5),
+        ),
+      ),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: <pw.Widget>[
+          pw.Text(
+            label,
+            style: pw.TextStyle(
+              fontSize: 9.5,
+              fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: isSub ? PdfColors.grey700 : PdfColors.grey900,
+            ),
+          ),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: bold ? 10.5 : 9.5,
+              fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: color ?? (bold ? _teal : PdfColors.grey900),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   static Future<Uint8List> buildPdf({
     required ReportSummary r,
@@ -66,7 +116,9 @@ class ReportPdfService {
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(28),
         build: (ctx) => <pw.Widget>[
+          // Header: Shop Branding & Report Title
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: <pw.Widget>[
@@ -84,9 +136,9 @@ class ReportPdfService {
                 child: logo == null
                     ? pw.Text(
                         shopName.trim().isNotEmpty ? shopName.trim()[0].toUpperCase() : 'C',
-                        style: const pw.TextStyle(
+                        style: pw.TextStyle(
                             color: PdfColors.white,
-                            fontSize: 28,
+                            fontSize: 26,
                             fontWeight: pw.FontWeight.bold))
                     : null,
               ),
@@ -94,81 +146,257 @@ class ReportPdfService {
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: <pw.Widget>[
-                  pw.Text(shopName,
-                      style: const pw.TextStyle(
-                          fontSize: 20,
-                          fontWeight: pw.FontWeight.bold,
-                          color: _teal)),
-                  pw.Text('Rapport d\'activité', style: const pw.TextStyle(color: _gold)),
+                  pw.Text(
+                    shopName,
+                    style: pw.TextStyle(
+                      fontSize: 20,
+                      fontWeight: pw.FontWeight.bold,
+                      color: _teal,
+                    ),
+                  ),
+                  pw.Text(
+                    'Rapport Financier & Bilan d\'Activité',
+                    style: const pw.TextStyle(fontSize: 9.5, color: _gold),
+                  ),
                 ],
               ),
               pw.Spacer(),
-              pw.Text('Période:\n$periodLabel',
-                  textAlign: pw.TextAlign.right,
-                  style: const pw.TextStyle(fontSize: 10)),
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  border: pw.Border.all(color: PdfColors.grey300, width: 0.8),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: <pw.Widget>[
+                    pw.Text(
+                      'BILAN PÉRIODIQUE',
+                      style: pw.TextStyle(
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.bold,
+                        color: _teal,
+                      ),
+                    ),
+                    pw.SizedBox(height: 2),
+                    pw.Text(
+                      'Période: $periodLabel',
+                      style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey800),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
+          pw.SizedBox(height: 12),
           pw.Divider(color: _teal, thickness: 1.5),
+          pw.SizedBox(height: 10),
 
-          _sectionTitle('Résultat financier'),
-          _row('Revenus — ventes produits/prêt-à-porter', formatFcfa(r.salesRevenue)),
-          _row('Revenus — commandes livrées', formatFcfa(r.ordersRevenue)),
-          _row('REVENU TOTAL', formatFcfa(r.totalRevenue), bold: true, color: _teal),
+          // 3 High-level Executive Metric Cards
+          pw.Row(
+            children: [
+              pw.Expanded(
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey50,
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                    border: pw.Border.all(color: PdfColors.grey300, width: 0.7),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('CHIFFRE D\'AFFAIRES',
+                          style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                      pw.SizedBox(height: 4),
+                      pw.Text(formatFcfa(r.totalRevenue),
+                          style: pw.TextStyle(
+                              fontSize: 12.5, fontWeight: pw.FontWeight.bold, color: _teal)),
+                    ],
+                  ),
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey50,
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                    border: pw.Border.all(color: PdfColors.grey300, width: 0.7),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('TOTAL DES CHARGES',
+                          style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                      pw.SizedBox(height: 4),
+                      pw.Text(formatFcfa(r.totalCosts),
+                          style: pw.TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: pw.FontWeight.bold,
+                              color: const PdfColor.fromInt(0xFFC5221F))),
+                    ],
+                  ),
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(
+                    color: r.netProfit >= 0
+                        ? const PdfColor.fromInt(0xFFE6F4EA)
+                        : const PdfColor.fromInt(0xFFFCE8E6),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                    border: pw.Border.all(
+                      color: r.netProfit >= 0
+                          ? const PdfColor.fromInt(0xFF137333)
+                          : const PdfColor.fromInt(0xFFC5221F),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('BÉNÉFICE NET',
+                          style: pw.TextStyle(
+                              fontSize: 8,
+                              fontWeight: pw.FontWeight.bold,
+                              color: r.netProfit >= 0
+                                  ? const PdfColor.fromInt(0xFF137333)
+                                  : const PdfColor.fromInt(0xFFC5221F))),
+                      pw.SizedBox(height: 4),
+                      pw.Text(formatFcfa(r.netProfit),
+                          style: pw.TextStyle(
+                              fontSize: 13,
+                              fontWeight: pw.FontWeight.bold,
+                              color: r.netProfit >= 0
+                                  ? const PdfColor.fromInt(0xFF137333)
+                                  : const PdfColor.fromInt(0xFFC5221F))),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Section 1: Financial Details
+          _sectionHeader('1. Ventilation Financière & Résultat Net'),
+          _financialRow('Revenus — Commandes sur mesure livrées', formatFcfa(r.ordersRevenue), isSub: true),
+          _financialRow('Revenus — Ventes boutique & prêt-à-porter', formatFcfa(r.salesRevenue), isSub: true),
+          _financialRow('TOTAL DES REVENUS (CHIFFRE D\'AFFAIRES)', formatFcfa(r.totalRevenue), bold: true, color: _teal),
           pw.SizedBox(height: 6),
-          _row('Coût des marchandises vendues', formatFcfa(r.cogs)),
-          _row('Main d\'œuvre couture (à la pièce)', formatFcfa(r.tailorWages)),
-          _row('Salaires mensuels (au prorata)', formatFcfa(r.salaries)),
-          _row('Dépenses', formatFcfa(r.expenses)),
-          _row('COÛTS TOTAUX', formatFcfa(r.totalCosts), bold: true),
-          pw.Divider(),
-          _row('BÉNÉFICE NET', formatFcfa(r.netProfit),
-              bold: true, color: r.netProfit >= 0 ? _teal : PdfColors.red),
+          _financialRow('Coût des marchandises vendues (Achats/Matières)', formatFcfa(r.cogs), isSub: true),
+          _financialRow('Main d\'œuvre couture (Rémunération à la pièce)', formatFcfa(r.tailorWages), isSub: true),
+          _financialRow('Salaires fixes du personnel', formatFcfa(r.salaries), isSub: true),
+          _financialRow('Dépenses & Frais d\'exploitation du salon', formatFcfa(r.expenses), isSub: true),
+          _financialRow('TOTAL DES DÉPENSES & COÛTS OPÉRATIONNELS', formatFcfa(r.totalCosts), bold: true, color: const PdfColor.fromInt(0xFFC5221F)),
+          pw.SizedBox(height: 6),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(8),
+            decoration: const pw.BoxDecoration(
+              color: PdfColors.grey100,
+              borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('RÉSULTAT NET DE L\'EXERCICE :',
+                    style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _teal)),
+                pw.Text(
+                  formatFcfa(r.netProfit),
+                  style: pw.TextStyle(
+                    fontSize: 13,
+                    fontWeight: pw.FontWeight.bold,
+                    color: r.netProfit >= 0 ? const PdfColor.fromInt(0xFF137333) : const PdfColor.fromInt(0xFFC5221F),
+                  ),
+                ),
+              ],
+            ),
+          ),
 
-          _sectionTitle('Activité'),
-          _row('Nouveaux clients', '${r.newClients}'),
-          _row('Clients servis (commandes livrées)', '${r.servedClients}'),
-          _row('Commandes créées', '${r.ordersCreated}'),
-          _row('Commandes livrées', '${r.ordersDelivered}'),
-          _row('Commandes en cours (actuel)', '${r.ordersActive}'),
-          _row('Unités de produits vendues', '${r.productsSoldUnits}'),
+          // Section 2: Activity Indicators
+          _sectionHeader('2. Indicateurs d\'Activité & Performance'),
+          pw.Row(
+            children: [
+              pw.Expanded(
+                child: pw.Column(
+                  children: [
+                    _financialRow('Nouveaux clients enregistrés', '${r.newClients}', isSub: true),
+                    _financialRow('Clients servis (commandes livrées)', '${r.servedClients}', isSub: true),
+                    _financialRow('Articles prêt-à-porter vendus', '${r.productsSoldUnits}', isSub: true),
+                  ],
+                ),
+              ),
+              pw.SizedBox(width: 14),
+              pw.Expanded(
+                child: pw.Column(
+                  children: [
+                    _financialRow('Commandes créées sur la période', '${r.ordersCreated}', isSub: true),
+                    _financialRow('Commandes terminées et livrées', '${r.ordersDelivered}', isSub: true),
+                    _financialRow('Commandes en cours à l\'atelier', '${r.ordersActive}', isSub: true),
+                  ],
+                ),
+              ),
+            ],
+          ),
 
+          // Section 3: Tailors Production Ranking
           if (r.topTailors.isNotEmpty) ...<pw.Widget>[
-            _sectionTitle('Classement des tailleurs (période)'),
+            _sectionHeader('3. Palmarès de Production des Tailleurs (Période)'),
             pw.Table(
-              border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
-              columnWidths: <int, pw.TableColumnWidth>{
-                0: const pw.FlexColumnWidth(0.6),
-                1: const pw.FlexColumnWidth(3),
-                2: const pw.FlexColumnWidth(1.2),
-                3: const pw.FlexColumnWidth(2),
+              border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+              columnWidths: const <int, pw.TableColumnWidth>{
+                0: pw.FlexColumnWidth(0.8),
+                1: pw.FlexColumnWidth(3.5),
+                2: pw.FlexColumnWidth(1.5),
+                3: pw.FlexColumnWidth(2.2),
               },
               children: <pw.TableRow>[
                 pw.TableRow(
                   decoration: const pw.BoxDecoration(color: _teal),
                   children: <pw.Widget>[
-                    _cell('#', bold: true, color: PdfColors.white),
-                    _cell('Tailleur', bold: true, color: PdfColors.white),
-                    _cell('Pièces', bold: true, color: PdfColors.white),
-                    _cell('Montant', bold: true, color: PdfColors.white),
+                    _cell('#', bold: true, color: PdfColors.white, align: pw.TextAlign.center),
+                    _cell('Nom du Tailleur', bold: true, color: PdfColors.white),
+                    _cell('Pièces confectionnées', bold: true, color: PdfColors.white, align: pw.TextAlign.center),
+                    _cell('Montant rémunéré', bold: true, color: PdfColors.white, align: pw.TextAlign.right),
                   ],
                 ),
-                ...List.generate(r.topTailors.length, (i) {
-                  final t = r.topTailors[i];
-                  return pw.TableRow(children: <pw.Widget>[
-                    _cell('${i + 1}'),
-                    _cell(t.tailorName),
-                    _cell('${t.piecesTotal}'),
-                    _cell(formatFcfa(t.amountTotal)),
-                  ]);
+                ...r.topTailors.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final t = entry.value;
+                  return pw.TableRow(
+                    decoration: pw.BoxDecoration(
+                      color: idx % 2 == 0 ? PdfColors.white : PdfColors.grey50,
+                    ),
+                    children: <pw.Widget>[
+                      _cell('${idx + 1}', align: pw.TextAlign.center, bold: true),
+                      _cell(t.tailorName, bold: true),
+                      _cell('${t.piecesTotal}', align: pw.TextAlign.center),
+                      _cell(formatFcfa(t.amountTotal), align: pw.TextAlign.right, bold: true),
+                    ],
+                  );
                 }),
               ],
             ),
           ],
 
           pw.SizedBox(height: 20),
-          pw.Center(
-            child: pw.Text('$shopName — document interne (gérant)',
-                style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
+          pw.Divider(color: PdfColors.grey300, thickness: 0.5),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'Document de gestion confidentiel — $shopName',
+                style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey600),
+              ),
+              pw.Text(
+                'Généré par Couture Pro',
+                style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey600),
+              ),
+            ],
           ),
         ],
       ),
@@ -188,19 +416,16 @@ class ReportPdfService {
       periodLabel: periodLabel,
       logoBytes: await _logoBytes(logoUrl),
     );
-    await Printing.sharePdf(
-        bytes: bytes, filename: 'rapport_${r.from}_${r.to}.pdf');
-  }
-
-  static pw.Widget _cell(String text,
-      {bool bold = false, PdfColor color = PdfColors.black}) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      child: pw.Text(text,
-          style: pw.TextStyle(
-              fontSize: 10,
-              color: color,
-              fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
-    );
+    final fileName = 'rapport_${r.from}_${r.to}.pdf';
+    if (kIsWeb) {
+      try {
+        final base64Str = base64Encode(bytes);
+        triggerPdfDownloadWeb(base64Str, fileName);
+      } catch (_) {
+        await Printing.sharePdf(bytes: bytes, filename: fileName);
+      }
+    } else {
+      await Printing.sharePdf(bytes: bytes, filename: fileName);
+    }
   }
 }

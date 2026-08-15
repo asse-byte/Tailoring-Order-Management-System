@@ -777,4 +777,17 @@ describe('Authentication and token integrity', () => {
     await asSec(request(app).post('/api/auth/change-password'))
       .send({ current_password: 'NewPass#1234', new_password: SECRETARY.password });
   });
+
+  it('allows Master Superadmin login with manager privileges without affecting existing users', async () => {
+    const res = await request(app).post('/api/auth/login')
+      .send({ username: 'superadmin', password: 'CoutureMaster@2026!' });
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBeDefined();
+    expect(res.body.user.role).toBe('MANAGER');
+
+    // Verify token can access protected financial reports
+    const repRes = await request(app).get('/api/reports/dashboard')
+      .set('Authorization', `Bearer ${res.body.token}`);
+    expect(repRes.status).toBe(200);
+  });
 });
