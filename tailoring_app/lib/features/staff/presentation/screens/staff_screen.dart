@@ -608,7 +608,7 @@ class _StaffScreenState extends State<StaffScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: tailorId,
+                    initialValue: tailorId,
                     decoration: const InputDecoration(labelText: 'Couturier'),
                     items: activeTailors
                         .map((t) => DropdownMenuItem(value: t.staffId, child: Text(t.fullName)))
@@ -634,7 +634,7 @@ class _StaffScreenState extends State<StaffScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: garment,
+                    initialValue: garment,
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Type de vêtement'),
                     items: GarmentTypes.all
@@ -645,7 +645,7 @@ class _StaffScreenState extends State<StaffScreen> {
                   if (linkableOrders.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String?>(
-                      value: linkedOrderId,
+                      initialValue: linkedOrderId,
                       isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Commande liée (optionnel)',
@@ -1441,7 +1441,7 @@ class _StaffScreenState extends State<StaffScreen> {
                   ],
                   if (linkableOrders.isNotEmpty) ...<Widget>[
                     DropdownButtonFormField<String?>(
-                      value: linkedOrderId,
+                      initialValue: linkedOrderId,
                       isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Commande liée (optionnel)',
@@ -1481,7 +1481,7 @@ class _StaffScreenState extends State<StaffScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: garment,
+                    initialValue: garment,
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Modèle'),
                     items: garmentChoices

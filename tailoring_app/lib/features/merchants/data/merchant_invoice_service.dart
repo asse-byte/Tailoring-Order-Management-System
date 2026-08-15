@@ -60,7 +60,7 @@ class MerchantInvoiceService {
                   child: logo == null
                       ? pw.Text(
                           shopName.trim().isNotEmpty ? shopName.trim()[0].toUpperCase() : 'C',
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                               color: PdfColors.white,
                               fontSize: 26,
                               fontWeight: pw.FontWeight.bold))
@@ -72,7 +72,7 @@ class MerchantInvoiceService {
                   children: <pw.Widget>[
                     pw.Text(
                       shopName,
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                         fontSize: 20,
                         fontWeight: pw.FontWeight.bold,
                         color: _teal,
@@ -97,7 +97,7 @@ class MerchantInvoiceService {
                     children: <pw.Widget>[
                       pw.Text(
                         'FACTURE DE GROS',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           fontSize: 12.5,
                           fontWeight: pw.FontWeight.bold,
                           color: _teal,
@@ -106,7 +106,7 @@ class MerchantInvoiceService {
                       pw.SizedBox(height: 2),
                       pw.Text(
                         'N° GROS-${order.id.length >= 6 ? order.id.substring(0, 6).toUpperCase() : order.id.toUpperCase()}',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           fontSize: 9.5,
                           fontWeight: pw.FontWeight.bold,
                           color: PdfColors.grey800,
@@ -138,7 +138,7 @@ class MerchantInvoiceService {
                     children: <pw.Widget>[
                       pw.Text(
                         'CLIENT / COMMERÇANT',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           fontSize: 9,
                           fontWeight: pw.FontWeight.bold,
                           color: _teal,
@@ -147,7 +147,7 @@ class MerchantInvoiceService {
                       pw.SizedBox(height: 4),
                       pw.Text(
                         order.merchantName,
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           fontSize: 13,
                           fontWeight: pw.FontWeight.bold,
                           color: PdfColors.grey900,
@@ -245,7 +245,7 @@ class MerchantInvoiceService {
                         children: [
                           pw.Text('Total Commande:', style: const pw.TextStyle(fontSize: 10)),
                           pw.Text(formatFcfa(order.totalAmount),
-                              style: pw.TextStyle(fontSize: 10.5, fontWeight: pw.FontWeight.bold, color: PdfColors.grey900)),
+                              style: const pw.TextStyle(fontSize: 10.5, fontWeight: pw.FontWeight.bold, color: PdfColors.grey900)),
                         ],
                       ),
                       pw.SizedBox(height: 4),
@@ -255,10 +255,10 @@ class MerchantInvoiceService {
                           pw.Text('Acomptes reçus:', style: const pw.TextStyle(fontSize: 10)),
                           pw.Text(
                             formatFcfa(order.advanceAmount + order.paidTotal),
-                            style: pw.TextStyle(
+                            style: const pw.TextStyle(
                               fontSize: 10.5,
                               fontWeight: pw.FontWeight.bold,
-                              color: const PdfColor.fromInt(0xFF137333),
+                              color: PdfColor.fromInt(0xFF137333),
                             ),
                           ),
                         ],
@@ -272,7 +272,7 @@ class MerchantInvoiceService {
                         children: [
                           pw.Text(
                             'RESTE À PAYER:',
-                            style: pw.TextStyle(
+                            style: const pw.TextStyle(
                               fontSize: 11,
                               fontWeight: pw.FontWeight.bold,
                               color: _teal,
@@ -320,7 +320,7 @@ class MerchantInvoiceService {
       logoBytes: await _logoBytes(logoUrl),
     );
     final safeName = order.merchantName.replaceAll(RegExp(r'[^\w]'), '_');
-    final fileName = 'facture_gros_${safeName}.pdf';
+    final fileName = 'facture_gros_$safeName.pdf';
     await Printing.sharePdf(bytes: bytes, filename: fileName);
   }
 

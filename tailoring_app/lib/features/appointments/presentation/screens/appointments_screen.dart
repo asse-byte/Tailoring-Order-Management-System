@@ -202,7 +202,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  value: ['mesure', 'essayage', 'livraison', 'autre'].contains(reason) ? reason : 'autre',
+                  initialValue: ['mesure', 'essayage', 'livraison', 'autre'].contains(reason) ? reason : 'autre',
                   decoration: const InputDecoration(labelText: 'Motif du RDV'),
                   items: const [
                     DropdownMenuItem(value: 'mesure', child: Text('Prise de mesures')),

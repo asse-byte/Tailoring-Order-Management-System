@@ -60,7 +60,7 @@ class ReportPdfService {
         children: [
           pw.Text(
             title,
-            style: pw.TextStyle(
+            style: const pw.TextStyle(
               fontSize: 11,
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.white,
@@ -136,7 +136,7 @@ class ReportPdfService {
                 child: logo == null
                     ? pw.Text(
                         shopName.trim().isNotEmpty ? shopName.trim()[0].toUpperCase() : 'C',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                             color: PdfColors.white,
                             fontSize: 26,
                             fontWeight: pw.FontWeight.bold))
@@ -148,7 +148,7 @@ class ReportPdfService {
                 children: <pw.Widget>[
                   pw.Text(
                     shopName,
-                    style: pw.TextStyle(
+                    style: const pw.TextStyle(
                       fontSize: 20,
                       fontWeight: pw.FontWeight.bold,
                       color: _teal,
@@ -173,7 +173,7 @@ class ReportPdfService {
                   children: <pw.Widget>[
                     pw.Text(
                       'BILAN PÉRIODIQUE',
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                         fontSize: 11,
                         fontWeight: pw.FontWeight.bold,
                         color: _teal,
@@ -211,7 +211,7 @@ class ReportPdfService {
                           style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
                       pw.SizedBox(height: 4),
                       pw.Text(formatFcfa(r.totalRevenue),
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                               fontSize: 12.5, fontWeight: pw.FontWeight.bold, color: _teal)),
                     ],
                   ),
@@ -233,10 +233,10 @@ class ReportPdfService {
                           style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
                       pw.SizedBox(height: 4),
                       pw.Text(formatFcfa(r.totalCosts),
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                               fontSize: 12.5,
                               fontWeight: pw.FontWeight.bold,
-                              color: const PdfColor.fromInt(0xFFC5221F))),
+                              color: PdfColor.fromInt(0xFFC5221F))),
                     ],
                   ),
                 ),
@@ -304,7 +304,7 @@ class ReportPdfService {
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text('RÉSULTAT NET DE L\'EXERCICE :',
-                    style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _teal)),
+                    style: const pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _teal)),
                 pw.Text(
                   formatFcfa(r.netProfit),
                   style: pw.TextStyle(

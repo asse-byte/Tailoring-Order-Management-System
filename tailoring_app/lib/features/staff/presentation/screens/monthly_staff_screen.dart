@@ -269,7 +269,7 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: frequency,
+                    initialValue: frequency,
                     decoration: const InputDecoration(labelText: 'Fréquence de paiement'),
                     items: const [
                       DropdownMenuItem(value: 'mensuel', child: Text('Mensuel (Fin de mois)')),

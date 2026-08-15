@@ -813,7 +813,7 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
 
   Future<void> _openAddSupplierPurchaseModal({Supplier? preselectedSupplier}) async {
     final formKey = GlobalKey<FormState>();
-    String supplierId = preselectedSupplier?.id ?? '';
+    final String supplierId = preselectedSupplier?.id ?? '';
     String supplierName = preselectedSupplier?.name ?? '';
     String description = '';
     int totalAmount = 0;

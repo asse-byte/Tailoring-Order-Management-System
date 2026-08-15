@@ -74,7 +74,7 @@ class InvoiceService {
                   child: logo == null
                       ? pw.Text(
                           shopName.trim().isNotEmpty ? shopName.trim()[0].toUpperCase() : 'C',
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                               color: PdfColors.white,
                               fontSize: 26,
                               fontWeight: pw.FontWeight.bold))
@@ -86,7 +86,7 @@ class InvoiceService {
                   children: <pw.Widget>[
                     pw.Text(
                       shopName,
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                         fontSize: 20,
                         fontWeight: pw.FontWeight.bold,
                         color: _teal,
@@ -111,7 +111,7 @@ class InvoiceService {
                     children: <pw.Widget>[
                       pw.Text(
                         'FACTURE CLIENT',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           fontSize: 13,
                           fontWeight: pw.FontWeight.bold,
                           color: _teal,
@@ -120,7 +120,7 @@ class InvoiceService {
                       pw.SizedBox(height: 2),
                       pw.Text(
                         'N° ${order.id.length >= 8 ? order.id.substring(0, 8).toUpperCase() : order.id.toUpperCase()}',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           fontSize: 10,
                           fontWeight: pw.FontWeight.bold,
                           color: PdfColors.grey800,
@@ -152,7 +152,7 @@ class InvoiceService {
                     children: <pw.Widget>[
                       pw.Text(
                         'INFORMATIONS CLIENT',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           fontSize: 9,
                           fontWeight: pw.FontWeight.bold,
                           color: _teal,
@@ -161,7 +161,7 @@ class InvoiceService {
                       pw.SizedBox(height: 4),
                       pw.Text(
                         order.clientName,
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           fontSize: 13,
                           fontWeight: pw.FontWeight.bold,
                           color: PdfColors.grey900,
@@ -181,7 +181,7 @@ class InvoiceService {
                           style: const pw.TextStyle(fontSize: 9.5, color: PdfColors.grey800)),
                       pw.SizedBox(height: 2),
                       pw.Text('Date de retrait prévue: ${df(order.expectedDate)}',
-                          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: _teal)),
+                          style: const pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: _teal)),
                       if (order.tailorName != null && order.tailorName!.isNotEmpty) ...[
                         pw.SizedBox(height: 2),
                         pw.Text('Couturier: ${order.tailorName}',
@@ -246,7 +246,7 @@ class InvoiceService {
                         children: [
                           pw.Text('Total Général:', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey800)),
                           pw.Text(formatFcfa(order.total),
-                              style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _teal)),
+                              style: const pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _teal)),
                         ],
                       ),
                       pw.SizedBox(height: 4),
@@ -263,9 +263,9 @@ class InvoiceService {
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text('RESTE À PAYER:',
-                              style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.red900)),
+                              style: const pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.red900)),
                           pw.Text(formatFcfa(order.reste),
-                              style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColors.red900)),
+                              style: const pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColors.red900)),
                         ],
                       ),
                     ],
@@ -288,7 +288,7 @@ class InvoiceService {
                 children: <pw.Widget>[
                   pw.Text(
                     'ENGAGEMENT & CONDITIONS :',
-                    style: pw.TextStyle(
+                    style: const pw.TextStyle(
                       fontSize: 9.5,
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColors.amber900,
@@ -449,7 +449,7 @@ class InvoiceService {
                   child: logo == null
                       ? pw.Text(
                           shopName.trim().isNotEmpty ? shopName.trim()[0].toUpperCase() : 'C',
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                               color: PdfColors.white,
                               fontSize: 26,
                               fontWeight: pw.FontWeight.bold))
@@ -461,7 +461,7 @@ class InvoiceService {
                   children: <pw.Widget>[
                     pw.Text(
                       shopName,
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                         fontSize: 20,
                         fontWeight: pw.FontWeight.bold,
                         color: _teal,
@@ -486,7 +486,7 @@ class InvoiceService {
                     children: <pw.Widget>[
                       pw.Text(
                         'REÇU DE VENTE',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           fontSize: 12.5,
                           fontWeight: pw.FontWeight.bold,
                           color: _teal,
@@ -558,7 +558,7 @@ class InvoiceService {
                     children: [
                       pw.Text(
                         'TOTAL PAYÉ:',
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           fontSize: 11,
                           fontWeight: pw.FontWeight.bold,
                           color: _teal,
@@ -566,7 +566,7 @@ class InvoiceService {
                       ),
                       pw.Text(
                         formatFcfa(total),
-                        style: pw.TextStyle(
+                        style: const pw.TextStyle(
                           fontSize: 13,
                           fontWeight: pw.FontWeight.bold,
                           color: _teal,
