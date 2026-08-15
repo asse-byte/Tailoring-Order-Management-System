@@ -1,11 +1,11 @@
 {
-    "name": "Rayan couture",
-    "short_name": "Rayan couture",
+    "name": "CouturePro",
+    "short_name": "CouturePro",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0F766E",
     "theme_color": "#0F766E",
-    "description": "Rayan couture",
+    "description": "CouturePro",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

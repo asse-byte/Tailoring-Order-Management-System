@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/api_client.dart';
@@ -91,19 +90,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(26),
                           child: (logoUrl != null && logoUrl.isNotEmpty)
-                              ? CachedNetworkImage(
-                                  imageUrl: logoUrl.startsWith('http')
+                              ? Image.network(
+                                  logoUrl.startsWith('http')
                                       ? logoUrl
                                       : '${ApiClient.baseUrl}$logoUrl',
                                   fit: BoxFit.cover,
-                                  placeholder: (context, url) => const Center(
-                                    child: SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(strokeWidth: 2.5),
-                                    ),
-                                  ),
-                                  errorWidget: (context, url, error) => Icon(
+                                  loadingBuilder: (context, child, progress) {
+                                    if (progress == null) return child;
+                                    return const Center(
+                                      child: SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) => Icon(
                                     Icons.storefront_rounded,
                                     color: shopSettings.themeColor,
                                     size: 42,

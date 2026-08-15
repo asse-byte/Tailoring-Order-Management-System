@@ -16,11 +16,11 @@ class ShopSettingsProvider extends ChangeNotifier {
 
   final SettingsRepository _repo;
 
-  String _shopName = '72H couture';
+  String _shopName = const String.fromEnvironment('APP_NAME', defaultValue: '');
   String? _logoUrl;
   int _defaultPieceRate = 0;
   String _promoGroupLink = '';
-  String _themeColorHex = '#1E293B';
+  String _themeColorHex = '#006D6D';
   bool _loaded = false;
 
   String get shopName => _shopName;

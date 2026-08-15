@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/api_client.dart';
@@ -107,12 +106,12 @@ class DashboardScreen extends StatelessWidget {
               ),
               child: ClipOval(
                 child: (logoUrl != null && logoUrl.isNotEmpty)
-                    ? CachedNetworkImage(
-                        imageUrl: logoUrl.startsWith('http')
+                    ? Image.network(
+                        logoUrl.startsWith('http')
                             ? logoUrl
                             : '${ApiClient.baseUrl}$logoUrl',
                         fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => CircleAvatar(
+                        errorBuilder: (_, __, ___) => CircleAvatar(
                           backgroundColor: shopSettings.themeColor,
                           child: const Icon(Icons.storefront_rounded, size: 18, color: Colors.white),
                         ),

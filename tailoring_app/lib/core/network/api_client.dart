@@ -37,7 +37,22 @@ class ApiClient {
   VoidCallback? onSessionExpired;
 
   /// API origin. Override at build time: --dart-define=API_URL=https://…
+  /// On Web, automatically matches the current host (app.X.domain -> api.X.domain).
   static String get baseUrl {
+    if (kIsWeb) {
+      final uri = Uri.base;
+      if (uri.host.isNotEmpty && uri.host != 'localhost' && uri.host != '127.0.0.1') {
+        if (uri.host.startsWith('demo-app.')) {
+          return '${uri.scheme}://${uri.host.replaceFirst('demo-app.', 'demo-api.')}';
+        }
+        if (uri.host.startsWith('app.')) {
+          return '${uri.scheme}://${uri.host.replaceFirst('app.', 'api.')}';
+        }
+        if (uri.host.startsWith('app-')) {
+          return '${uri.scheme}://${uri.host.replaceFirst('app-', 'api-')}';
+        }
+      }
+    }
     const String fromEnv = String.fromEnvironment('API_URL');
     if (fromEnv.isNotEmpty) return fromEnv;
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
