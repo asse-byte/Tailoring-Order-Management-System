@@ -7,6 +7,7 @@ import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/localization/language_provider.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/context_colors.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
@@ -261,6 +262,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     final bool isSec = auth.isSecretary;
 
     return Scaffold(
+      backgroundColor: context.cBackground,
       appBar: AppBar(title: Text(context.loc.settings)),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -268,21 +270,21 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Theme.of(context).cardTheme.color,
+              color: context.cSurface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Theme.of(context).dividerColor),
+              border: Border.all(color: context.cBorder),
             ),
             child: Row(
               children: <Widget>[
                 CircleAvatar(
                   radius: 26,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                  backgroundColor: shopSettings.themeColor.withValues(alpha: 0.15),
                   child: Text(
                     (auth.user?.name.isNotEmpty ?? false)
                         ? auth.user!.name[0].toUpperCase()
                         : (isSec ? 'S' : 'A'),
-                    style: const TextStyle(
-                      color: AppColors.primary,
+                    style: TextStyle(
+                      color: shopSettings.themeColor,
                       fontWeight: FontWeight.w700,
                       fontSize: 18,
                     ),
@@ -294,9 +296,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(auth.user?.name ?? (isSec ? 'Secrétaire' : 'Gérant'),
-                          style: Theme.of(context).textTheme.titleMedium),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: context.cTextPrimary,
+                              )),
                       Text(auth.user?.email ?? '',
-                          style: Theme.of(context).textTheme.bodySmall),
+                          style: TextStyle(color: context.cTextSecondary, fontSize: 12.5)),
                     ],
                   ),
                 ),
@@ -311,21 +315,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             color: AppColors.accentDark,
             onTap: () => context.push('/admin/change-password'),
           ),
-          // Reports feature is not yet implemented.
-          // const SizedBox(height: 10),
-          // _ActionTile(
-          //   icon: Icons.bar_chart_outlined,
-          //   title: context.loc.reportsExports,
-          //   subtitle: context.loc.reportsSubtitle,
-          //   color: AppColors.statusInProgress,
-          //   onTap: () => context.push('/admin/reports'),
-          // ),
           const SizedBox(height: 24),
           Text(
             context.loc.shopSettings,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+                  color: context.cTextPrimary,
                 ),
           ),
           const SizedBox(height: 10),
@@ -457,30 +452,34 @@ class _LanguageSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<LanguageProvider>();
+    final shopSettings = context.watch<ShopSettingsProvider>();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
+        color: context.cSurface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).dividerColor),
+        border: Border.all(color: context.cBorder),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButtonFormField<String>(
           initialValue: lang.locale.languageCode,
           decoration: InputDecoration(
             labelText: context.loc.language,
+            labelStyle: TextStyle(color: context.cTextSecondary),
             prefixIcon:
-                const Icon(Icons.translate_rounded, color: AppColors.primary),
+                Icon(Icons.translate_rounded, color: shopSettings.themeColor),
             border: InputBorder.none,
           ),
+          dropdownColor: context.cSurface,
+          style: TextStyle(color: context.cTextPrimary, fontSize: 14.5),
           items: [
             DropdownMenuItem(
               value: 'en',
-              child: Text(context.loc.english),
+              child: Text(context.loc.english, style: TextStyle(color: context.cTextPrimary)),
             ),
             DropdownMenuItem(
               value: 'fr',
-              child: Text(context.loc.french),
+              child: Text(context.loc.french, style: TextStyle(color: context.cTextPrimary)),
             ),
           ],
           onChanged: (val) {
@@ -513,7 +512,7 @@ class _ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Theme.of(context).cardTheme.color,
+      color: context.cSurface,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -522,7 +521,7 @@ class _ActionTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Theme.of(context).dividerColor),
+            border: Border.all(color: context.cBorder),
           ),
           child: Row(
             children: <Widget>[
@@ -540,16 +539,28 @@ class _ActionTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(title, style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: context.cTextPrimary,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(subtitle,
-                        style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: context.cTextSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ),
               if (onTap != null)
-                const Icon(Icons.chevron_right_rounded,
-                    color: AppColors.textMuted),
+                Icon(Icons.chevron_right_rounded,
+                    color: context.cTextSecondary),
             ],
           ),
         ),
@@ -564,33 +575,37 @@ class _ThemeModeSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProv = context.watch<ThemeProvider>();
+    final shopSettings = context.watch<ShopSettingsProvider>();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
+        color: context.cSurface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).dividerColor),
+        border: Border.all(color: context.cBorder),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButtonFormField<ThemeMode>(
           initialValue: themeProv.themeMode,
-          decoration: const InputDecoration(
+          dropdownColor: context.cSurface,
+          style: TextStyle(color: context.cTextPrimary, fontSize: 14.5),
+          decoration: InputDecoration(
             labelText: "Mode d'affichage / Theme Mode",
-            prefixIcon: Icon(Icons.dark_mode_rounded, color: AppColors.primary),
+            labelStyle: TextStyle(color: context.cTextSecondary),
+            prefixIcon: Icon(Icons.dark_mode_rounded, color: shopSettings.themeColor),
             border: InputBorder.none,
           ),
-          items: const [
+          items: [
             DropdownMenuItem(
               value: ThemeMode.system,
-              child: Text('Système / System'),
+              child: Text('Système / System', style: TextStyle(color: context.cTextPrimary)),
             ),
             DropdownMenuItem(
               value: ThemeMode.light,
-              child: Text('Clair / Light'),
+              child: Text('Clair / Light', style: TextStyle(color: context.cTextPrimary)),
             ),
             DropdownMenuItem(
               value: ThemeMode.dark,
-              child: Text('Sombre / Dark'),
+              child: Text('Sombre / Dark', style: TextStyle(color: context.cTextPrimary)),
             ),
           ],
           onChanged: (ThemeMode? val) {

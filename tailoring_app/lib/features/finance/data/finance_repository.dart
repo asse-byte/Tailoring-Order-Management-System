@@ -28,20 +28,20 @@ class FinanceSummary {
   });
 
   factory FinanceSummary.fromJson(Map<String, dynamic> json) {
-    final rev = json['revenue'] as Map<String, dynamic>;
-    final cos = json['costs'] as Map<String, dynamic>;
+    final rev = (json['revenue'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+    final cos = (json['costs'] as Map<String, dynamic>?) ?? <String, dynamic>{};
     return FinanceSummary(
-      from: json['from'] as String,
-      to: json['to'] as String,
-      monthsCounted: json['months_counted'] as int,
-      salesRevenue: rev['sales'] as int,
-      ordersRevenue: rev['orders'] as int,
-      totalRevenue: rev['total'] as int,
-      tailorWages: cos['tailor_wages'] as int,
-      salaries: cos['salaries'] as int,
-      expenses: cos['expenses'] as int,
-      totalCosts: cos['total'] as int,
-      netProfit: json['net_profit'] as int,
+      from: json['from']?.toString() ?? '',
+      to: json['to']?.toString() ?? '',
+      monthsCounted: (json['months_counted'] as num?)?.toInt() ?? 1,
+      salesRevenue: (rev['sales'] as num?)?.toInt() ?? 0,
+      ordersRevenue: (rev['orders'] as num?)?.toInt() ?? 0,
+      totalRevenue: (rev['total'] as num?)?.toInt() ?? 0,
+      tailorWages: (cos['tailor_wages'] as num?)?.toInt() ?? 0,
+      salaries: (cos['salaries'] as num?)?.toInt() ?? 0,
+      expenses: (cos['expenses'] as num?)?.toInt() ?? 0,
+      totalCosts: (cos['total'] as num?)?.toInt() ?? 0,
+      netProfit: (json['net_profit'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -61,10 +61,10 @@ class Expense {
 
   factory Expense.fromJson(Map<String, dynamic> json) {
     return Expense(
-      id: json['id'] as String,
-      reason: json['reason'] as String,
-      amount: json['amount'] as int,
-      spentAt: json['spent_at'] as String,
+      id: json['id']?.toString() ?? '',
+      reason: json['reason']?.toString() ?? '',
+      amount: (json['amount'] as num?)?.toInt() ?? 0,
+      spentAt: json['spent_at']?.toString() ?? '',
     );
   }
 }
@@ -92,13 +92,13 @@ class SaleItem {
 
   factory SaleItem.fromJson(Map<String, dynamic> json) {
     return SaleItem(
-      id: json['id'] as String,
-      kind: json['kind'] as String,
+      id: json['id']?.toString() ?? '',
+      kind: json['kind']?.toString() ?? '',
       itemName: json['item_name'] as String? ?? '',
-      qty: json['qty'] as int,
-      price: json['price'] as int,
-      total: json['total'] as int,
-      soldAt: json['sold_at'] as String,
+      qty: (json['qty'] as num?)?.toInt() ?? 0,
+      price: (json['price'] as num?)?.toInt() ?? 0,
+      total: (json['total'] as num?)?.toInt() ?? 0,
+      soldAt: json['sold_at']?.toString() ?? '',
       voided: json['voided'] as bool? ?? false,
     );
   }

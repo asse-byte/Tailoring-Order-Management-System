@@ -7,6 +7,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/garment_types.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/context_colors.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/utils/validators.dart';
@@ -520,7 +521,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                           : 'Choisir une date',
                       style: TextStyle(
                         color: _expected != null
-                            ? AppColors.textPrimary
+                            ? context.cTextPrimary
                             : AppColors.textMuted,
                       ),
                     ),

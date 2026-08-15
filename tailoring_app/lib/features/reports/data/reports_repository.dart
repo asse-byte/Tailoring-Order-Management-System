@@ -189,13 +189,13 @@ class UnpaidOrder {
   });
 
   factory UnpaidOrder.fromJson(Map<String, dynamic> j) => UnpaidOrder(
-        id: j['id'] as String,
-        clientName: j['client_name'] as String? ?? 'Client supprimé',
-        clientPhone: j['client_phone'] as String? ?? '',
-        total: j['total'] as int? ?? 0,
-        paid: j['paid'] as int? ?? 0,
-        reste: j['reste'] as int? ?? 0,
-        deliveredDate: j['delivered_date'] as String?,
+        id: j['id']?.toString() ?? '',
+        clientName: j['client_name']?.toString() ?? 'Client supprimé',
+        clientPhone: j['client_phone']?.toString() ?? '',
+        total: (j['total'] as num?)?.toInt() ?? 0,
+        paid: (j['paid'] as num?)?.toInt() ?? 0,
+        reste: (j['reste'] as num?)?.toInt() ?? 0,
+        deliveredDate: j['delivered_date']?.toString(),
       );
 }
 
@@ -214,7 +214,7 @@ class UnpaidOrdersPage {
         items: ((j['items'] as List<dynamic>?) ?? <dynamic>[])
             .map((dynamic e) => UnpaidOrder.fromJson(e as Map<String, dynamic>))
             .toList(),
-        totalDue: j['total_due'] as int? ?? 0,
-        totalCount: j['total_count'] as int? ?? 0,
+        totalDue: (j['total_due'] as num?)?.toInt() ?? 0,
+        totalCount: (j['total_count'] as num?)?.toInt() ?? 0,
       );
 }

@@ -23,12 +23,12 @@ class AppColors {
   static const Color textMuted = Color(0xFF8A95A3);
 
   // Neutrals (Dark)
-  static const Color darkBackground = Color(0xFF0E1316);
-  static const Color darkSurface = Color(0xFF161C20);
-  static const Color darkSurfaceAlt = Color(0xFF1E262B);
-  static const Color darkBorder = Color(0xFF2A343A);
-  static const Color darkTextPrimary = Color(0xFFF1F3F5);
-  static const Color darkTextSecondary = Color(0xFFB5BDC7);
+  static const Color darkBackground = Color(0xFF0F172A);
+  static const Color darkSurface = Color(0xFF1E293B);
+  static const Color darkSurfaceAlt = Color(0xFF334155);
+  static const Color darkBorder = Color(0xFF475569);
+  static const Color darkTextPrimary = Color(0xFFFFFFFF);
+  static const Color darkTextSecondary = Color(0xFFCBD5E1);
 
   // Status colours
   static const Color statusPending = Color(0xFFE0A800);

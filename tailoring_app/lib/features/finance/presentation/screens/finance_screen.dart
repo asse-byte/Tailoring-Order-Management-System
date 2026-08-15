@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/context_colors.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -127,10 +128,10 @@ class _FinanceScreenState extends State<FinanceScreen> {
             style: TextStyle(fontWeight: FontWeight.bold, color: color)),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         children: rows.isEmpty
-            ? const <Widget>[
+            ? <Widget>[
                 Padding(
-                  padding: EdgeInsets.all(8),
-                  child: Text('Aucune opération sur la période.'),
+                  padding: const EdgeInsets.all(8),
+                  child: Text('Aucune opération sur la période.', style: TextStyle(color: context.cTextSecondary)),
                 )
               ]
             : rows
@@ -143,17 +144,17 @@ class _FinanceScreenState extends State<FinanceScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
                                 Text(r.title,
-                                    style: const TextStyle(fontSize: 13)),
+                                    style: TextStyle(fontSize: 13, color: context.cTextPrimary, fontWeight: FontWeight.w500)),
                                 if (r.subtitle.isNotEmpty)
                                   Text(r.subtitle,
                                       style: TextStyle(
-                                          fontSize: 11, color: Colors.grey[600])),
+                                          fontSize: 11, color: context.cTextSecondary)),
                               ],
                             ),
                           ),
                           Text(formatFcfa(r.amount),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 13)),
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 13, color: context.cTextPrimary)),
                         ],
                       ),
                     ))
@@ -349,6 +350,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
     final shopName = context.watch<ShopSettingsProvider>().shopName;
 
     return Scaffold(
+      backgroundColor: context.cBackground,
       appBar: AppBar(
         title: Text('$shopName - Comptabilité'),
         actions: [
@@ -371,7 +373,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text('Erreur: $_error'))
+              ? Center(child: Text('Erreur: $_error', style: TextStyle(color: context.cTextPrimary)))
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -416,7 +418,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                           children: [
                             Text(
                               'Période: ${_formatDate(_fromDate)} au ${_formatDate(_toDate)}',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[700]),
+                              style: TextStyle(fontWeight: FontWeight.bold, color: context.cTextSecondary),
                             ),
                             TextButton.icon(
                               onPressed: _selectDateRange,
@@ -455,8 +457,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       ],
 
                       const SizedBox(height: 20),
-                      const Text('Détail par catégorie',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text('Détail par catégorie',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cTextPrimary)),
                       const SizedBox(height: 8),
                       _detailSection('Revenus — Commandes livrées',
                           _orderRows, Icons.receipt_long_rounded, AppColors.success),
@@ -473,9 +475,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             'Dépenses Opérationnelles',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cTextPrimary),
                           ),
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
@@ -492,10 +494,10 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       const SizedBox(height: 12),
                       
                       _expenses.isEmpty
-                          ? const Card(
+                          ? Card(
                               child: Padding(
-                                padding: EdgeInsets.all(24.0),
-                                child: Center(child: Text('Aucune dépense enregistrée.')),
+                                padding: const EdgeInsets.all(24.0),
+                                child: Center(child: Text('Aucune dépense enregistrée.', style: TextStyle(color: context.cTextSecondary))),
                               ),
                             )
                           : ListView.builder(
@@ -512,8 +514,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                       backgroundColor: AppColors.error.withValues(alpha: 0.1),
                                       child: const Icon(Icons.money_off_rounded, color: AppColors.error),
                                     ),
-                                    title: Text(exp.reason, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    subtitle: Text(exp.spentAt),
+                                    title: Text(exp.reason, style: TextStyle(fontWeight: FontWeight.bold, color: context.cTextPrimary)),
+                                    subtitle: Text(exp.spentAt, style: TextStyle(color: context.cTextSecondary)),
                                     trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
@@ -547,8 +549,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
     required String details,
   }) {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: context.isDark ? 1 : 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: context.isDark ? AppColors.darkBorder : context.cBorder),
+      ),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -571,11 +576,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: context.cTextSecondary)),
                   const SizedBox(height: 4),
-                  Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+                  Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: context.cTextPrimary)),
                   const SizedBox(height: 6),
-                  Text(details, style: TextStyle(fontSize: 12, color: Colors.grey[700], height: 1.3)),
+                  Text(details, style: TextStyle(fontSize: 12, color: context.cTextSecondary, height: 1.3)),
                 ],
               ),
             ),

@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../core/localization/app_localizations.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/context_colors.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/primary_button.dart';
-import '../providers/auth_provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../../../../core/network/api_client.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
+import '../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -40,7 +41,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!ok) {
       _showError(auth.error ?? context.loc.somethingWentWrong);
     }
-    // Successful sign-in is handled by the router redirect.
   }
 
   void _showError(String msg) {
@@ -61,6 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final String? logoUrl = shopSettings.logoUrl;
 
     return Scaffold(
+      backgroundColor: context.cBackground,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
@@ -76,12 +77,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         height: 96,
                         width: 96,
                         decoration: BoxDecoration(
-                          color: Theme.of(context).cardTheme.color,
+                          color: context.cSurface,
                           borderRadius: BorderRadius.circular(28),
-                          border: Border.all(color: Theme.of(context).dividerColor, width: 2),
+                          border: Border.all(color: context.cBorder, width: 2),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.08),
+                              color: shopSettings.themeColor.withValues(alpha: 0.12),
                               blurRadius: 16,
                               offset: const Offset(0, 8),
                             )
@@ -89,9 +90,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(26),
-                          child: logoUrl != null
+                          child: (logoUrl != null && logoUrl.isNotEmpty)
                               ? CachedNetworkImage(
-                                  imageUrl: '${ApiClient.baseUrl}$logoUrl',
+                                  imageUrl: logoUrl.startsWith('http')
+                                      ? logoUrl
+                                      : '${ApiClient.baseUrl}$logoUrl',
                                   fit: BoxFit.cover,
                                   placeholder: (context, url) => const Center(
                                     child: SizedBox(
@@ -100,23 +103,23 @@ class _LoginScreenState extends State<LoginScreen> {
                                       child: CircularProgressIndicator(strokeWidth: 2.5),
                                     ),
                                   ),
-                                  errorWidget: (context, url, error) => const Icon(
-                                    Icons.content_cut_rounded,
-                                    color: AppColors.primary,
+                                  errorWidget: (context, url, error) => Icon(
+                                    Icons.storefront_rounded,
+                                    color: shopSettings.themeColor,
                                     size: 42,
                                   ),
                                 )
                               : Container(
-                                  decoration: const BoxDecoration(
+                                  decoration: BoxDecoration(
                                     gradient: LinearGradient(
-                                      colors: [AppColors.primary, AppColors.accent],
+                                      colors: [shopSettings.themeColor, AppColors.accent],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     ),
                                   ),
                                   child: const Center(
                                     child: Icon(
-                                      Icons.content_cut_rounded,
+                                      Icons.storefront_rounded,
                                       color: Colors.white,
                                       size: 44,
                                     ),
@@ -127,36 +130,41 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 16),
                       Text(
                         shopName,
-                        style: const TextStyle(
-                          fontSize: 34,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 30,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: -1.0,
-                          height: 1.1,
-                          color: AppColors.primary,
+                          letterSpacing: -0.5,
+                          height: 1.15,
+                          color: context.cTextPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Atelier de Couture',
+                        'Atelier de Couture & Confection',
                         style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
-                          color: AppColors.accent.withValues(alpha: 0.8),
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                          color: context.cTextSecondary,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 36),
                 Text(context.loc.welcomeBack,
-                    style: Theme.of(context).textTheme.displayMedium),
+                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                          color: context.cTextPrimary,
+                          fontWeight: FontWeight.w800,
+                        )),
                 const SizedBox(height: 6),
                 Text(
                   context.loc.signInSubtitle,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: context.cTextSecondary,
+                  ),
                 ),
                 const SizedBox(height: 36),
                 AppTextField(

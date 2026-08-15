@@ -208,11 +208,57 @@ class AppTheme {
 
     return ThemeData(
       useMaterial3: true,
-      colorScheme: scheme,
+      colorScheme: scheme.copyWith(
+        onSurface: AppColors.darkTextPrimary,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onError: Colors.white,
+      ),
       brightness: Brightness.dark,
       dividerColor: AppColors.darkBorder,
       scaffoldBackgroundColor: AppColors.darkBackground,
+      iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
+      primaryIconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
       textTheme: _textTheme(Brightness.dark),
+      listTileTheme: ListTileThemeData(
+        iconColor: AppColors.darkTextPrimary,
+        textColor: AppColors.darkTextPrimary,
+        titleTextStyle: GoogleFonts.poppins(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: AppColors.darkTextPrimary,
+        ),
+        subtitleTextStyle: GoogleFonts.poppins(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w400,
+          color: AppColors.darkTextSecondary,
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.darkSurface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titleTextStyle: GoogleFonts.poppins(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: AppColors.darkTextPrimary,
+        ),
+        contentTextStyle: GoogleFonts.poppins(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: AppColors.darkTextSecondary,
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.darkSurfaceAlt,
+        contentTextStyle: GoogleFonts.poppins(
+          color: AppColors.darkTextPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        behavior: SnackBarBehavior.floating,
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.darkSurface,
         foregroundColor: AppColors.darkTextPrimary,
@@ -224,6 +270,7 @@ class AppTheme {
           color: AppColors.darkTextPrimary,
         ),
         iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
+        actionsIconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
       ),
       cardTheme: CardThemeData(
         color: AppColors.darkSurface,
@@ -237,7 +284,7 @@ class AppTheme {
       inputDecorationTheme: _inputDecorationTheme(
         fill: AppColors.darkSurface,
         border: AppColors.darkBorder,
-        hint: AppColors.textMuted,
+        hint: AppColors.darkTextSecondary.withValues(alpha: 0.6),
         focus: Colors.white,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -293,7 +340,7 @@ class AppTheme {
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.darkSurface,
         selectedItemColor: Colors.white,
-        unselectedItemColor: AppColors.textMuted,
+        unselectedItemColor: AppColors.darkTextSecondary,
         selectedLabelStyle: GoogleFonts.poppins(
           fontSize: 12,
           fontWeight: FontWeight.w600,

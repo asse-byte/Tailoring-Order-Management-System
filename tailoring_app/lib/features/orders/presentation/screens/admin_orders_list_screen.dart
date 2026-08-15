@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/context_colors.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/loading_shimmer.dart';
@@ -135,7 +136,7 @@ class _AdminOrdersListScreenState extends State<AdminOrdersListScreen> {
                   onSelected: (_) => p.setStatusFilter(f.value),
                   selectedColor: AppColors.primary,
                   labelStyle: TextStyle(
-                    color: selected ? Colors.white : AppColors.textPrimary,
+                    color: selected ? Colors.white : context.cTextPrimary,
                     fontWeight: FontWeight.w600,
                     fontSize: 12.5,
                   ),

@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/context_colors.dart';
 import '../../../../core/utils/whatsapp.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../settings/presentation/providers/shop_settings_provider.dart';
 import '../../domain/client.dart';
 import '../providers/clients_provider.dart';
 
@@ -146,24 +148,25 @@ class _ClientsListScreenState extends State<ClientsListScreen> {
             );
           }
           final Client client = provider.items[index];
+          final shopSettings = context.watch<ShopSettingsProvider>();
           return Card(
             margin: EdgeInsets.zero,
             child: ListTile(
               leading: CircleAvatar(
-                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                backgroundColor: shopSettings.themeColor.withValues(alpha: 0.15),
                 child: Text(
                   client.fullName.isNotEmpty
                       ? client.fullName[0].toUpperCase()
                       : '?',
-                  style: const TextStyle(
-                    color: AppColors.primary,
+                  style: TextStyle(
+                    color: shopSettings.themeColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
               title: Text(client.fullName,
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text(client.phone),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: context.cTextPrimary)),
+              subtitle: Text(client.phone, style: TextStyle(color: context.cTextSecondary)),
               // Direct WhatsApp chat. Shown only when the stored number can
               // actually be dialled, so the button never opens on nothing.
               trailing: Row(

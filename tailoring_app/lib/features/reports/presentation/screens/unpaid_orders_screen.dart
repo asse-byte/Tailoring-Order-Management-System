@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/context_colors.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/utils/whatsapp.dart';
 import '../../../../core/widgets/empty_state.dart';
@@ -11,11 +12,6 @@ import '../../data/reports_repository.dart';
 
 /// Delivered orders that still carry an unpaid balance, with a one-tap polite
 /// WhatsApp reminder per client.
-///
-/// MANAGER ONLY — the list aggregates outstanding money across clients, which
-/// rule 1 keeps away from the secretary. The server enforces this too
-/// (`/api/reports/*` is mounted managerOnly), so a deep link cannot reach the
-/// data even if this screen were somehow opened.
 class UnpaidOrdersScreen extends StatefulWidget {
   const UnpaidOrdersScreen({super.key});
 
@@ -80,9 +76,9 @@ class _UnpaidOrdersScreenState extends State<UnpaidOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.cBackground,
       appBar: AppBar(
-        title: const Text('Impayés'),
+        title: const Text('Impayés & Rappels'),
         actions: <Widget>[
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -108,7 +104,7 @@ class _UnpaidOrdersScreenState extends State<UnpaidOrdersScreen> {
               const Icon(Icons.error_outline_rounded,
                   size: 44, color: AppColors.error),
               const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center),
+              Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: context.cTextPrimary)),
               const SizedBox(height: 16),
               FilledButton(onPressed: _load, child: const Text('Réessayer')),
             ],
@@ -188,7 +184,7 @@ class _TotalBanner extends StatelessWidget {
                 ),
                 Text(
                   '$count commande${count > 1 ? 's' : ''} livrée${count > 1 ? 's' : ''} non réglée${count > 1 ? 's' : ''}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  style: TextStyle(fontSize: 12, color: context.cTextSecondary),
                 ),
               ],
             ),
@@ -215,8 +211,12 @@ class _UnpaidCard extends StatelessWidget {
     final bool reachable = canWhatsApp(order.clientPhone);
     return Card(
       margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: context.cBorder),
+      ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         onTap: onOpen,
         child: Padding(
           padding: const EdgeInsets.all(14),
@@ -228,8 +228,11 @@ class _UnpaidCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       order.clientName,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 15),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: context.cTextPrimary,
+                      ),
                     ),
                   ),
                   Text(
@@ -246,7 +249,7 @@ class _UnpaidCard extends StatelessWidget {
               Text(
                 'Total ${formatFcfa(order.total)} — réglé ${formatFcfa(order.paid)}'
                 '${order.deliveredDate != null ? ' — livrée le ${order.deliveredDate!.split('T').first}' : ''}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                style: TextStyle(fontSize: 12, color: context.cTextSecondary),
               ),
               const SizedBox(height: 10),
               Row(
@@ -260,6 +263,7 @@ class _UnpaidCard extends StatelessWidget {
                           : 'Numéro manquant'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.success,
+                        side: const BorderSide(color: AppColors.success, width: 1.2),
                       ),
                     ),
                   ),

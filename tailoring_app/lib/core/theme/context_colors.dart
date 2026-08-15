@@ -7,6 +7,8 @@ import '../theme/app_colors.dart';
 extension AppContextX on BuildContext {
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
 
+  Color get cBackground =>
+      isDark ? AppColors.darkBackground : AppColors.background;
   Color get cSurface => isDark ? AppColors.darkSurface : AppColors.surface;
   Color get cSurfaceAlt =>
       isDark ? AppColors.darkSurfaceAlt : AppColors.surfaceAlt;
