@@ -1,11 +1,11 @@
 {
-    "name": "CouturePro",
-    "short_name": "CouturePro",
+    "name": "72H couture",
+    "short_name": "72H couture",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0F766E",
     "theme_color": "#0F766E",
-    "description": "CouturePro",
+    "description": "72H couture",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
