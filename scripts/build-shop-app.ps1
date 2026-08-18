@@ -102,10 +102,21 @@ try {
             if (-not $SkipWeb) {
                 Write-Host "[1/2] flutter build web..." -ForegroundColor Cyan
                 flutter build web --release --dart-define=API_URL=$ApiUrl
-                if ($LASTEXITCODE -ne 0) { throw "build web a échoué" }
+                if ($LASTEXITCODE -ne 0) { throw "build web a echoue" }
                 $webOut = Join-Path $distDir 'web'
                 if (Test-Path $webOut) { Remove-Item -Recurse -Force $webOut }
                 Copy-Item -Recurse (Join-Path $appDir 'build\web') $webOut
+
+                # Explicitly stamp manifest.json and index.html in webOut to prevent template caching
+                $distManifest = Join-Path $webOut 'manifest.json'
+                if (Test-Path $distManifest) {
+                    [IO.File]::WriteAllText($distManifest, $brandedManifest)
+                }
+                $distIndex = Join-Path $webOut 'index.html'
+                if (Test-Path $distIndex) {
+                    [IO.File]::WriteAllText($distIndex, $brandedIndex)
+                }
+
                 # version.json is Flutter metadata (browsers never use it for the
                 # install name) but it still carried the pubspec name
                 # "tailoring_app". Stamp it so NO artefact mentions it and the

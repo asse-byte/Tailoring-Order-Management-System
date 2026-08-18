@@ -82,14 +82,18 @@
       }
     };
     (function() {
-      fetch('/api/settings/public')
+      var host = window.location.host;
+      var apiHost = host.replace(/^app\./, 'api.').replace(/^app-/, 'api-').replace(/^demo-app\./, 'demo-api.');
+      var apiUrl = (window.location.protocol === 'https:' ? 'https:' : 'http:') + '//' + apiHost + '/api/settings/public';
+      fetch(apiUrl)
         .then(function(res) { return res.json(); })
         .then(function(data) {
           if (data && data.shop_name) {
             window.changeTitle(data.shop_name);
           }
           if (data && data.logo_url) {
-            window.changeFavicon(data.logo_url);
+            var fullLogo = data.logo_url.startsWith('http') ? data.logo_url : ((window.location.protocol === 'https:' ? 'https:' : 'http:') + '//' + apiHost + data.logo_url);
+            window.changeFavicon(fullLogo);
           } else {
             window.changeFavicon('favicon.png');
           }

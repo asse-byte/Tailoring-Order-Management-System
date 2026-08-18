@@ -57,12 +57,14 @@ function createApp() {
   // images and signature-checked videos are ever written here (see upload.js),
   // force nosniff + a sandbox CSP so a stored file can never be interpreted as
   // an executable document by the browser.
-  app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+  const uploadsStatic = express.static(path.join(__dirname, '../uploads'), {
     setHeaders: (res) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
     },
-  }));
+  });
+  app.use('/uploads', uploadsStatic);
+  app.use('/api/uploads', uploadsStatic);
 
   // ==========================================================================
   // SECURITY MAP — deny by default.
