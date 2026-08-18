@@ -1,4 +1,4 @@
-﻿# Build the web app + signed APK for ONE shop in a single command.
+# Build the web app + signed APK for ONE shop in a single command.
 # Runs on the DEV MACHINE (Windows), not the VPS.
 #
 #   .\scripts\build-shop-app.ps1 -ShopSlug rayan-couture `
@@ -117,11 +117,27 @@ try {
                     $vj = $vj -replace '"package_name"\s*:\s*"[^"]*"', "`"package_name`": `"$jsonName`""
                     [IO.File]::WriteAllText($vf, $vj)
                 }
+
+                # Generate high-resolution branded PWA & Android WebAPK icons from shop logo
+                $logoScript = Join-Path $repoRoot 'scripts\generate-pwa-icons.js'
+                $shopLogo = $null
+                foreach ($ext in @('jpeg', 'jpg', 'png', 'webp')) {
+                    $candidate = Join-Path $repoRoot "logo\$ShopSlug.$ext"
+                    if (Test-Path $candidate) { $shopLogo = $candidate; break }
+                }
+                if (-not $shopLogo) {
+                    $anyLogo = Get-ChildItem (Join-Path $repoRoot 'logo') -Filter "*$ShopSlug*" -File -ErrorAction SilentlyContinue | Select-Object -First 1
+                    if ($anyLogo) { $shopLogo = $anyLogo.FullName }
+                }
+                if ($shopLogo -and (Test-Path $logoScript)) {
+                    Write-Host "  PWA icons -> generation automatique depuis $($shopLogo | Split-Path -Leaf)..." -ForegroundColor Yellow
+                    node $logoScript $shopLogo $webOut
+                }
             }
             if (-not $SkipApk) {
                 Write-Host "[2/2] flutter build apk..." -ForegroundColor Cyan
                 flutter build apk --release --dart-define=API_URL=$ApiUrl
-                if ($LASTEXITCODE -ne 0) { throw "build apk a échoué" }
+                if ($LASTEXITCODE -ne 0) { throw "build apk a echoue" }
                 Copy-Item (Join-Path $appDir 'build\app\outputs\flutter-apk\app-release.apk') `
                           (Join-Path $distDir "$ShopSlug-v$version.apk") -Force
             }
@@ -135,7 +151,7 @@ finally {
     [IO.File]::WriteAllText($manifest, $origManifest)
     [IO.File]::WriteAllText($indexTpl, $origIndex)
     Write-Host "gradle.properties + manifest.json + index.html restaures a l'identique." -ForegroundColor Yellow
-    if ($failed) { Write-Host "BUILD EN ECHEC — aucun artefact fiable produit." -ForegroundColor Red }
+    if ($failed) { Write-Host "BUILD EN ECHEC - aucun artefact fiable produit." -ForegroundColor Red }
 }
 
 Write-Host ""
