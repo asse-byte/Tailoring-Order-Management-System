@@ -57,8 +57,9 @@ class MerchantRepository {
     String? to,
   }) async {
     final params = <String>[];
-    if (supplierId != null && supplierId.isNotEmpty)
+    if (supplierId != null && supplierId.isNotEmpty) {
       params.add('supplier_id=$supplierId');
+    }
     if (from != null && from.isNotEmpty) params.add('from=$from');
     if (to != null && to.isNotEmpty) params.add('to=$to');
     final query = params.isNotEmpty ? '?${params.join('&')}' : '';
@@ -143,8 +144,9 @@ class MerchantRepository {
   }) async {
     final params = <String>[];
     if (status != null && status.isNotEmpty) params.add('status=$status');
-    if (merchant != null && merchant.isNotEmpty)
+    if (merchant != null && merchant.isNotEmpty) {
       params.add('merchant=$merchant');
+    }
     if (from != null && from.isNotEmpty) params.add('from=$from');
     if (to != null && to.isNotEmpty) params.add('to=$to');
     final query = params.isNotEmpty ? '?${params.join('&')}' : '';

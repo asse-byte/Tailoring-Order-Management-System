@@ -141,8 +141,9 @@ class _MerchantsScreenState extends State<MerchantsScreen>
   // TAB 1: FOURNISSEURS & ACHATS À CRÉDIT
   // ==========================================================================
   Widget _buildSuppliersTab() {
-    if (_loadingSuppliers)
+    if (_loadingSuppliers) {
       return const Center(child: CircularProgressIndicator());
+    }
     return RefreshIndicator(
       onRefresh: _loadAll,
       child: ListView(
@@ -286,8 +287,9 @@ class _MerchantsScreenState extends State<MerchantsScreen>
                                     size: 18),
                                 onSelected: (val) {
                                   if (val == 'edit') _openEditSupplierModal(s);
-                                  if (val == 'delete')
+                                  if (val == 'delete') {
                                     _confirmDeleteSupplier(s);
+                                  }
                                 },
                                 itemBuilder: (ctx) => [
                                   const PopupMenuItem(
@@ -428,8 +430,9 @@ class _MerchantsScreenState extends State<MerchantsScreen>
   // TAB 2: VENTES EN GROS (PRÊT-À-PORTER)
   // ==========================================================================
   Widget _buildWholesaleTab() {
-    if (_loadingWholesale)
+    if (_loadingWholesale) {
       return const Center(child: CircularProgressIndicator());
+    }
     return RefreshIndicator(
       onRefresh: _loadAll,
       child: ListView(
