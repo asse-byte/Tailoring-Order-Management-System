@@ -28,6 +28,20 @@ class DashboardScreen extends StatelessWidget {
         icon: Icons.receipt_long_rounded,
         route: '/admin/orders',
       ),
+      // The till. Both roles: the secretary is the one at the counter.
+      const _DashboardItem(
+        title: 'Vendre',
+        icon: Icons.point_of_sale_rounded,
+        route: '/admin/sell',
+      ),
+      // Past sales carry the shop's takings, so the list is the manager's
+      // (the router and the API both refuse it to the secretary).
+      if (!isSec)
+        const _DashboardItem(
+          title: 'Les ventes',
+          icon: Icons.receipt_rounded,
+          route: '/admin/sales-history',
+        ),
       _DashboardItem(
         title: context.loc.appointments,
         icon: Icons.event_rounded,

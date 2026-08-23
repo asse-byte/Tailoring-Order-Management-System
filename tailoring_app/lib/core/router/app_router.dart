@@ -17,7 +17,9 @@ import '../../features/orders/presentation/screens/history_orders_screen.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/schedule_screen.dart';
 import '../../features/orders/presentation/screens/walk_in_order_screen.dart';
+import '../../features/products/presentation/screens/counter_sale_screen.dart';
 import '../../features/products/presentation/screens/products_screen.dart';
+import '../../features/products/presentation/screens/sales_history_screen.dart';
 import '../../features/staff/presentation/screens/staff_screen.dart';
 import '../../features/staff/presentation/screens/monthly_staff_screen.dart';
 import '../../features/finance/presentation/screens/finance_screen.dart';
@@ -113,6 +115,17 @@ class AppRouter {
               builder: (_, __) => const AdminSettingsScreen(),
             ),
             GoRoute(
+              // The till: one basket, one invoice. Both roles — the secretary
+              // is the one standing at the counter.
+              path: 'sell',
+              builder: (_, __) => const CounterSaleScreen(),
+            ),
+            GoRoute(
+              // Manager only: a list of sales is a list of takings.
+              path: 'sales-history',
+              builder: (_, __) => const SalesHistoryScreen(),
+            ),
+            GoRoute(
               path: 'products',
               builder: (_, __) => const ProductsScreen(),
             ),
@@ -199,6 +212,9 @@ class AppRouter {
           '/admin/merchants',
           // Outstanding client debt across the shop.
           '/admin/unpaid-orders',
+          // Past sales with their totals are the shop's takings. Selling
+          // (/admin/sell) is hers; reading the takings back is not.
+          '/admin/sales-history',
         ];
         if (auth.isSecretary &&
             managerOnlyRoutes
