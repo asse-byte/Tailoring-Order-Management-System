@@ -36,19 +36,28 @@ const ORDER_SELECT = `
   ) it ON true`;
 
 /**
- * Lower the cash recorded against an order down to `target`, using correction
- * rows only — `order_payments` is append-only (migration 018), so rows are
- * never updated or deleted and negative amounts are rejected by CHECK.
+ * Take `delta` francs back OUT of the cash recorded against an order, using
+ * correction rows only — `order_payments` is append-only (migration 018), so
+ * rows are never updated or deleted and negative amounts are rejected by CHECK.
  * Newest payments are corrected first; each correction carries the mandatory
  * reason, exactly like expense/sale corrections.
+ *
+ * It reduces BY an amount, never DOWN TO an absolute figure. The earlier
+ * version took the new `advance` as a target for the order's TOTAL collected
+ * cash, which is only the same thing before the order is delivered: once the
+ * balance had been collected at hand-over, correcting the advance by a few
+ * thousand francs wiped out the entire delivery payment and erased that
+ * revenue from Finances (audit 2026-08-23).
  */
-async function correctCollectedDown(tx, orderId, target, userId, reason) {
+async function correctCollectedBy(tx, orderId, delta, userId, reason) {
+  if (delta <= 0) return;
   const { rows } = await tx.query(
     `SELECT id, amount FROM order_payments_effective
      WHERE order_id = $1 AND NOT voided
      ORDER BY paid_at DESC, created_at DESC`, [orderId]);
 
-  let remaining = rows.reduce((sum, r) => sum + Number(r.amount), 0) - target;
+  // Never take out more than was ever put in.
+  let remaining = Math.min(delta, rows.reduce((sum, r) => sum + Number(r.amount), 0));
   for (const row of rows) {
     if (remaining <= 0) break;
     const amount = Number(row.amount);
@@ -235,7 +244,7 @@ router.put('/:id', asyncH(async (req, res) => {
            VALUES ($1, $2, CURRENT_DATE, 'Règlement / Acompte')`,
           [orderId, diff]);
       } else {
-        await correctCollectedDown(tx, orderId, advance, req.user.id,
+        await correctCollectedBy(tx, orderId, oldAdvance - advance, req.user.id,
           'Acompte corrigé à la baisse depuis la fiche commande.');
       }
     }

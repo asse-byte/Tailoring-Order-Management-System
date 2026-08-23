@@ -241,16 +241,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
 
           const SizedBox(height: 20),
-          const _SectionTitle('Détail des coûts'),
-          _line('Marchandises vendues (COGS)', r.cogs),
-          _line('Main d\'œuvre couture', r.tailorWages),
-          _line('Salaires mensuels (prorata)', r.salaries),
-          _line('Dépenses', r.expenses),
+          const _SectionTitle('Ce que la boutique a dépensé'),
+          _line('Achat de la marchandise vendue', r.cogs),
+          _line('Paie des couturiers', r.tailorWages),
+          _line('Salaires du personnel', r.salaries),
+          _line('Autres dépenses', r.expenses),
 
           const SizedBox(height: 20),
-          const _SectionTitle('Revenus'),
-          _line('Ventes produits / prêt-à-porter', r.salesRevenue),
-          _line('Commandes livrées', r.ordersRevenue),
+          const _SectionTitle('Ce que la boutique a encaissé'),
+          _line('Ventes en boutique', r.salesRevenue),
+          _line('Commandes des clients', r.ordersRevenue),
+          _line('Ventes en gros', r.wholesaleRevenue),
 
           if (r.topTailors.isNotEmpty) ...<Widget>[
             const SizedBox(height: 20),

@@ -21,30 +21,34 @@ router.post('/', asyncH(async (req, res) => {
   }
 
   const sale = await db.withTransaction(async (tx) => {
-      let name; let price;
+      let name; let price; let cost;
       if (kind === 'produit') {
         const { rows } = await tx.query(
-          'SELECT name, price, quantity FROM products WHERE id = $1 FOR UPDATE', [itemId]);
+          'SELECT name, price, cost_price, quantity FROM products WHERE id = $1 FOR UPDATE',
+          [itemId]);
         if (!rows[0]) return { status: 404, error: 'Produit introuvable.' };
         if (rows[0].quantity < qty) {
           return { status: 409, error: `Stock insuffisant (${rows[0].quantity} restant).` };
         }
         await tx.query(
           'UPDATE products SET quantity = quantity - $1 WHERE id = $2', [qty, itemId]);
-        ({ name, price } = rows[0]);
+        ({ name, price, cost_price: cost } = rows[0]);
       } else {
         const { rows } = await tx.query(
-          'SELECT name, price FROM pret_a_porter_models WHERE id = $1', [itemId]);
+          'SELECT name, price, cost_price FROM pret_a_porter_models WHERE id = $1', [itemId]);
         if (!rows[0]) return { status: 404, error: 'Modèle introuvable.' };
-        ({ name, price } = rows[0]);
+        ({ name, price, cost_price: cost } = rows[0]);
       }
       const customPrice = intOrNull(req.body.unit_price);
       const finalPrice = (customPrice !== null && customPrice >= 0) ? customPrice : price;
 
+      // Freeze the purchase cost onto the sale (migration 024). Reading it live
+      // from the catalogue made every past period's profit change the moment a
+      // cost price was updated.
       const { rows: inserted } = await tx.query(
-        `INSERT INTO sales (kind, item_id, item_name, qty, unit_price, total, created_by)
-         VALUES ($1, $2, $3, $4::int, $5::int, $4::int * $5::int, $6) RETURNING *`,
-        [kind, itemId, name, qty, finalPrice, req.user.id]);
+        `INSERT INTO sales (kind, item_id, item_name, qty, unit_price, unit_cost, total, created_by)
+         VALUES ($1, $2, $3, $4::int, $5::int, $6::int, $4::int * $5::int, $7) RETURNING *`,
+        [kind, itemId, name, qty, finalPrice, cost ?? 0, req.user.id]);
       return { status: 201, sale: inserted[0] };
     });
 

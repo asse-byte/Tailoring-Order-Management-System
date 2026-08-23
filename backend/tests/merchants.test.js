@@ -71,7 +71,10 @@ describe('Supplier Credit & Purchases', () => {
     expect(pay.status).toBe(201);
 
     const purGetAfter = await asM(request(app).get(`/api/suppliers/purchases/${purId}`));
-    expect(purGetAfter.body.paid_total).toBe(40000);
+    // Since migration 024 the advance is itself a dated payment row, so
+    // paid_total is everything handed over: 30 000 advance + 40 000 instalment.
+    // `reste` is unchanged (it no longer subtracts the advance a second time).
+    expect(purGetAfter.body.paid_total).toBe(70000);
     expect(purGetAfter.body.reste).toBe(30000);
   });
 });

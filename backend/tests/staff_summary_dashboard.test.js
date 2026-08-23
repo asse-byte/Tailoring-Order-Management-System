@@ -234,22 +234,28 @@ describe('GET /api/reports/unpaid-orders', () => {
     const before = (await asM(request(app).get('/api/reports/unpaid-orders'))).body;
     expect(before.items.find((o) => o.id === orderId)).toBeUndefined();
 
-    // Real life: the client took the garment and paid only 5 000 in the end.
-    // The manager corrects the collected cash DOWN — which orders.js records
-    // through order_payment_corrections, never a negative counter-row.
+    // Real life: the advance had been keyed in 5 000 too high. The manager
+    // corrects it DOWN — which orders.js records through
+    // order_payment_corrections, never a negative counter-row.
+    //
+    // Lowering the advance by 5 000 takes exactly 5 000 back out of the cash
+    // collected (60 000 → 55 000), so the client now owes 5 000. It must NOT
+    // wipe out the 50 000 balance banked at hand-over: doing so was the money
+    // bug found in the 2026-08-23 audit, which turned a settled order into a
+    // 55 000 debt out of nowhere.
     await asM(request(app).put(`/api/orders/${orderId}`)).send({ advance: 5000 });
     const after = (await asM(request(app).get('/api/reports/unpaid-orders'))).body;
 
     expect(after.total_count - before.total_count).toBe(1);
-    expect(after.total_due - before.total_due).toBe(55000);
+    expect(after.total_due - before.total_due).toBe(5000);
 
     const mine = after.items.find((o) => o.id === orderId);
     expect(mine).toBeTruthy();
     expect(mine.client_name).toBe('QWX Impaye');
     expect(mine.client_phone).toBe('99553001'); // needed for the wa.me reminder
     expect(mine.total).toBe(60000);
-    expect(mine.paid).toBe(5000);
-    expect(mine.reste).toBe(55000);
+    expect(mine.paid).toBe(55000); // 10 000 advance − 5 000 + 50 000 balance
+    expect(mine.reste).toBe(5000);
   });
 
   test('a fully settled delivered order is absent from the list', async () => {

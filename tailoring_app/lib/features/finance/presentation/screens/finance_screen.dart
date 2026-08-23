@@ -436,7 +436,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
                           value: formatFcfa(_summary!.totalRevenue),
                           color: AppColors.success,
                           icon: Icons.trending_up_rounded,
-                          details: 'Commandes: ${formatFcfa(_summary!.ordersRevenue)}\nVentes Comptoir: ${formatFcfa(_summary!.salesRevenue)}',
+                          details: 'Commandes des clients: ${formatFcfa(_summary!.ordersRevenue)}\n'
+                              'Ventes en boutique: ${formatFcfa(_summary!.salesRevenue)}\n'
+                              'Ventes en gros: ${formatFcfa(_summary!.wholesaleRevenue)}',
                         ),
                         const SizedBox(height: 16),
                         _buildKpiCard(
@@ -444,7 +446,13 @@ class _FinanceScreenState extends State<FinanceScreen> {
                           value: formatFcfa(_summary!.totalCosts),
                           color: AppColors.error,
                           icon: Icons.trending_down_rounded,
-                          details: 'Salaires (Mensuels): ${formatFcfa(_summary!.salaries)}\nMain d\'œuvre (Pièce): ${formatFcfa(_summary!.tailorWages)}\nFrais & Dépenses: ${formatFcfa(_summary!.expenses)}',
+                          // The cost of the goods sold belongs in this list:
+                          // without it the four lines never added up to the
+                          // total printed just above them.
+                          details: 'Achat de la marchandise vendue: ${formatFcfa(_summary!.costOfGoodsSold)}\n'
+                              'Paie des couturiers: ${formatFcfa(_summary!.tailorWages)}\n'
+                              'Salaires du personnel: ${formatFcfa(_summary!.salaries)}\n'
+                              'Autres dépenses: ${formatFcfa(_summary!.expenses)}',
                         ),
                         const SizedBox(height: 16),
                         _buildKpiCard(

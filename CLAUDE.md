@@ -368,6 +368,64 @@ clients. Fixed + regression test ("secretary DELETE /clients → 403").
   auth for the login screen) and private rows (manager-only).
 - Flutter app data layer runs entirely on the REST API. All Firebase SDK dependencies, Firebase configurations, cloud functions, and local mock database files have been completely cleaned up.
 
+## Full financial audit (2026-08-23) — four money bugs found and fixed
+
+The owner reported that "Rapport et statistique" did not match reality. Every
+money formula in the app was re-derived by hand and pinned to a test in
+`backend/tests/finance_audit.test.js`. Four real bugs were found, all of the
+same family as the COGS bug (item 5) and the delivery-cash bug (Antigravity
+review): **money that is never counted, or a past period whose figures change
+under your feet.** Migration 024.
+
+1. **Weekly-paid staff cost nothing.** Migration 014 added
+   `staff_pay.weekly_salary` + `pay_frequency = 'hebdo'`, but the finance and
+   reports queries summed `monthly_salary` only, so a weekly employee's wages
+   reached **no cost total at all**. Net profit was OVERSTATED by the entire
+   weekly payroll from commit `d6d608f` (2026-08-03) until this fix. Weekly
+   staff are now prorated at 7 days = one weekly salary.
+2. **Wholesale revenue was invisible.** `wholesale_orders` /
+   `wholesale_payments` are a real revenue stream (bulk sales to merchants) and
+   **nothing in finance or reports ever read them**. On top of that
+   `advance_amount` was a bare column with no dated payment row, so that cash
+   could not be attributed to any period even in principle — and `reste`
+   subtracted it a second time on top of the payments. Net profit was
+   UNDERSTATED by all wholesale cash. Migration 024 turns every advance
+   (wholesale AND supplier) into an ordinary dated payment row; the routes now
+   write one at creation, and `advance_amount` is no longer editable through
+   `PUT` (cash is append-only — correct the payment instead).
+3. **Editing an order's advance after delivery erased the delivery payment.**
+   `correctCollectedDown(tx, orderId, advance, …)` passed the new *advance* as
+   the target for the order's *total* collected cash. Identical before
+   delivery, catastrophic after it: on a 100 000 order with a 20 000 advance
+   delivered and settled in full, correcting the advance to 10 000 collapsed
+   total collected from 100 000 to 10 000 — **80 000 of revenue deleted and a
+   settled order turned into a 90 000 client debt**. It now reduces BY the
+   difference (`correctCollectedBy`), never DOWN TO an absolute figure.
+4. **Cost of goods sold was read live from the catalogue.** COGS joined
+   `products.cost_price` / `pret_a_porter_models.cost_price` at report time, so
+   updating a cost price today silently rewrote the profit of **every past
+   period that item had ever been sold in**. `sales.unit_cost` now freezes the
+   purchase cost onto the row at sale time (migration 024 backfills history from
+   the current cost price, so today's figures do not jump — they simply stop
+   moving), and `sales_effective.cost_total` is what every COGS sum reads.
+
+Two structural fixes came with them:
+
+- **`src/finance/queries.js` is now the single source of every money figure.**
+  `/api/finance/summary` and `/api/reports/summary` each carried their own copy
+  of the eight queries and had already drifted — which is exactly why one screen
+  showed a different number from the other for the same period. Both now call
+  `financeTotals(db, from, to)`. **Never re-inline a money query into a route.**
+- **The Flutter `FinanceSummary` had no `cost_of_goods_sold` field**, so the
+  cost lines the Finances screen listed (salaries + wages + expenses) never
+  added up to the "total" printed directly beneath them. Both it and the new
+  `revenue.wholesale` are now modelled and displayed.
+
+Kept deliberately: payroll is charged as `max(accrued, actually disbursed)` for
+the window, and the accrual uses the CURRENT roster. A historical report
+therefore reflects today's staff list. That is a known limitation, not an
+oversight — versioning the roster is a bigger change than this audit.
+
 ## Known accepted risks (audit 2026-08-13)
 
 Reviewed and deliberately left as-is. Documented so a future reader does not
