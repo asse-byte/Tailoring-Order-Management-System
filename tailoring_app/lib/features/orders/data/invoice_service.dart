@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/utils/money.dart';
+import '../../../core/utils/pdf_fonts.dart';
 import '../../../core/utils/web_helper.dart';
 import '../domain/entities/order.dart';
 
@@ -45,7 +46,7 @@ class InvoiceService {
     required String promoGroupLink,
     Uint8List? logoBytes,
   }) async {
-    final doc = pw.Document();
+    final doc = pw.Document(theme: await PdfFonts.theme());
     final logo = logoBytes != null ? pw.MemoryImage(logoBytes) : null;
     const df = _fmtDate;
 
@@ -421,7 +422,7 @@ class InvoiceService {
     required String shopName,
     Uint8List? logoBytes,
   }) async {
-    final pdf = pw.Document();
+    final pdf = pw.Document(theme: await PdfFonts.theme());
     final logo = logoBytes != null ? pw.MemoryImage(logoBytes) : null;
 
     pdf.addPage(

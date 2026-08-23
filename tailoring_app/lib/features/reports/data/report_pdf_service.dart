@@ -8,6 +8,7 @@ import 'package:printing/printing.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/utils/money.dart';
+import '../../../core/utils/pdf_fonts.dart';
 import '../../../core/utils/web_helper.dart';
 import 'reports_repository.dart';
 
@@ -110,7 +111,7 @@ class ReportPdfService {
     required String periodLabel,
     Uint8List? logoBytes,
   }) async {
-    final doc = pw.Document();
+    final doc = pw.Document(theme: await PdfFonts.theme());
     final logo = logoBytes != null ? pw.MemoryImage(logoBytes) : null;
 
     doc.addPage(
