@@ -8,9 +8,7 @@ import '../../../../core/localization/language_provider.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/context_colors.dart';
-import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
-import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 
@@ -23,16 +21,6 @@ class AdminSettingsScreen extends StatefulWidget {
 
 class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   final ImagePicker _picker = ImagePicker();
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<ShopSettingsProvider>().fetchPrivateSettings();
-      }
-    });
-  }
 
   Future<void> _changeShopName(BuildContext context) async {
     final provider = context.read<ShopSettingsProvider>();
@@ -99,57 +87,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(success ? context.loc.logoUploadedSuccess : context.loc.logoUploadFailed),
-            backgroundColor: success ? AppColors.success : AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _changeDefaultPieceRate(BuildContext context) async {
-    final provider = context.read<ShopSettingsProvider>();
-    final controller = TextEditingController(text: formatThousands(provider.defaultPieceRate));
-    final formKey = GlobalKey<FormState>();
-
-    final bool? save = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.loc.editDefaultPieceRate),
-        content: Form(
-          key: formKey,
-          child: FormattedNumberField(
-            controller: controller,
-            label: context.loc.defaultPieceRateLabel,
-            validator: (v) {
-              if (v == null) return context.loc.requiredField;
-              if (v < 0) return context.loc.validationPositiveNumber;
-              return null;
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.loc.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(ctx, true);
-              }
-            },
-            child: Text(context.loc.save),
-          ),
-        ],
-      ),
-    );
-
-    if (save == true) {
-      final success = await provider.updateDefaultPieceRate(parseThousands(controller.text) ?? 0);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'Tarif par pièce mis à jour.' : 'Échec de la mise à jour.'),
             backgroundColor: success ? AppColors.success : AppColors.error,
           ),
         );
@@ -349,14 +286,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               subtitle: shopSettings.logoUrl != null ? 'Logo téléversé' : 'Aucun logo (Placeholder actif)',
               color: AppColors.accent,
               onTap: () => _changeLogo(context),
-            ),
-            const SizedBox(height: 10),
-            _ActionTile(
-              icon: Icons.monetization_on_rounded,
-              title: context.loc.editDefaultPieceRate,
-              subtitle: formatFcfa(shopSettings.defaultPieceRate),
-              color: AppColors.success,
-              onTap: () => _changeDefaultPieceRate(context),
             ),
             const SizedBox(height: 10),
             _ActionTile(

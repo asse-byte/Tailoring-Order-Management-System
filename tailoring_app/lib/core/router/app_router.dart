@@ -17,7 +17,9 @@ import '../../features/orders/presentation/screens/history_orders_screen.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/schedule_screen.dart';
 import '../../features/orders/presentation/screens/walk_in_order_screen.dart';
+import '../../features/products/presentation/screens/counter_sale_screen.dart';
 import '../../features/products/presentation/screens/products_screen.dart';
+import '../../features/products/presentation/screens/sales_history_screen.dart';
 import '../../features/staff/presentation/screens/staff_screen.dart';
 import '../../features/staff/presentation/screens/monthly_staff_screen.dart';
 import '../../features/finance/presentation/screens/finance_screen.dart';
@@ -111,6 +113,19 @@ class AppRouter {
             GoRoute(
               path: 'settings',
               builder: (_, __) => const AdminSettingsScreen(),
+            ),
+            GoRoute(
+              // The till: one basket, one invoice. Both roles — the secretary
+              // is the one standing at the counter.
+              path: 'sell',
+              builder: (_, __) => const CounterSaleScreen(),
+            ),
+            GoRoute(
+              // Both roles since the owner's decision of 2026-08-23: the
+              // secretary sells at the counter, so finding a sale she made and
+              // fixing it is hers. The purchase cost is stripped server-side.
+              path: 'sales-history',
+              builder: (_, __) => const SalesHistoryScreen(),
             ),
             GoRoute(
               path: 'products',

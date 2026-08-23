@@ -93,12 +93,25 @@ router.post('/purchases', asyncH(async (req, res) => {
   }
   if (!supplierName) supplierName = 'Fournisseur Inconnu';
 
-  const { rows } = await db.query(
-    `INSERT INTO supplier_purchases
-       (supplier_id, supplier_name_snapshot, description, total_amount, advance_amount, purchase_date, created_by)
-     VALUES ($1, $2, $3, $4, $5, COALESCE($6::date, CURRENT_DATE), $7) RETURNING *`,
-    [supplierId, supplierName, description, totalAmount, advanceAmount, dateStr(req.body.purchase_date), req.user.id]);
-  res.status(201).json(rows[0]);
+  // The advance is real cash leaving the till, so it gets a dated payment row
+  // like every later settlement (migration 024). As a bare column it had no
+  // date and `reste` subtracted it on top of the payments, counting it twice.
+  const created = await db.withTransaction(async (tx) => {
+    const { rows } = await tx.query(
+      `INSERT INTO supplier_purchases
+         (supplier_id, supplier_name_snapshot, description, total_amount, advance_amount, purchase_date, created_by)
+       VALUES ($1, $2, $3, $4, $5, COALESCE($6::date, CURRENT_DATE), $7) RETURNING *`,
+      [supplierId, supplierName, description, totalAmount, advanceAmount,
+        dateStr(req.body.purchase_date), req.user.id]);
+    if (advanceAmount > 0) {
+      await tx.query(
+        `INSERT INTO supplier_payments (purchase_id, amount, paid_at, note, created_by)
+         VALUES ($1, $2, $3::date, 'Acompte initial', $4)`,
+        [rows[0].id, advanceAmount, rows[0].purchase_date, req.user.id]);
+    }
+    return rows[0];
+  });
+  res.status(201).json(created);
 }));
 
 router.get('/purchases/:id', asyncH(async (req, res) => {

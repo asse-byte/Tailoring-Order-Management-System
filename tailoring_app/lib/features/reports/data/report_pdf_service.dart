@@ -8,6 +8,7 @@ import 'package:printing/printing.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/utils/money.dart';
+import '../../../core/utils/pdf_fonts.dart';
 import '../../../core/utils/web_helper.dart';
 import 'reports_repository.dart';
 
@@ -110,7 +111,7 @@ class ReportPdfService {
     required String periodLabel,
     Uint8List? logoBytes,
   }) async {
-    final doc = pw.Document();
+    final doc = pw.Document(theme: await PdfFonts.theme());
     final logo = logoBytes != null ? pw.MemoryImage(logoBytes) : null;
 
     doc.addPage(
@@ -155,7 +156,7 @@ class ReportPdfService {
                     ),
                   ),
                   pw.Text(
-                    'Rapport Financier & Bilan d\'Activité',
+                    'Rapport de la boutique',
                     style: const pw.TextStyle(fontSize: 9.5, color: _gold),
                   ),
                 ],
@@ -283,16 +284,17 @@ class ReportPdfService {
           ),
 
           // Section 1: Financial Details
-          _sectionHeader('1. Ventilation Financière & Résultat Net'),
-          _financialRow('Revenus — Commandes sur mesure livrées', formatFcfa(r.ordersRevenue), isSub: true),
-          _financialRow('Revenus — Ventes boutique & prêt-à-porter', formatFcfa(r.salesRevenue), isSub: true),
+          _sectionHeader('1. L\'argent de la boutique'),
+          _financialRow('Argent reçu — commandes des clients', formatFcfa(r.ordersRevenue), isSub: true),
+          _financialRow('Argent reçu — ventes en boutique', formatFcfa(r.salesRevenue), isSub: true),
+          _financialRow('Argent reçu — ventes en gros', formatFcfa(r.wholesaleRevenue), isSub: true),
           _financialRow('TOTAL DES REVENUS (CHIFFRE D\'AFFAIRES)', formatFcfa(r.totalRevenue), bold: true, color: _teal),
           pw.SizedBox(height: 6),
-          _financialRow('Coût des marchandises vendues (Achats/Matières)', formatFcfa(r.cogs), isSub: true),
+          _financialRow('Achat de la marchandise vendue', formatFcfa(r.cogs), isSub: true),
           _financialRow('Main d\'œuvre couture (Rémunération à la pièce)', formatFcfa(r.tailorWages), isSub: true),
-          _financialRow('Salaires fixes du personnel', formatFcfa(r.salaries), isSub: true),
+          _financialRow('Salaires du personnel', formatFcfa(r.salaries), isSub: true),
           _financialRow('Dépenses & Frais d\'exploitation du salon', formatFcfa(r.expenses), isSub: true),
-          _financialRow('TOTAL DES DÉPENSES & COÛTS OPÉRATIONNELS', formatFcfa(r.totalCosts), bold: true, color: const PdfColor.fromInt(0xFFC5221F)),
+          _financialRow('TOTAL DE L\'ARGENT SORTI', formatFcfa(r.totalCosts), bold: true, color: const PdfColor.fromInt(0xFFC5221F)),
           pw.SizedBox(height: 6),
           pw.Container(
             padding: const pw.EdgeInsets.all(8),
@@ -303,7 +305,7 @@ class ReportPdfService {
             child: pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('RÉSULTAT NET DE L\'EXERCICE :',
+                pw.Text('CE QUI RESTE À LA BOUTIQUE :',
                     style: const pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _teal)),
                 pw.Text(
                   formatFcfa(r.netProfit),
@@ -318,15 +320,15 @@ class ReportPdfService {
           ),
 
           // Section 2: Activity Indicators
-          _sectionHeader('2. Indicateurs d\'Activité & Performance'),
+          _sectionHeader('2. Le travail de la période'),
           pw.Row(
             children: [
               pw.Expanded(
                 child: pw.Column(
                   children: [
-                    _financialRow('Nouveaux clients enregistrés', '${r.newClients}', isSub: true),
-                    _financialRow('Clients servis (commandes livrées)', '${r.servedClients}', isSub: true),
-                    _financialRow('Articles prêt-à-porter vendus', '${r.productsSoldUnits}', isSub: true),
+                    _financialRow('Nouveaux clients', '${r.newClients}', isSub: true),
+                    _financialRow('Clients servis', '${r.servedClients}', isSub: true),
+                    _financialRow('Articles vendus', '${r.productsSoldUnits}', isSub: true),
                   ],
                 ),
               ),

@@ -18,14 +18,12 @@ class ShopSettingsProvider extends ChangeNotifier {
 
   String _shopName = const String.fromEnvironment('APP_NAME', defaultValue: '');
   String? _logoUrl;
-  int _defaultPieceRate = 0;
   String _promoGroupLink = '';
   String _themeColorHex = '#006D6D';
   bool _loaded = false;
 
   String get shopName => _shopName;
   String? get logoUrl => _logoUrl;
-  int get defaultPieceRate => _defaultPieceRate;
   String get promoGroupLink => _promoGroupLink;
   bool get loaded => _loaded;
 
@@ -82,16 +80,6 @@ class ShopSettingsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchPrivateSettings() async {
-    try {
-      final private = await _repo.privateSettings();
-      _defaultPieceRate = (private['default_piece_rate'] as num?)?.toInt() ?? 0;
-      notifyListeners();
-    } catch (_) {
-      // Échec du chargement des réglages privés
-    }
-  }
-
   Future<bool> updateShopName(String name) async {
     try {
       await _repo.updateSettings(shopName: name);
@@ -111,17 +99,6 @@ class ShopSettingsProvider extends ChangeNotifier {
       _logoUrl = logoUrl;
       notifyListeners();
       _updateWebTab();
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<bool> updateDefaultPieceRate(int rate) async {
-    try {
-      await _repo.updateSettings(defaultPieceRate: rate);
-      _defaultPieceRate = rate;
-      notifyListeners();
       return true;
     } catch (_) {
       return false;

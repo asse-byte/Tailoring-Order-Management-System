@@ -6,7 +6,9 @@ class FinanceSummary {
   final int monthsCounted;
   final int salesRevenue;
   final int ordersRevenue;
+  final int wholesaleRevenue;
   final int totalRevenue;
+  final int costOfGoodsSold;
   final int tailorWages;
   final int salaries;
   final int expenses;
@@ -19,7 +21,9 @@ class FinanceSummary {
     required this.monthsCounted,
     required this.salesRevenue,
     required this.ordersRevenue,
+    required this.wholesaleRevenue,
     required this.totalRevenue,
+    required this.costOfGoodsSold,
     required this.tailorWages,
     required this.salaries,
     required this.expenses,
@@ -36,7 +40,12 @@ class FinanceSummary {
       monthsCounted: (json['months_counted'] as num?)?.toInt() ?? 1,
       salesRevenue: (rev['sales'] as num?)?.toInt() ?? 0,
       ordersRevenue: (rev['orders'] as num?)?.toInt() ?? 0,
+      wholesaleRevenue: (rev['wholesale'] as num?)?.toInt() ?? 0,
       totalRevenue: (rev['total'] as num?)?.toInt() ?? 0,
+      // Cost of the goods sold. It was missing from this model entirely, so the
+      // cost rows on screen (wages + salaries + expenses) never added up to the
+      // "total des dépenses" the same screen printed underneath them.
+      costOfGoodsSold: (cos['cost_of_goods_sold'] as num?)?.toInt() ?? 0,
       tailorWages: (cos['tailor_wages'] as num?)?.toInt() ?? 0,
       salaries: (cos['salaries'] as num?)?.toInt() ?? 0,
       expenses: (cos['expenses'] as num?)?.toInt() ?? 0,

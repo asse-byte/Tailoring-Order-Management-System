@@ -268,5 +268,4 @@ CREATE TABLE settings (
 
 INSERT INTO settings (key, value, is_public) VALUES
   ('shop_name',          '"Rayan Couture"', true),
-  ('logo_url',           'null',           true),
-  ('default_piece_rate', '0',              false);
+  ('logo_url',           'null',           true);

@@ -59,14 +59,12 @@ class SettingsRepository {
   Future<void> updateSettings({
     String? shopName,
     String? logoUrl,
-    int? defaultPieceRate,
     String? promoGroupLink,
     String? themeColor,
   }) async {
     await _api.put('/api/settings/private', body: {
       if (shopName != null && shopName.isNotEmpty) 'shop_name': shopName,
       if (logoUrl != null) 'logo_url': logoUrl,
-      if (defaultPieceRate != null) 'default_piece_rate': defaultPieceRate,
       if (promoGroupLink != null) 'promo_group_link': promoGroupLink,
       if (themeColor != null) 'theme_color': themeColor,
     });

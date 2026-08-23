@@ -27,11 +27,6 @@ privateRouter.put('/', asyncH(async (req, res) => {
   if (req.body.logo_url !== undefined) {
     updates.push(['logo_url', JSON.stringify(str(req.body.logo_url))]);
   }
-  if (req.body.default_piece_rate !== undefined) {
-    const rate = intOrNull(req.body.default_piece_rate);
-    if (rate == null) return res.status(400).json({ error: 'default_piece_rate invalide.' });
-    updates.push(['default_piece_rate', JSON.stringify(rate)]);
-  }
   if (req.body.promo_group_link !== undefined) {
     updates.push(['promo_group_link', JSON.stringify(str(req.body.promo_group_link) || '')]);
   }

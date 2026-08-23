@@ -320,7 +320,7 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                             : () async {
                                 final name = nameCtrl.text.trim();
                                 if (name.isEmpty) {
-                                  _toast('Veuillez saisir un nom pour le modèle.', error: true);
+                                  _toast('Écrivez le nom du modèle.', error: true);
                                   return;
                                 }
                                 setSheetState(() => saving = true);
@@ -447,24 +447,15 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              if (m.fabricType.isNotEmpty)
-                Chip(
-                  avatar: const Icon(Icons.texture_rounded, size: 16, color: AppColors.primary),
-                  label: Text('Tissu: ${m.fabricType}'),
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                ),
-              const SizedBox(height: 15),
-              if (m.description != null && m.description!.isNotEmpty) ...[
-                Text('Description', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text(m.description!, style: TextStyle(color: Colors.grey.shade700, height: 1.4)),
-                const SizedBox(height: 20),
-              ],
+              // Deliberately nothing else here. The shop owner holds this open
+              // in front of a customer, so the garment, its name and its price
+              // are the whole message; the fabric chip and the description
+              // paragraph only pushed the photos down the screen.
+              const SizedBox(height: 18),
 
               // Showcase All Photos & Videos
               if (m.media.isNotEmpty) ...[
-                Text('Galerie du modèle (${m.media.length})', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                Text('Photos et vidéos (${m.media.length})', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
                 SizedBox(
                   height: 110,
@@ -655,96 +646,152 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                               ),
                             )
                           : GridView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                childAspectRatio: 0.75,
+                              padding: const EdgeInsets.fromLTRB(14, 8, 14, 20),
+                              gridDelegate:
+                                  const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 260,
+                                childAspectRatio: 0.70,
                                 crossAxisSpacing: 14,
                                 mainAxisSpacing: 14,
                               ),
                               itemCount: _filteredModels.length,
-                              itemBuilder: (ctx, idx) {
-                                final m = _filteredModels[idx];
-                                final hasImg = m.media.any((x) => x.kind == 'image');
-                                final imgUrl = hasImg ? m.media.firstWhere((x) => x.kind == 'image').url : '';
-                                final resolvedImg = imgUrl.isNotEmpty
-                                    ? (imgUrl.startsWith('http') ? imgUrl : '${ApiClient.baseUrl}$imgUrl')
-                                    : '';
-
-                                return Card(
-                                  elevation: 3,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                                  clipBehavior: Clip.antiAlias,
-                                  child: InkWell(
-                                    onTap: () => _viewModelShowcase(m),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(
-                                          child: Stack(
-                                            fit: StackFit.expand,
-                                            children: [
-                                              if (resolvedImg.isNotEmpty)
-                                                CachedNetworkImage(
-                                                  imageUrl: resolvedImg,
-                                                  fit: BoxFit.cover,
-                                                  placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
-                                                  errorWidget: (_, __, ___) => const Icon(Icons.broken_image, size: 40),
-                                                )
-                                              else
-                                                Container(
-                                                  color: AppColors.primary.withValues(alpha: 0.1),
-                                                  child: const Icon(Icons.checkroom_rounded, size: 48, color: AppColors.primary),
-                                                ),
-                                              Positioned(
-                                                top: 8,
-                                                right: 8,
-                                                child: Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.black.withValues(alpha: 0.65),
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                  child: Text(
-                                                    formatFcfa(m.price.toInt()),
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 11,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.all(10),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                m.name,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                m.fabricType.isNotEmpty ? m.fabricType : 'Modèle sur mesure',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
+                              itemBuilder: (ctx, idx) =>
+                                  _AlbumTile(
+                                model: _filteredModels[idx],
+                                onTap: () =>
+                                    _viewModelShowcase(_filteredModels[idx]),
+                              ),
                             ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One model in the album.
+///
+/// This page is held up to a customer standing in the shop, so the garment is
+/// the whole point: the photo fills the tile edge to edge and the only words on
+/// it are the model's name and its price, sitting quietly on a dark fade at the
+/// bottom. Everything else the screen used to print here — the fabric type, the
+/// "Modèle sur mesure" filler — was noise competing with the picture.
+class _AlbumTile extends StatelessWidget {
+  const _AlbumTile({required this.model, required this.onTap});
+
+  final PretAPorterModel model;
+  final VoidCallback onTap;
+
+  ModelMedia? get _cover {
+    for (final ModelMedia m in model.media) {
+      if (m.kind == 'image') return m;
+    }
+    return model.media.isNotEmpty ? model.media.first : null;
+  }
+
+  bool get _hasVideo => model.media.any((ModelMedia m) => m.kind == 'video');
+
+  @override
+  Widget build(BuildContext context) {
+    final ModelMedia? cover = _cover;
+    final String raw = cover?.thumbUrl ?? cover?.url ?? '';
+    final String url = raw.isEmpty
+        ? ''
+        : (raw.startsWith('http') ? raw : '${ApiClient.baseUrl}$raw');
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: AppColors.primary.withValues(alpha: 0.06),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            if (url.isNotEmpty)
+              CachedNetworkImage(
+                imageUrl: url,
+                fit: BoxFit.cover,
+                fadeInDuration: const Duration(milliseconds: 200),
+                placeholder: (_, __) => const ColoredBox(
+                  color: Color(0x11000000),
+                ),
+                errorWidget: (_, __, ___) => const Icon(
+                    Icons.checkroom_rounded,
+                    size: 48,
+                    color: AppColors.primary),
+              )
+            else
+              const Center(
+                child: Icon(Icons.checkroom_rounded,
+                    size: 52, color: AppColors.primary),
+              ),
+
+            // A soft fade so the caption stays readable over a bright fabric
+            // without putting a solid bar across the garment.
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.center,
+                  colors: <Color>[Color(0xCC000000), Color(0x00000000)],
+                ),
+              ),
+            ),
+
+            if (_hasVideo)
+              const Positioned(
+                top: 10,
+                right: 10,
+                child: CircleAvatar(
+                  radius: 15,
+                  backgroundColor: Color(0x66000000),
+                  child: Icon(Icons.play_arrow_rounded,
+                      color: Colors.white, size: 20),
+                ),
+              ),
+
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    model.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    formatFcfa(model.price.toInt()),
+                    style: const TextStyle(
+                      color: Color(0xFFE8C766),
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

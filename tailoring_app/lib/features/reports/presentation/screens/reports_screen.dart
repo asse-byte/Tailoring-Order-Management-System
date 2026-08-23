@@ -209,20 +209,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
           // Headline KPIs.
           Row(children: <Widget>[
             Expanded(
-                child: _kpi('Revenu total', formatFcfa(r.totalRevenue),
+                child: _kpi('Argent reçu', formatFcfa(r.totalRevenue),
                     AppColors.primary, Icons.trending_up_rounded)),
             const SizedBox(width: 10),
             Expanded(
-                child: _kpi('Bénéfice net', formatFcfa(r.netProfit),
+                child: _kpi('Ce qui reste', formatFcfa(r.netProfit),
                     r.netProfit >= 0 ? AppColors.success : AppColors.error,
                     Icons.account_balance_wallet_rounded)),
           ]),
           const SizedBox(height: 10),
-          _kpi('Coûts totaux', formatFcfa(r.totalCosts), AppColors.warning,
+          _kpi('Argent sorti', formatFcfa(r.totalCosts), AppColors.warning,
               Icons.payments_rounded),
 
           const SizedBox(height: 20),
-          const _SectionTitle('Activité'),
+          const _SectionTitle('Le travail de la période'),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -235,26 +235,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
               _stat('Clients servis', '${r.servedClients}', Icons.how_to_reg_rounded),
               _stat('Commandes livrées', '${r.ordersDelivered}', Icons.check_circle_rounded),
               _stat('Commandes créées', '${r.ordersCreated}', Icons.add_box_rounded),
-              _stat('En cours (actuel)', '${r.ordersActive}', Icons.timelapse_rounded),
+              _stat('Commandes en cours', '${r.ordersActive}', Icons.timelapse_rounded),
               _stat('Produits vendus', '${r.productsSoldUnits}', Icons.shopping_bag_rounded),
             ],
           ),
 
           const SizedBox(height: 20),
-          const _SectionTitle('Détail des coûts'),
-          _line('Marchandises vendues (COGS)', r.cogs),
-          _line('Main d\'œuvre couture', r.tailorWages),
-          _line('Salaires mensuels (prorata)', r.salaries),
-          _line('Dépenses', r.expenses),
+          const _SectionTitle('Ce que la boutique a dépensé'),
+          _line('Achat de la marchandise vendue', r.cogs),
+          _line('Paie des couturiers', r.tailorWages),
+          _line('Salaires du personnel', r.salaries),
+          _line('Autres dépenses', r.expenses),
 
           const SizedBox(height: 20),
-          const _SectionTitle('Revenus'),
-          _line('Ventes produits / prêt-à-porter', r.salesRevenue),
-          _line('Commandes livrées', r.ordersRevenue),
+          const _SectionTitle('Ce que la boutique a encaissé'),
+          _line('Ventes en boutique', r.salesRevenue),
+          _line('Commandes des clients', r.ordersRevenue),
+          _line('Ventes en gros', r.wholesaleRevenue),
 
           if (r.topTailors.isNotEmpty) ...<Widget>[
             const SizedBox(height: 20),
-            const _SectionTitle('Classement des tailleurs'),
+            const _SectionTitle('Les meilleurs couturiers'),
             ...List.generate(r.topTailors.length, (i) {
               final t = r.topTailors[i];
               final medal = i == 0

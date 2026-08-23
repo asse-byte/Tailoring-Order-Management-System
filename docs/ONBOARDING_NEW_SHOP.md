@@ -18,7 +18,6 @@ simple et le plus sûr tant qu'on reste sur un nombre raisonnable de salons.
 | --- | --- |
 | Nom du salon (écran de login + factures) | `SHOP_NAME` au setup, puis Paramètres |
 | Logo (login + PDF de facture) | Paramètres → upload, ou `tailoring_app/assets/logo.jpeg` avant de builder |
-| Tarif à la pièce par défaut | `DEFAULT_PIECE_RATE`, puis Paramètres |
 | Lien du groupe promo (facture/WhatsApp) | `PROMO_GROUP_LINK`, puis Paramètres |
 | Comptes Gérant + Secrétaire | variables `SEED_*` |
 
@@ -76,7 +75,6 @@ configurer la copie hors-site dans `scripts/backup.sh`.
    SEED_MANAGER_USERNAME=…      SEED_MANAGER_PASSWORD=…
    SEED_SECRETARY_USERNAME=…    SEED_SECRETARY_PASSWORD=…
    SHOP_NAME=Atelier Diallo
-   DEFAULT_PIECE_RATE=1500
    PROMO_GROUP_LINK=https://chat.whatsapp.com/…
    ```
    > `JWT_SECRET` doit être différent pour chaque salon.

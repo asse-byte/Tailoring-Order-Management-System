@@ -278,7 +278,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_useExisting && _selectedClient == null) {
-      _toast('Veuillez sélectionner un client.', error: true);
+      _toast('Choisissez un client.', error: true);
       return;
     }
     // Build & validate the line items.
@@ -808,7 +808,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                 ),
               ),
               const SizedBox(height: 12),
-              Text('Sélectionner un client',
+              Text('Choisir un client',
                   style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 12),
               TextField(

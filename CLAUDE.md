@@ -33,7 +33,7 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
      stripped from her reads, ignored on her writes, and any staff-pay route for a
      non-couturier returns 403 to her.
      Still MANAGER-ONLY: monthly salaries, `/api/salary-payments`,
-     `/api/finance`, `/api/reports`, `/api/expenses`, `GET /api/sales`,
+     `/api/finance`, `/api/reports`, `/api/expenses`,
      product/model `cost_price` + `/stats`, `/api/settings/private`, `/api/users`.
      - `GET /api/staff/:id/all-time-summary` (added 2026-08-14) is both-roles and
        follows exactly the same split: the secretary gets the piece-work side
@@ -45,6 +45,39 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
        they carry the day's cash and the outstanding client debt. The Flutter
        dashboard therefore renders its KPI strip for the manager only, and
        `/admin/unpaid-orders` is in the router's manager-only list.
+   - **SALES are the secretary's to read and correct (owner decision
+     2026-08-23):** she stands at the counter, so finding a sale she made and
+     fixing it had to be hers — the old write-only pattern meant a mistyped
+     quantity waited for the manager. `GET /api/sales`, `GET
+     /api/sales/receipts`, `GET /api/sales/receipts/:id` and
+     `POST /api/sales/:id/corrections` are all both-roles.
+     **What was NOT relaxed is the purchase cost.** `withoutCost()` in
+     `sales.js` strips `unit_cost` and `cost_total` from every sale row leaving
+     the server, so she sees what the shop took and never what it paid — the
+     margin stays manager-only, as do `/stats` and `cost_price` everywhere else.
+     `GET /api/sales` was opened alongside the receipts on purpose: it is the
+     same rows in a different shape, and leaving it shut would have protected
+     nothing while inviting a future session to "fix" the inconsistency the
+     wrong way. Corrections still require a reason and record `corrected_by`,
+     which is what this exception rests on.
+   - **ORDERS are fully the secretary's, cancellation included (owner decision
+     2026-08-23):** she already created and edited orders (`POST`/`PUT
+     /api/orders` have always been both-roles, `advance` included). Cancelling
+     was the one manager-only verb left, and since she is the one who takes the
+     orders at the counter, routing every cancellation through the manager was
+     the same unworkable detour as the tailor schedule. `DELETE /api/orders/:id`
+     is therefore both-roles.
+     **This is a conscious exception to rule 1** — an order carries prices and
+     collected cash — and it stands ONLY because it is auditable:
+     `orders.cancelled_by` (migration 025) records the exact user next to
+     `cancelled_at` and `cancel_reason`, exactly like `entry_corrections.
+     corrected_by` on the tailor schedule. Cancelling stays a status change to
+     `annule`, never a hard delete: line items, their corrections, the cash
+     collected and the tailor's entries all survive untouched, and the money
+     already received stays counted as revenue on the day it came in
+     (reimbursing is a separate, explicit payment void with a reason).
+     Do NOT "fix" this back to manager-only — it is the owner's decision, proven
+     by the audit-trail tests in `backend/tests/order_payments.test.js`.
    - **Secretary CRUD on master data (owner decision 2026-07-19, "interpretation
      A"):** the secretary MAY fully manage the roster/catalog on four pages —
      Tailleurs, Staff mensuel, Prêt-à-porter, Produits (create/edit/delete the
@@ -65,11 +98,19 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
 1. Clients — CRUD, instant debounced search (name/phone), flexible
    measurements per garment type (key-value/JSON, not fixed columns),
    per-client order history.
-2. Produits — categories: Parfums / Chaussures / Tissus; price, stock,
-   images; sale decrements stock and records revenue in Finances.
+2. Produits — the shop's OWN list of types (`product_categories`, migration
+   026): Parfums / Chaussures / Tissus / Montres / Bonnets are only the seed,
+   and the manager adds, renames and reorders types from inside the app.
+   **Never reintroduce a hardcoded category list or a CHECK on
+   `products.category`** — it is a FK to `product_categories.slug` now, and the
+   whole point is that adding a type needs no code change. A type still holding
+   products refuses deletion (409) rather than orphaning them.
+   Price, stock, images; a sale decrements stock and records revenue in
+   Finances.
 3. Staff / Personnel — two distinct types:
    - **Couturiers principaux**: per-piece pay. Manager **or secretary** sets
-     `piece_rate` (per tailor, per entry, or default) and enters the daily
+     `piece_rate` (per tailor, or per entry — the shop-wide default was removed
+     on the owner's instruction, migration 027) and enters the daily
      pieces count; system computes daily amount and weekly totals (paid
      weekly). Daily entries are immutable history — never deleted after week
      close (corrections only).
@@ -349,13 +390,33 @@ clients. Fixed + regression test ("secretary DELETE /clients → 403").
   history (who, when, from→to, why). When adding a new financial
   table, add its triggers, correction table, effective view and
   append-only tests in the same commit.
+- **One trip to the till is ONE receipt** (`sale_receipts`, migration 026).
+  A customer buying two ready-to-wear pieces, a cap, shoes, a perfume and a
+  watch used to produce six unrelated `sales` rows attached to nobody, with no
+  way to print a single invoice. `POST /api/sales/receipts` takes the optional
+  client + every line and sells them in ONE transaction: one bad line (bad
+  stock, unknown item) aborts the whole basket, because the earlier lines have
+  already taken stock off the shelf.
+  **`db.withTransaction` only rolls back on a THROWN error** — returning an
+  error object commits whatever was written first. Any handler that writes
+  before it can fail must throw, not return. This bit the receipt route and is
+  a trap for every future multi-write route.
+  Creating a receipt is both-roles (the secretary is at the counter, and she
+  gets the lines + total back so she can hand over the invoice, minus
+  `unit_cost`). Reading receipts back is **both-roles** since the owner's
+  decision of 2026-08-23 (see rule 2) — with the purchase cost stripped.
+  The header is append-only like every financial row; a receipt changes by
+  correcting its lines through the existing `sale_corrections` path, which
+  already puts stock back.
 - **Sales are atomic and server-priced**: `POST /api/sales` reads the
   price from the DB, computes the total server-side, and decrements
   stock in the same transaction (`quantity >= qty` guard). The client
-  never sends prices. Secretary can create sales but `GET /api/sales`
-  is manager-only (write-only pattern). Sale corrections (qty fix or
-  void, manager-only) adjust product stock by the delta in the same
-  transaction.
+  never sends prices. Both roles create, read and correct sales
+  (owner decision 2026-08-23 — the write-only pattern is gone), but every
+  sale row is stripped of `unit_cost`/`cost_total` on the way out by
+  `withoutCost()`. Sale corrections (qty fix or void) adjust product stock
+  by the delta in the same transaction and always carry a reason +
+  `corrected_by`.
 - **Customer role removed** from the Flutter app: no self-registration,
   no customer-facing screens. Clients are plain DB records.
 - The 29 Firestore-rules guarantees were ported 1:1 to API integration
@@ -367,6 +428,64 @@ clients. Fixed + regression test ("secretary DELETE /clients → 403").
   `settings` split into public rows (shop name/logo, readable without
   auth for the login screen) and private rows (manager-only).
 - Flutter app data layer runs entirely on the REST API. All Firebase SDK dependencies, Firebase configurations, cloud functions, and local mock database files have been completely cleaned up.
+
+## Full financial audit (2026-08-23) — four money bugs found and fixed
+
+The owner reported that "Rapport et statistique" did not match reality. Every
+money formula in the app was re-derived by hand and pinned to a test in
+`backend/tests/finance_audit.test.js`. Four real bugs were found, all of the
+same family as the COGS bug (item 5) and the delivery-cash bug (Antigravity
+review): **money that is never counted, or a past period whose figures change
+under your feet.** Migration 024.
+
+1. **Weekly-paid staff cost nothing.** Migration 014 added
+   `staff_pay.weekly_salary` + `pay_frequency = 'hebdo'`, but the finance and
+   reports queries summed `monthly_salary` only, so a weekly employee's wages
+   reached **no cost total at all**. Net profit was OVERSTATED by the entire
+   weekly payroll from commit `d6d608f` (2026-08-03) until this fix. Weekly
+   staff are now prorated at 7 days = one weekly salary.
+2. **Wholesale revenue was invisible.** `wholesale_orders` /
+   `wholesale_payments` are a real revenue stream (bulk sales to merchants) and
+   **nothing in finance or reports ever read them**. On top of that
+   `advance_amount` was a bare column with no dated payment row, so that cash
+   could not be attributed to any period even in principle — and `reste`
+   subtracted it a second time on top of the payments. Net profit was
+   UNDERSTATED by all wholesale cash. Migration 024 turns every advance
+   (wholesale AND supplier) into an ordinary dated payment row; the routes now
+   write one at creation, and `advance_amount` is no longer editable through
+   `PUT` (cash is append-only — correct the payment instead).
+3. **Editing an order's advance after delivery erased the delivery payment.**
+   `correctCollectedDown(tx, orderId, advance, …)` passed the new *advance* as
+   the target for the order's *total* collected cash. Identical before
+   delivery, catastrophic after it: on a 100 000 order with a 20 000 advance
+   delivered and settled in full, correcting the advance to 10 000 collapsed
+   total collected from 100 000 to 10 000 — **80 000 of revenue deleted and a
+   settled order turned into a 90 000 client debt**. It now reduces BY the
+   difference (`correctCollectedBy`), never DOWN TO an absolute figure.
+4. **Cost of goods sold was read live from the catalogue.** COGS joined
+   `products.cost_price` / `pret_a_porter_models.cost_price` at report time, so
+   updating a cost price today silently rewrote the profit of **every past
+   period that item had ever been sold in**. `sales.unit_cost` now freezes the
+   purchase cost onto the row at sale time (migration 024 backfills history from
+   the current cost price, so today's figures do not jump — they simply stop
+   moving), and `sales_effective.cost_total` is what every COGS sum reads.
+
+Two structural fixes came with them:
+
+- **`src/finance/queries.js` is now the single source of every money figure.**
+  `/api/finance/summary` and `/api/reports/summary` each carried their own copy
+  of the eight queries and had already drifted — which is exactly why one screen
+  showed a different number from the other for the same period. Both now call
+  `financeTotals(db, from, to)`. **Never re-inline a money query into a route.**
+- **The Flutter `FinanceSummary` had no `cost_of_goods_sold` field**, so the
+  cost lines the Finances screen listed (salaries + wages + expenses) never
+  added up to the "total" printed directly beneath them. Both it and the new
+  `revenue.wholesale` are now modelled and displayed.
+
+Kept deliberately: payroll is charged as `max(accrued, actually disbursed)` for
+the window, and the accrual uses the CURRENT roster. A historical report
+therefore reflects today's staff list. That is a known limitation, not an
+oversight — versioning the roster is a bigger change than this audit.
 
 ## Known accepted risks (audit 2026-08-13)
 

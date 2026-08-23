@@ -251,7 +251,7 @@ effective views.
 | Method | Path | Notes |
 | --- | --- | --- |
 | `GET` | `/api/settings/private` | All settings (public + private). |
-| `PUT` | `/api/settings/private` | Body may include `shop_name`, `logo_url`, `default_piece_rate`, `promo_group_link`, `theme_color` (`#RRGGBB`). |
+| `PUT` | `/api/settings/private` | Body may include `shop_name`, `logo_url`, `promo_group_link`, `theme_color` (`#RRGGBB`). |
 
 ### Users — `/api/users`
 | Method | Path | Notes |

@@ -51,7 +51,6 @@ app.mondomaine.com   A   <IP_DU_VPS>
    SEED_MANAGER_USERNAME=gerant     SEED_MANAGER_PASSWORD=<fort>
    SEED_SECRETARY_USERNAME=secretaire SEED_SECRETARY_PASSWORD=<fort>
    SHOP_NAME=Rayan Couture
-   DEFAULT_PIECE_RATE=0
    PROMO_GROUP_LINK=
    ```
 4. Démarrez, puis provisionnez le salon :

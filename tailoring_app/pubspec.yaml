@@ -59,3 +59,29 @@ flutter:
   # bundled logo would ship one customer's branding to all the others. The
   # logo is fetched per shop from the settings `logo_url`, with the neutral
   # initial placeholder when a shop has not uploaded one.
+  #
+  # These fonts ARE bundled, and must stay bundled. Every PDF the app produces
+  # (facture, reçu, rapport) used the pdf package's built-in Helvetica, which
+  # has no Unicode support: "—", "’" and "œ" could not be drawn at all, so
+  # "Main d'œuvre" and every "Revenus — ..." line came out with holes in them.
+  # They are loaded from these assets, never fetched from Google at runtime —
+  # the shops work offline and an invoice must never depend on the network.
+  # Poppins is the app's UI face. It used to be pulled from Google at runtime by
+  # the google_fonts package on first launch: a shop in Mali with no connection
+  # silently got the system font instead, so the app looked different from the
+  # one that was designed. Bundling it (and turning runtime fetching off in
+  # main.dart) makes every launch identical and offline-safe. google_fonts
+  # matches these by filename, so the names must stay exactly as they are.
+  assets:
+    - assets/fonts/
+    - assets/google_fonts/
+  fonts:
+    - family: Lato
+      fonts:
+        - asset: assets/fonts/Lato-Regular.ttf
+        - asset: assets/fonts/Lato-Bold.ttf
+          weight: 700
+    - family: CormorantGaramond
+      fonts:
+        - asset: assets/fonts/CormorantGaramond-SemiBold.ttf
+          weight: 600

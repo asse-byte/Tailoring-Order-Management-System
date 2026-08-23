@@ -21,20 +21,22 @@ router.post('/', asyncH(async (req, res) => {
   if (!tailorId || piecesCount == null || !entryDate) {
     return res.status(400).json({ error: 'tailor_id, entry_date et pieces_count requis.' });
   }
-  // Rate priority: explicit per-entry rate → per-tailor rate → shop default.
-  // Snapshotted on the row so later rate changes never rewrite past wages.
+  // Rate priority: explicit per-entry rate → the tailor's own rate.
+  // The shop-wide default was removed on the owner's instruction (migration
+  // 027): it was seeded at 0 and a rate of 0 is rejected below, so it never
+  // actually fired, and a wage silently falling back to a number nobody
+  // remembers setting is worse than being told to set one.
+  // The chosen rate is snapshotted on the row, so later rate changes never
+  // rewrite past wages.
   let rate = bodyRate;
   if (rate == null) {
     const { rows: rateRows } = await db.query(
-      `SELECT COALESCE(
-         (SELECT piece_rate FROM staff_pay WHERE staff_id = $1),
-         (SELECT (value #>> '{}')::int FROM settings WHERE key = 'default_piece_rate')
-       ) AS rate`, [tailorId]);
-    rate = rateRows[0].rate;
+      'SELECT piece_rate AS rate FROM staff_pay WHERE staff_id = $1', [tailorId]);
+    rate = rateRows[0] ? rateRows[0].rate : null;
   }
   if (rate == null || rate <= 0) {
     return res.status(400).json({
-      error: 'Aucun prix par pièce défini pour ce couturier (ni de valeur par défaut).',
+      error: 'Ce couturier n’a pas de prix par pièce. Indiquez-le d’abord.',
     });
   }
   // Optional descriptive fields (item 6). When an order is linked the client

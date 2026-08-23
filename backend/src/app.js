@@ -5,6 +5,7 @@ const { authenticate, managerOnly, staffOnly } = require('./middleware/auth');
 const authRouter = require('./routes/auth');
 const clientsRouter = require('./routes/clients');
 const productsRouter = require('./routes/products');
+const productCategoriesRouter = require('./routes/productCategories');
 const salesRouter = require('./routes/sales');
 const staffRouter = require('./routes/staff');
 const staffPayRouter = require('./routes/staffPay');
@@ -86,6 +87,7 @@ function createApp() {
   app.use('/api/orders', staffOnly, ordersRouter);            // DELETE: manager (in router)
   app.use('/api/appointments', staffOnly, appointmentsRouter);
   app.use('/api/products', staffOnly, productsRouter);        // CRUD both; cost_price + /stats manager-only
+  app.use('/api/product-categories', staffOnly, productCategoriesRouter); // read both; writes manager (in router)
   app.use('/api/pret-a-porter', staffOnly, pretAPorterRouter); // CRUD both; cost_price + /stats manager-only
   app.use('/api/sales', staffOnly, salesRouter);              // GET: manager (in router)
   app.use('/api/staff', staffOnly, staffRouter);              // CRUD both (roster; pay stays manager-only)

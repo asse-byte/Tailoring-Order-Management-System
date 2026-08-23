@@ -24,7 +24,6 @@ async function applyShopIdentity(databaseUrl, identity) {
   try {
     const rows = [
       ['shop_name', JSON.stringify(identity.shopName), true],
-      ['default_piece_rate', JSON.stringify(identity.defaultPieceRate), false],
       ['promo_group_link', JSON.stringify(identity.promoGroupLink), true],
     ];
     for (const [key, value, isPublic] of rows) {
@@ -63,7 +62,6 @@ async function setupShop(env) {
   console.log('3/3 writing shop identity…');
   await applyShopIdentity(env.DATABASE_URL, {
     shopName: env.SHOP_NAME,
-    defaultPieceRate: Number(env.DEFAULT_PIECE_RATE || 0),
     promoGroupLink: env.PROMO_GROUP_LINK || '',
   });
 

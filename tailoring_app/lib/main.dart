@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'core/localization/app_localizations.dart';
@@ -16,6 +17,13 @@ import 'features/settings/presentation/providers/shop_settings_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Use the Poppins files bundled in assets/google_fonts/ and never reach out
+  // to Google at runtime. Left on, the first launch on a shop's phone tried to
+  // download the font over the network: in Mali that often just fails, and the
+  // app quietly fell back to the system face, so it did not look like the app
+  // that was designed. Off, every launch is identical and works offline.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   await SystemChrome.setPreferredOrientations(
     <DeviceOrientation>[

@@ -97,7 +97,6 @@ keytool -genkey -v -keystore C:\keys\upload-keystore.jks -keyalg RSA -keysize 20
    JWT_SECRET=<عشوائي طويل — فريد لهذا المحل حصراً>
    API_PORT=3001                 ← منفذ فريد لكل محل (3002 للثاني…)
    SHOP_NAME=Rayan Couture
-   DEFAULT_PIECE_RATE=0
    PROMO_GROUP_LINK=
    SEED_MANAGER_USERNAME=gerant
    SEED_MANAGER_PASSWORD=<قوي مؤقت — يُغيَّر عند أول دخول>

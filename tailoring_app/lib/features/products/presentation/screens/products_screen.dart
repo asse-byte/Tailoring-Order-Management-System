@@ -12,7 +12,9 @@ import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/products_provider.dart';
+import '../../data/sales_repository.dart';
 import '../../domain/product.dart';
+import '../../domain/product_category.dart';
 import '../../data/products_repository.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 import '../../../orders/data/invoice_service.dart';
@@ -33,6 +35,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   void initState() {
     super.initState();
     _scrollCtrl.addListener(_onScroll);
+    _loadCategories();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<ProductsProvider>().loadProducts(clear: true);
@@ -47,23 +50,31 @@ class _ProductsScreenState extends State<ProductsScreen> {
     super.dispose();
   }
 
+  /// The shop's own product types. Fetched, never hardcoded: since migration
+  /// 026 the manager adds types (montres, bonnets, whatever else) from inside
+  /// the app, and a literal list here would silently hide them.
+  List<ProductCategory> _categories = <ProductCategory>[];
+
+  Future<void> _loadCategories() async {
+    try {
+      final List<ProductCategory> cats = await SalesRepository().listCategories();
+      if (mounted) setState(() => _categories = cats);
+    } catch (_) {/* the screen still lists products without the filter */}
+  }
+
   void _onScroll() {
     if (_scrollCtrl.position.pixels > _scrollCtrl.position.maxScrollExtent - 200) {
       context.read<ProductsProvider>().loadProducts();
     }
   }
 
+  /// The label the shop gave this type. Falls back to the raw slug for a type
+  /// that was deleted after a product kept pointing at it.
   String _mapCategoryToFrench(String cat) {
-    switch (cat) {
-      case 'parfum':
-        return 'Parfums';
-      case 'chaussure':
-        return 'Chaussures';
-      case 'tissu':
-        return 'Tissus';
-      default:
-        return cat;
+    for (final ProductCategory c in _categories) {
+      if (c.slug == cat) return c.label;
     }
+    return cat;
   }
 
   Future<void> _recordSale(Product product) async {
@@ -171,7 +182,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final bool isManager = !context.read<AuthProvider>().isSecretary;
     final formKey = GlobalKey<FormState>();
     String name = product?.name ?? '';
-    String category = product?.category ?? 'parfum';
+    String category = product?.category ??
+        (_categories.isNotEmpty ? _categories.first.slug : 'parfum');
     double price = product?.price ?? 0.0;
     double costPrice = product?.costPrice ?? 0.0;
     int quantity = product?.quantity ?? 0;
@@ -211,12 +223,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   DropdownButtonFormField<String>(
                     initialValue: category,
                     decoration: const InputDecoration(labelText: 'Catégorie'),
-                    items: const [
-                      DropdownMenuItem(value: 'parfum', child: Text('Parfums')),
-                      DropdownMenuItem(value: 'chaussure', child: Text('Chaussures')),
-                      DropdownMenuItem(value: 'tissu', child: Text('Tissus')),
+                    items: <DropdownMenuItem<String>>[
+                      for (final ProductCategory c in _categories)
+                        DropdownMenuItem<String>(
+                            value: c.slug, child: Text(c.label)),
                     ],
-                    onChanged: (v) => setDlgState(() => category = v ?? 'parfum'),
+                    onChanged: (v) => setDlgState(() => category = v ?? category),
                   ),
                   const SizedBox(height: 12),
                   FormattedNumberField(
@@ -491,7 +503,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Bénéfice/Perte total'),
+                                const Text('Gain total'),
                                 Text(
                                   formatFcfa(totalProfit),
                                   style: TextStyle(
@@ -587,11 +599,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   value: provider.category,
                   underline: const SizedBox(),
                   icon: const Icon(Icons.filter_alt_rounded, color: AppColors.primary),
-                  items: const [
-                    DropdownMenuItem(value: 'all', child: Text('Tout')),
-                    DropdownMenuItem(value: 'parfum', child: Text('Parfums')),
-                    DropdownMenuItem(value: 'chaussure', child: Text('Chaussures')),
-                    DropdownMenuItem(value: 'tissu', child: Text('Tissus')),
+                  items: <DropdownMenuItem<String>>[
+                    const DropdownMenuItem<String>(
+                        value: 'all', child: Text('Tout')),
+                    for (final ProductCategory c in _categories)
+                      DropdownMenuItem<String>(
+                          value: c.slug, child: Text(c.label)),
                   ],
                   onChanged: (v) {
                     if (v != null) {

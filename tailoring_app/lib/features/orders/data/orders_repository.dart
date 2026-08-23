@@ -149,5 +149,10 @@ class OrdersRepository {
     return TailoringOrder.fromJson(res as Map<String, dynamic>);
   }
 
-  Future<void> delete(String id) => _api.delete('/api/orders/$id');
+  /// Archive an order (status → 'annule'). Never a hard delete: the line
+  /// items, the cash collected and the tailor's entries all stay. [reason] is
+  /// stored with the order alongside who cancelled it (migration 025).
+  Future<void> cancel(String id, {String? reason}) =>
+      _api.delete('/api/orders/$id',
+          body: reason == null || reason.isEmpty ? null : {'reason': reason});
 }

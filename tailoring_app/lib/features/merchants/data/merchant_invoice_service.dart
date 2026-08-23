@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/utils/money.dart';
+import '../../../core/utils/pdf_fonts.dart';
 import '../domain/merchant_models.dart';
 
 class MerchantInvoiceService {
@@ -32,7 +33,7 @@ class MerchantInvoiceService {
     required WholesaleOrder order,
     Uint8List? logoBytes,
   }) async {
-    final doc = pw.Document();
+    final doc = pw.Document(theme: await PdfFonts.theme());
     final logo = logoBytes != null ? pw.MemoryImage(logoBytes) : null;
 
     doc.addPage(

@@ -27,6 +27,7 @@ class ReportSummary {
   final String to;
   final int salesRevenue;
   final int ordersRevenue;
+  final int wholesaleRevenue;
   final int totalRevenue;
   final int cogs;
   final int tailorWages;
@@ -47,6 +48,7 @@ class ReportSummary {
     required this.to,
     required this.salesRevenue,
     required this.ordersRevenue,
+    required this.wholesaleRevenue,
     required this.totalRevenue,
     required this.cogs,
     required this.tailorWages,
@@ -73,6 +75,7 @@ class ReportSummary {
       to: j['to'] as String,
       salesRevenue: rev['sales'] as int? ?? 0,
       ordersRevenue: rev['orders'] as int? ?? 0,
+      wholesaleRevenue: rev['wholesale'] as int? ?? 0,
       totalRevenue: rev['total'] as int? ?? 0,
       cogs: cost['cost_of_goods_sold'] as int? ?? 0,
       tailorWages: cost['tailor_wages'] as int? ?? 0,

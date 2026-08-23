@@ -285,12 +285,10 @@ class AppLocalizations {
       'history': 'History',
       'editShopName': 'Edit Shop Name',
       'editShopLogo': 'Change Logo',
-      'editDefaultPieceRate': 'Default Piece Rate',
       'shopSettings': 'Shop Settings',
       'shopNameLabel': 'Shop Name',
       'logoUploadedSuccess': 'Logo updated successfully',
       'logoUploadFailed': 'Logo upload failed',
-      'defaultPieceRateLabel': 'Default Piece Rate (FCFA)',
     },
     'fr': {
       // General
@@ -486,7 +484,7 @@ class AppLocalizations {
       'pendingCount': 'En attente',
       'inProgressCount': 'En cours',
       'completedCount': 'Terminé',
-      'recentActivity': 'Activité récente',
+      'recentActivity': 'Travail récent',
       'quickActions': 'Actions rapides',
       'addOrder': 'Ajouter commande',
       'viewAllOrders': 'Voir les commandes',
@@ -507,7 +505,7 @@ class AppLocalizations {
       'recipient': 'Destinataire',
       'allCustomers': 'Tous les clients',
       'specificCustomer': 'Client spécifique',
-      'selectRecipient': 'Sélectionner un client',
+      'selectRecipient': 'Choisir un client',
       'sendNotificationBtn': 'Envoyer la notification',
       'notificationSentSuccess': 'Notification envoyée avec succès',
       'inAppNotifications': 'Notifications in-app',
@@ -538,7 +536,7 @@ class AppLocalizations {
       'walkInOrder': 'Commande physique',
       'walkInSubtitle': 'Créer une commande sur place pour un client',
       'customer': 'Client',
-      'selectExistingCustomer': 'Sélectionner un client existant',
+      'selectExistingCustomer': 'Choisir un client existant',
       'createNewCustomer': 'Créer un nouveau client',
       'deliveryDateRequired': 'Veuillez choisir une date de livraison',
       'customerCreatedSuccess': 'Profil client créé',
@@ -571,12 +569,10 @@ class AppLocalizations {
       'history': 'Historiques',
       'editShopName': 'Modifier le nom de la boutique',
       'editShopLogo': 'Changer le logo',
-      'editDefaultPieceRate': 'Tarif par pièce par défaut',
       'shopSettings': 'Paramètres de la boutique',
       'shopNameLabel': 'Nom de la boutique',
       'logoUploadedSuccess': 'Logo mis à jour avec succès',
       'logoUploadFailed': 'Échec du téléversement du logo',
-      'defaultPieceRateLabel': 'Tarif par pièce par défaut (FCFA)',
 
       // Staff screen
       'newMember': 'Nouveau Membre',
@@ -623,7 +619,7 @@ class AppLocalizations {
       'tailorWages': 'Salaires des couturiers',
       'monthlyExpenses': 'Salaires fixes',
       'manualExpenses': 'Dépenses additionnelles',
-      'totalCosts': 'Coûts totaux',
+      'totalCosts': 'Argent sorti',
       'netProfit': 'Résultat net',
 
       // Common actions
@@ -926,12 +922,10 @@ class AppLocalizations {
   // Shop settings keys
   String get editShopName => translate('editShopName');
   String get editShopLogo => translate('editShopLogo');
-  String get editDefaultPieceRate => translate('editDefaultPieceRate');
   String get shopSettings => translate('shopSettings');
   String get shopNameLabel => translate('shopNameLabel');
   String get logoUploadedSuccess => translate('logoUploadedSuccess');
   String get logoUploadFailed => translate('logoUploadFailed');
-  String get defaultPieceRateLabel => translate('defaultPieceRateLabel');
 }
 
 class _AppLocalizationsDelegate
