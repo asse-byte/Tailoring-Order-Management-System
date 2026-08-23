@@ -1633,7 +1633,7 @@ class _StaffScreenState extends State<StaffScreen> {
                     Row(children: <Widget>[
                       const Icon(Icons.emoji_events_rounded, color: AppColors.accent),
                       const SizedBox(width: 8),
-                      Text('Classement des tailleurs',
+                      Text('Les meilleurs couturiers',
                           style: Theme.of(ctx).textTheme.titleLarge),
                     ]),
                     const SizedBox(height: 8),

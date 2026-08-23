@@ -549,7 +549,7 @@ class _ReadyToWearScreenState extends State<ReadyToWearScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Bénéfice/Perte total'),
+                            const Text('Gain total'),
                             Text(
                               formatFcfa(totalProfit),
                               style: TextStyle(

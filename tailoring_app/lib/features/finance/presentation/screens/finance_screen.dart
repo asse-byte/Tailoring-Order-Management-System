@@ -432,7 +432,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       if (_summary != null) ...[
                         // KPI cards
                         _buildKpiCard(
-                          title: 'Revenus Totaux',
+                          title: 'Argent reçu',
                           value: formatFcfa(_summary!.totalRevenue),
                           color: AppColors.success,
                           icon: Icons.trending_up_rounded,
@@ -442,7 +442,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         ),
                         const SizedBox(height: 16),
                         _buildKpiCard(
-                          title: 'Dépenses & Coûts',
+                          title: 'Argent sorti',
                           value: formatFcfa(_summary!.totalCosts),
                           color: AppColors.error,
                           icon: Icons.trending_down_rounded,
@@ -456,16 +456,16 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         ),
                         const SizedBox(height: 16),
                         _buildKpiCard(
-                          title: 'Bénéfice Net',
+                          title: 'Ce qui reste',
                           value: formatFcfa(_summary!.netProfit),
                           color: _summary!.netProfit >= 0 ? Colors.teal : AppColors.warning,
                           icon: Icons.account_balance_rounded,
-                          details: 'Indicateur de rentabilité nette sur la période.',
+                          details: 'L\'argent qui reste après toutes les dépenses.',
                         ),
                       ],
 
                       const SizedBox(height: 20),
-                      Text('Détail par catégorie',
+                      Text('Le détail',
                           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cTextPrimary)),
                       const SizedBox(height: 8),
                       _detailSection('Revenus — Commandes livrées',

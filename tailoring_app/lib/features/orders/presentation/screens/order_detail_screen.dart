@@ -165,7 +165,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       setState(() {});
       _toast(chosen == AppConstants.statusLivre
           ? 'Commande livrée — déplacée vers l\'Historique.'
-          : 'Statut mis à jour.');
+          : 'C\'est changé.');
 
       // Terminé → "your order is ready"; Livré → thank-you + balance note.
       // ASK FIRST: opening WhatsApp switches the user to another app, so doing
@@ -247,7 +247,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (order.reste > 0) {
       msg
         ..writeln()
-        ..writeln('Solde restant à régler : ${formatFcfa(order.reste)}.');
+        ..writeln('Reste à payer : ${formatFcfa(order.reste)}.');
     }
     msg
       ..writeln()
