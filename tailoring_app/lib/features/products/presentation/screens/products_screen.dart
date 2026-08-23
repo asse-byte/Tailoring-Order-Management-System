@@ -6,7 +6,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../core/network/api_client.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
@@ -57,13 +60,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   Future<void> _loadCategories() async {
     try {
-      final List<ProductCategory> cats = await SalesRepository().listCategories();
+      final List<ProductCategory> cats =
+          await SalesRepository().listCategories();
       if (mounted) setState(() => _categories = cats);
     } catch (_) {/* the screen still lists products without the filter */}
   }
 
   void _onScroll() {
-    if (_scrollCtrl.position.pixels > _scrollCtrl.position.maxScrollExtent - 200) {
+    if (_scrollCtrl.position.pixels >
+        _scrollCtrl.position.maxScrollExtent - 200) {
       context.read<ProductsProvider>().loadProducts();
     }
   }
@@ -80,7 +85,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
   Future<void> _recordSale(Product product) async {
     final formKey = GlobalKey<FormState>();
     int qty = 1;
-    final priceCtrl = TextEditingController(text: formatThousands(product.price.toInt()));
+    final priceCtrl =
+        TextEditingController(text: formatThousands(product.price.toInt()));
 
     await showDialog(
       context: context,
@@ -101,8 +107,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 initialValue: '1',
                 validator: (v) {
                   final val = int.tryParse(v ?? '');
-                  if (val == null || val < 1) return 'Quantité invalide';
-                  if (val > product.quantity) return 'Stock insuffisant (${product.quantity} dispo)';
+                  if (val == null || val < 1) return 'Mettez au moins 1.';
+                  if (val > product.quantity) {
+                    return 'Il n\'en reste que ${product.quantity}.';
+                  }
                   return null;
                 },
                 onSaved: (v) => qty = int.tryParse(v ?? '') ?? 1,
@@ -128,26 +136,29 @@ class _ProductsScreenState extends State<ProductsScreen> {
             onPressed: () async {
               if (formKey.currentState!.validate()) {
                 formKey.currentState!.save();
-                final customPrice = parseThousands(priceCtrl.text) ?? product.price.toInt();
+                final customPrice =
+                    parseThousands(priceCtrl.text) ?? product.price.toInt();
                 Navigator.pop(ctx);
-                final success = await context.read<ProductsProvider>().sellProduct(
-                      product.id,
-                      qty,
-                      unitPrice: customPrice,
-                    );
+                final success =
+                    await context.read<ProductsProvider>().sellProduct(
+                          product.id,
+                          qty,
+                          unitPrice: customPrice,
+                        );
                 if (success && mounted) {
                   final settings = context.read<ShopSettingsProvider>();
                   final total = qty * customPrice;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text('Vente enregistrée avec succès !'),
-                      backgroundColor: AppColors.success,
+                      backgroundColor: CoutureScheme.of(context).goodInk,
                       duration: const Duration(seconds: 8),
                       action: SnackBarAction(
                         label: 'Imprimer reçu',
                         textColor: Colors.white,
                         onPressed: () async {
-                          final pdfBytes = await InvoiceService.buildSaleReceiptPdf(
+                          final pdfBytes =
+                              await InvoiceService.buildSaleReceiptPdf(
                             itemName: product.name,
                             itemKind: _mapCategoryToFrench(product.category),
                             qty: qty,
@@ -164,9 +175,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ),
                   );
                 } else if (mounted) {
-                  final err = context.read<ProductsProvider>().error ?? 'Une erreur est survenue.';
+                  final err = context.read<ProductsProvider>().error ??
+                      'Une erreur est survenue.';
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(err), backgroundColor: AppColors.error),
+                    SnackBar(
+                        content: Text(err),
+                        backgroundColor: CouturePalette.terracottaDeep),
                   );
                 }
               }
@@ -188,15 +202,22 @@ class _ProductsScreenState extends State<ProductsScreen> {
     double costPrice = product?.costPrice ?? 0.0;
     int quantity = product?.quantity ?? 0;
     int lowStockThreshold = product?.lowStockThreshold ?? 3;
-    final priceCtrl = TextEditingController(text: price > 0 ? formatThousands(price.toInt()) : '');
-    final costCtrl = TextEditingController(text: costPrice > 0 ? formatThousands(costPrice.toInt()) : '');
-    final qtyCtrl = TextEditingController(text: product != null ? formatThousands(quantity) : '');
-    final thresholdCtrl = TextEditingController(text: formatThousands(lowStockThreshold));
+    final priceCtrl = TextEditingController(
+        text: price > 0 ? formatThousands(price.toInt()) : '');
+    final costCtrl = TextEditingController(
+        text: costPrice > 0 ? formatThousands(costPrice.toInt()) : '');
+    final qtyCtrl = TextEditingController(
+        text: product != null ? formatThousands(quantity) : '');
+    final thresholdCtrl =
+        TextEditingController(text: formatThousands(lowStockThreshold));
     XFile? selectedImage;
     Uint8List? selectedBytes; // in-memory preview, works on web + mobile
     bool uploadingImage = false;
-    final String? currentImageUrl = product?.images.isNotEmpty == true ? product!.images.first.url : null;
-    final String? currentThumbUrl = product?.images.isNotEmpty == true ? product!.images.first.thumbUrl : null;
+    final String? currentImageUrl =
+        product?.images.isNotEmpty == true ? product!.images.first.url : null;
+    final String? currentThumbUrl = product?.images.isNotEmpty == true
+        ? product!.images.first.thumbUrl
+        : null;
 
     final ImagePicker picker = ImagePicker();
 
@@ -205,7 +226,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(product == null ? 'Nouveau Produit' : 'Modifier Produit'),
           content: SingleChildScrollView(
             child: Form(
@@ -215,7 +237,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 children: [
                   TextFormField(
                     initialValue: name,
-                    decoration: const InputDecoration(labelText: 'Nom du produit'),
+                    decoration:
+                        const InputDecoration(labelText: 'Nom du produit'),
                     validator: (v) => v == null || v.isEmpty ? 'Requis' : null,
                     onSaved: (v) => name = v ?? '',
                   ),
@@ -228,14 +251,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         DropdownMenuItem<String>(
                             value: c.slug, child: Text(c.label)),
                     ],
-                    onChanged: (v) => setDlgState(() => category = v ?? category),
+                    onChanged: (v) =>
+                        setDlgState(() => category = v ?? category),
                   ),
                   const SizedBox(height: 12),
                   FormattedNumberField(
                     controller: priceCtrl,
                     label: 'Prix de vente (FCFA)',
                     validator: (v) => v == null ? 'Prix invalide' : null,
-                    onChanged: (v) => setDlgState(() => price = (v ?? 0).toDouble()),
+                    onChanged: (v) =>
+                        setDlgState(() => price = (v ?? 0).toDouble()),
                   ),
                   // Prix d'achat + profit = financial data, manager only.
                   if (isManager) ...[
@@ -243,8 +268,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     FormattedNumberField(
                       controller: costCtrl,
                       label: 'Prix d\'achat (FCFA)',
-                      validator: (v) => v == null ? 'Prix d\'achat invalide' : null,
-                      onChanged: (v) => setDlgState(() => costPrice = (v ?? 0).toDouble()),
+                      validator: (v) =>
+                          v == null ? 'Prix d\'achat invalide' : null,
+                      onChanged: (v) =>
+                          setDlgState(() => costPrice = (v ?? 0).toDouble()),
                     ),
                     const SizedBox(height: 8),
                     Align(
@@ -253,7 +280,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         'Bénéfice unitaire: ${formatFcfa((price - costPrice).toInt())}',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: (price - costPrice) >= 0 ? AppColors.success : AppColors.error,
+                          color: (price - costPrice) >= 0
+                              ? CoutureScheme.of(context).goodInk
+                              : CouturePalette.terracottaDeep,
                         ),
                       ),
                     ),
@@ -275,7 +304,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     onChanged: (v) => lowStockThreshold = v ?? 3,
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Image selection UI
                   Row(
                     children: [
@@ -290,21 +319,26 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         child: selectedBytes != null
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
-                                child: Image.memory(selectedBytes!, fit: BoxFit.cover),
+                                child: Image.memory(selectedBytes!,
+                                    fit: BoxFit.cover),
                               )
                             : (currentImageUrl != null
                                 ? ClipRRect(
                                     borderRadius: BorderRadius.circular(10),
                                     child: CachedNetworkImage(
-                                      imageUrl: currentImageUrl.startsWith('http')
+                                      imageUrl: currentImageUrl
+                                              .startsWith('http')
                                           ? currentImageUrl
                                           : '${ApiClient.baseUrl}$currentImageUrl',
                                       fit: BoxFit.cover,
-                                      placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
-                                      errorWidget: (_, __, ___) => const Icon(Icons.image_not_supported_rounded),
+                                      placeholder: (_, __) => const Center(
+                                          child: CircularProgressIndicator()),
+                                      errorWidget: (_, __, ___) =>
+                                          const Icon(CoutureIcons.images),
                                     ),
                                   )
-                                : const Icon(Icons.image_rounded, color: Colors.grey)),
+                                : Icon(CoutureIcons.images,
+                                    color: CoutureScheme.of(context).inkFaint)),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -316,7 +350,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   ? null
                                   : () async {
                                       // ImagePicker handles simple compression via quality parameters
-                                      final XFile? file = await picker.pickImage(
+                                      final XFile? file =
+                                          await picker.pickImage(
                                         source: ImageSource.gallery,
                                         maxWidth: 800,
                                         maxHeight: 800,
@@ -330,10 +365,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                         });
                                       }
                                     },
-                              icon: const Icon(Icons.photo_library_rounded, size: 16),
+                              icon: const Icon(CoutureIcons.images, size: 16),
                               label: const Text('Choisir une image'),
                               style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 8),
                                 textStyle: const TextStyle(fontSize: 12),
                               ),
                             ),
@@ -368,7 +404,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
                         final List<Map<String, String>> imgList = [];
                         if (selectedImage != null) {
-                          final uploaded = await provider.uploadImage(selectedImage!);
+                          final uploaded =
+                              await provider.uploadImage(selectedImage!);
                           if (uploaded != null) {
                             imgList.add({
                               'url': uploaded['url']!,
@@ -411,7 +448,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           if (ctx.mounted) Navigator.pop(ctx);
                         } else {
                           messenger.showSnackBar(
-                            SnackBar(content: Text(provider.error ?? 'Erreur d\'enregistrement'), backgroundColor: AppColors.error),
+                            SnackBar(
+                                content: Text(provider.error ??
+                                    'Enregistrement impossible'),
+                                backgroundColor: CouturePalette.terracottaDeep),
                           );
                         }
                       }
@@ -454,7 +494,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded),
+                        icon: const Icon(CoutureIcons.close),
                         onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
@@ -464,7 +504,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   _detailRow('Prix de vente', formatFcfa(p.price.toInt())),
                   _detailRow('Stock actuel', '${p.quantity} unités'),
                   if (isManager) ...[
-                    _detailRow('Prix d\'achat', formatFcfa(p.costPrice.toInt())),
+                    _detailRow(
+                        'Prix d\'achat', formatFcfa(p.costPrice.toInt())),
                     const SizedBox(height: 16),
                     const Text(
                       'Statistiques de vente',
@@ -477,7 +518,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     FutureBuilder<Map<String, dynamic>>(
                       future: ProductsRepository().getStats(p.id),
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
                           return const Center(
                             child: Padding(
                               padding: EdgeInsets.all(16.0),
@@ -488,7 +530,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         if (snapshot.hasError) {
                           return Text(
                             'Erreur: ${snapshot.error}',
-                            style: const TextStyle(color: AppColors.error),
+                            style: const TextStyle(
+                                color: CouturePalette.terracottaDeep),
                           );
                         }
                         final stats = snapshot.data!;
@@ -499,7 +542,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         return Column(
                           children: [
                             _detailRow('Quantité vendue', '$totalSold unités'),
-                            _detailRow('Ventes totales', formatFcfa(totalRevenue)),
+                            _detailRow(
+                                'Ventes totales', formatFcfa(totalRevenue)),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -509,8 +553,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: totalProfit >= 0
-                                        ? AppColors.success
-                                        : AppColors.error,
+                                        ? CoutureScheme.of(context).goodInk
+                                        : CouturePalette.terracottaDeep,
                                   ),
                                 ),
                               ],
@@ -535,7 +579,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: AppColors.textSecondary)),
+          Text(label,
+              style: TextStyle(color: CoutureScheme.of(context).inkSoft)),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
@@ -550,253 +595,284 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     // Client-side search filtering over fetched items
     final filtered = provider.items.where((p) {
-      final matchesSearch = p.name.toLowerCase().contains(_searchQuery.toLowerCase());
+      final matchesSearch =
+          p.name.toLowerCase().contains(_searchQuery.toLowerCase());
       return matchesSearch;
     }).toList();
 
     final shopName = context.watch<ShopSettingsProvider>().shopName;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('$shopName - Produits'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => provider.refresh(),
-          )
-        ],
-      ),
+    final CoutureScheme c = CoutureScheme.of(context);
+
+    return CoutureScaffold(
+      title: 'Produits',
+      subtitle: shopName.isEmpty ? 'Ce que la boutique vend' : shopName,
+      actions: <Widget>[
+        CoutureBandAction(
+          icon: CoutureIcons.refresh,
+          tooltip: 'Actualiser',
+          onPressed: () => provider.refresh(),
+        ),
+      ],
       // Catalog management is open to both roles; only cost_price/profit stay
       // manager-only (hidden in the form + card).
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openProductForm(),
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add_rounded, color: Colors.white),
+        backgroundColor: c.urgentInk,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        icon: const Icon(CoutureIcons.plus, size: 20),
+        label: const Text('Nouveau produit',
+            style: TextStyle(fontWeight: FontWeight.w600)),
       ),
-      body: Column(
-        children: [
-          // Search & Filter header
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher un produit...',
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    onChanged: (v) => setState(() => _searchQuery = v),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                DropdownButton<String>(
-                  value: provider.category,
-                  underline: const SizedBox(),
-                  icon: const Icon(Icons.filter_alt_rounded, color: AppColors.primary),
-                  items: <DropdownMenuItem<String>>[
-                    const DropdownMenuItem<String>(
-                        value: 'all', child: Text('Tout')),
-                    for (final ProductCategory c in _categories)
-                      DropdownMenuItem<String>(
-                          value: c.slug, child: Text(c.label)),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) {
-                      provider.setCategory(v);
-                    }
-                  },
-                ),
-              ],
+      below: Padding(
+        padding: const EdgeInsets.fromLTRB(
+            CouturePalette.s4, CouturePalette.s3, CouturePalette.s4, 0),
+        child: Column(
+          children: <Widget>[
+            CoutureSearchField(
+              controller: _searchCtrl,
+              hint: 'Nom du produit',
+              onChanged: (String v) => setState(() => _searchQuery = v),
+              onClear: () {
+                _searchCtrl.clear();
+                setState(() => _searchQuery = '');
+              },
             ),
-          ),
-          
-          Expanded(
-            child: provider.loading && provider.items.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : filtered.isEmpty
-                    ? const Center(child: Text('Aucun produit trouvé.'))
-                    : RefreshIndicator(
-                        onRefresh: () => provider.refresh(),
-                        child: ListView.builder(
-                          controller: _scrollCtrl,
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: filtered.length + (provider.hasMore ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index >= filtered.length) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                child: Center(child: CircularProgressIndicator()),
-                              );
-                            }
-                            final p = filtered[index];
-                            final String catLabel = _mapCategoryToFrench(p.category);
-                            final bool hasImg = p.images.isNotEmpty;
-                            
-                            // Image path resolution
-                            final String? rawUrl = hasImg ? p.images.first.url : null;
-                            final String? rawThumb = hasImg ? p.images.first.thumbUrl : null;
-                            final String? imageUrl = rawUrl != null 
-                                ? (rawUrl.startsWith('http') ? rawUrl : '${ApiClient.baseUrl}$rawUrl')
-                                : null;
-                            final String? thumbUrl = rawThumb != null && rawThumb.isNotEmpty
-                                ? (rawThumb.startsWith('http') ? rawThumb : '${ApiClient.baseUrl}$rawThumb')
-                                : imageUrl;
+            const SizedBox(height: CouturePalette.s3),
+            // The shop's own types, as chips: a dropdown hid them behind a tap
+            // and told nobody how many types the shop even has.
+            SizedBox(
+              height: 38,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _categories.length + 1,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: CouturePalette.s2),
+                itemBuilder: (_, int i) {
+                  if (i == 0) {
+                    return CoutureFilterChip(
+                      label: 'Tout',
+                      selected: provider.category == 'all',
+                      onTap: () => provider.setCategory('all'),
+                    );
+                  }
+                  final ProductCategory cat = _categories[i - 1];
+                  return CoutureFilterChip(
+                    label: cat.label,
+                    icon: cat.iconData,
+                    selected: provider.category == cat.slug,
+                    onTap: () => provider.setCategory(cat.slug),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: CouturePalette.s3),
+          ],
+        ),
+      ),
+      child: provider.loading && provider.items.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : filtered.isEmpty
+              ? const CoutureEmpty(
+                  icon: CoutureIcons.shoppingBag,
+                  title: 'Aucun produit',
+                  message:
+                      'Appuyez sur « Nouveau produit » pour en ajouter un.',
+                )
+              : RefreshIndicator(
+                  onRefresh: () => provider.refresh(),
+                  child: ListView.builder(
+                    controller: _scrollCtrl,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(
+                        CouturePalette.s4, 0, CouturePalette.s4, 96),
+                    itemCount: filtered.length + (provider.hasMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index >= filtered.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      final p = filtered[index];
+                      final String catLabel = _mapCategoryToFrench(p.category);
+                      final bool hasImg = p.images.isNotEmpty;
 
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                              child: InkWell(
-                                onTap: () => _showProductDetails(p),
-                                borderRadius: BorderRadius.circular(15),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Row(
-                                  children: [
-                                    // Thumbnail Image
-                                    Container(
-                                      width: 60,
-                                      height: 60,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary.withValues(alpha: 0.05),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: thumbUrl != null
-                                          ? ClipRRect(
-                                              borderRadius: BorderRadius.circular(10),
-                                              child: CachedNetworkImage(
-                                                imageUrl: thumbUrl,
-                                                fit: BoxFit.cover,
-                                                placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                                                errorWidget: (_, __, ___) => const Icon(Icons.image_not_supported_rounded, color: Colors.grey),
-                                              ),
-                                            )
-                                          : const Icon(Icons.image_outlined, color: Colors.grey),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    
-                                    // Product Info
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            p.name,
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            catLabel,
-                                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Row(
-                                            children: [
-                                              Text(
-                                                'Stock: ${p.quantity} ',
-                                                style: TextStyle(
-                                                  color: p.isLowStock ? AppColors.error : Colors.grey[700],
-                                                  fontWeight: p.isLowStock ? FontWeight.bold : FontWeight.normal,
-                                                ),
-                                              ),
-                                              if (p.isLowStock)
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: AppColors.error.withValues(alpha: 0.12),
-                                                    borderRadius: BorderRadius.circular(4),
-                                                  ),
-                                                  child: const Text('Bas / Low', style: TextStyle(color: AppColors.error, fontSize: 9, fontWeight: FontWeight.bold)),
-                                                )
-                                            ],
-                                          )
-                                        ],
-                                      ),
-                                    ),
-                                    
-                                    // Price & Action buttons
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          formatFcfa(p.price.toInt()),
-                                          style: const TextStyle(
-                                            color: AppColors.primary,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
+                      // Image path resolution
+                      final String? rawUrl = hasImg ? p.images.first.url : null;
+                      final String? rawThumb =
+                          hasImg ? p.images.first.thumbUrl : null;
+                      final String? imageUrl = rawUrl != null
+                          ? (rawUrl.startsWith('http')
+                              ? rawUrl
+                              : '${ApiClient.baseUrl}$rawUrl')
+                          : null;
+                      final String? thumbUrl =
+                          rawThumb != null && rawThumb.isNotEmpty
+                              ? (rawThumb.startsWith('http')
+                                  ? rawThumb
+                                  : '${ApiClient.baseUrl}$rawThumb')
+                              : imageUrl;
+
+                      return Padding(
+                        padding:
+                            const EdgeInsets.only(bottom: CouturePalette.s2),
+                        child: CoutureCard(
+                          onTap: () => _showProductDetails(p),
+                          padding: const EdgeInsets.all(10),
+                          child: Row(
+                            children: [
+                              // Thumbnail Image
+                              Container(
+                                width: 58,
+                                height: 58,
+                                decoration: BoxDecoration(
+                                  color: c.quiet,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: thumbUrl != null
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: CachedNetworkImage(
+                                          imageUrl: thumbUrl,
+                                          fit: BoxFit.cover,
+                                          placeholder: (_, __) => const Center(
+                                              child: CircularProgressIndicator(
+                                                  strokeWidth: 2)),
+                                          errorWidget: (_, __, ___) => Icon(
+                                              CoutureIcons.images,
+                                              color: c.inkFaint),
                                         ),
-                                        // Profit is financial data — manager only.
-                                        if (!isSec)
-                                          Text(
-                                            'Bénéf: ${p.profit.toInt()} F',
-                                            style: TextStyle(
-                                              color: p.profit >= 0 ? AppColors.success : AppColors.error,
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            // Sell button (both roles can sell)
-                                            if (p.quantity > 0)
-                                              IconButton(
-                                                icon: const Icon(Icons.shopping_cart_rounded, color: AppColors.success),
-                                                tooltip: 'Vendre',
-                                                constraints: const BoxConstraints(),
-                                                padding: const EdgeInsets.all(4),
-                                                onPressed: () => _recordSale(p),
-                                              ),
-                                            
-                                            // Catalog edits: both roles.
-                                            IconButton(
-                                              icon: const Icon(Icons.edit_rounded, color: Colors.blue),
-                                              constraints: const BoxConstraints(),
-                                              padding: const EdgeInsets.all(4),
-                                              onPressed: () => _openProductForm(product: p),
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
-                                              constraints: const BoxConstraints(),
-                                              padding: const EdgeInsets.all(4),
-                                              onPressed: () async {
-                                                final confirm = await confirmDeleteByTyping(
-                                                  context,
-                                                  itemName: p.name,
-                                                  itemLabel: 'ce produit',
-                                                  historyNote: 'Les ventes déjà '
-                                                      'enregistrées de ce produit restent '
-                                                      'conservées dans les Finances (au nom '
-                                                      'et prix mémorisés).',
-                                                );
-                                                if (confirm) {
-                                                  await provider.deleteProduct(p.id);
-                                                }
-                                              },
-                                            ),
-                                          ],
-                                        )
-                                      ],
-                                    )
+                                      )
+                                    : Icon(CoutureIcons.images,
+                                        color: c.inkFaint),
+                              ),
+                              const SizedBox(width: CouturePalette.s3),
+
+                              // Product Info
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      p.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15,
+                                          color: c.ink),
+                                    ),
+                                    const SizedBox(height: 1),
+                                    Text(
+                                      catLabel,
+                                      style: TextStyle(
+                                          color: c.inkFaint, fontSize: 12),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      p.quantity == 0
+                                          ? 'Épuisé'
+                                          : p.isLowStock
+                                              ? 'Plus que ${p.quantity}'
+                                              : '${p.quantity} en boutique',
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        color: p.isLowStock
+                                            ? c.urgentText
+                                            : c.inkSoft,
+                                        fontWeight: p.isLowStock
+                                            ? FontWeight.w600
+                                            : FontWeight.w400,
+                                      ),
+                                    ),
                                   ],
-                                  ),
                                 ),
                               ),
-                            );
-                          },
+
+                              // Price & Action buttons
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    formatFcfa(p.price.toInt()),
+                                    style: TextStyle(
+                                      color: c.ink,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  // Profit is financial data — manager only.
+                                  if (!isSec)
+                                    Text(
+                                      'Bénéfice ${formatFcfa(p.profit.toInt())}',
+                                      style: TextStyle(
+                                        color: p.profit >= 0
+                                            ? c.goodInk
+                                            : c.urgentText,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Sell button (both roles can sell)
+                                      if (p.quantity > 0)
+                                        IconButton(
+                                          icon: Icon(CoutureIcons.cashRegister,
+                                              size: 19, color: c.goodInk),
+                                          tooltip: 'Vendre',
+                                          constraints: const BoxConstraints(),
+                                          padding: const EdgeInsets.all(5),
+                                          onPressed: () => _recordSale(p),
+                                        ),
+
+                                      // Catalog edits: both roles.
+                                      IconButton(
+                                        icon: Icon(CoutureIcons.pencil,
+                                            size: 18, color: c.inkSoft),
+                                        tooltip: 'Modifier',
+                                        constraints: const BoxConstraints(),
+                                        padding: const EdgeInsets.all(5),
+                                        onPressed: () =>
+                                            _openProductForm(product: p),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(CoutureIcons.trash,
+                                            size: 18, color: c.urgentText),
+                                        tooltip: 'Supprimer',
+                                        constraints: const BoxConstraints(),
+                                        padding: const EdgeInsets.all(5),
+                                        onPressed: () async {
+                                          final confirm =
+                                              await confirmDeleteByTyping(
+                                            context,
+                                            itemName: p.name,
+                                            itemLabel: 'ce produit',
+                                            historyNote: 'Les ventes déjà '
+                                                'enregistrées de ce produit restent '
+                                                'conservées dans les Finances (au nom '
+                                                'et prix mémorisés).',
+                                          );
+                                          if (confirm) {
+                                            await provider.deleteProduct(p.id);
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  )
+                                ],
+                              )
+                            ],
+                          ),
                         ),
-                      ),
-          ),
-        ],
-      ),
+                      );
+                    },
+                  ),
+                ),
     );
   }
 }

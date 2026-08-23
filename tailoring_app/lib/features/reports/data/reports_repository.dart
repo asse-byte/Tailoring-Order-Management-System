@@ -104,8 +104,8 @@ class ReportsRepository {
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   Future<ReportSummary> summary(DateTime from, DateTime to) async {
-    final dynamic res = await _api
-        .get('/api/reports/summary?from=${_d(from)}&to=${_d(to)}');
+    final dynamic res =
+        await _api.get('/api/reports/summary?from=${_d(from)}&to=${_d(to)}');
     return ReportSummary.fromJson(res as Map<String, dynamic>);
   }
 
@@ -116,9 +116,10 @@ class ReportsRepository {
   }
 
   /// Delivered orders that still owe money — the debt-reminder list.
-  Future<UnpaidOrdersPage> unpaidOrders({int limit = 50, int offset = 0}) async {
-    final dynamic res = await _api
-        .get('/api/reports/unpaid-orders', query: <String, String>{
+  Future<UnpaidOrdersPage> unpaidOrders(
+      {int limit = 50, int offset = 0}) async {
+    final dynamic res =
+        await _api.get('/api/reports/unpaid-orders', query: <String, String>{
       'limit': '$limit',
       'offset': '$offset',
     });

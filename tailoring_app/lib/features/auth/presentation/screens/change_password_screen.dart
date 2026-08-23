@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/localization/app_localizations.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/primary_button.dart';
@@ -41,14 +43,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     FocusScope.of(context).unfocus();
 
     final String nextUsername = _usernameCtrl.text.trim();
-    final String currentUsername = context.read<AuthProvider>().user?.email ?? '';
+    final String currentUsername =
+        context.read<AuthProvider>().user?.email ?? '';
     final String nextPassword = _next.text;
 
     if (nextUsername == currentUsername && nextPassword.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Aucun changement détecté."),
-          backgroundColor: AppColors.error,
+        SnackBar(
+          content: const Text("Aucun changement détecté."),
+          backgroundColor: CoutureScheme.of(context).urgentText,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -63,15 +66,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         newUsername: nextUsername != currentUsername ? nextUsername : null,
       );
       if (!mounted) return;
-      
+
       // Update local provider state
       await context.read<AuthProvider>().refreshSession();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Profil mis à jour avec succès !"),
-          backgroundColor: AppColors.success,
+        SnackBar(
+          content: const Text("Profil mis à jour avec succès !"),
+          backgroundColor: CoutureScheme.of(context).goodInk,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -81,7 +84,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.message),
-          backgroundColor: AppColors.error,
+          backgroundColor: CoutureScheme.of(context).urgentText,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -100,28 +103,28 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       onPressed: () => setState(() => _obscure = !_obscure),
     );
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Modifier le profil')),
-      body: SafeArea(
+    return CoutureScaffold(
+      title: 'Mon compte',
+      subtitle: 'Nom et mot de passe',
+      child: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+          padding: const EdgeInsets.fromLTRB(CouturePalette.s6,
+              CouturePalette.s4, CouturePalette.s6, CouturePalette.s8),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('Modifier le profil',
-                    style: Theme.of(context).textTheme.displayMedium),
-                const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Mettez à jour vos identifiants ou votre mot de passe.',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                  style: TextStyle(
+                      color: CoutureScheme.of(context).inkSoft, fontSize: 14),
                 ),
                 const SizedBox(height: 28),
                 AppTextField(
                   controller: _usernameCtrl,
                   label: "Nom d'utilisateur",
-                  prefixIcon: Icons.person_outline_rounded,
+                  prefixIcon: CoutureIcons.user,
                   textInputAction: TextInputAction.next,
                   validator: (v) => (v == null || v.trim().isEmpty)
                       ? "Le nom d'utilisateur est obligatoire"
@@ -131,7 +134,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 AppTextField(
                   controller: _current,
                   label: context.loc.oldPassword,
-                  prefixIcon: Icons.lock_outline_rounded,
+                  prefixIcon: CoutureIcons.lock,
                   obscureText: _obscure,
                   textInputAction: TextInputAction.next,
                   validator: (v) => Validators.password(v, context),

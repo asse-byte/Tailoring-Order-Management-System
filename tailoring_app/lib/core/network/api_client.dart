@@ -41,7 +41,9 @@ class ApiClient {
   static String get baseUrl {
     if (kIsWeb) {
       final uri = Uri.base;
-      if (uri.host.isNotEmpty && uri.host != 'localhost' && uri.host != '127.0.0.1') {
+      if (uri.host.isNotEmpty &&
+          uri.host != 'localhost' &&
+          uri.host != '127.0.0.1') {
         if (uri.host.startsWith('demo-app.')) {
           return '${uri.scheme}://${uri.host.replaceFirst('demo-app.', 'demo-api.')}';
         }
@@ -106,7 +108,8 @@ class ApiClient {
 
     http.Response res;
     try {
-      final http.Request req = http.Request(method, uri)..headers.addAll(headers);
+      final http.Request req = http.Request(method, uri)
+        ..headers.addAll(headers);
       if (body != null) req.body = jsonEncode(body);
       res = await http.Response.fromStream(
           await req.send().timeout(const Duration(seconds: 15)));

@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/garment_types.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
@@ -47,9 +50,8 @@ class _StaffScreenState extends State<StaffScreen> {
   }
 
   /// Monday of the week containing [date].
-  DateTime _mondayOf(DateTime date) =>
-      DateTime(date.year, date.month, date.day)
-          .subtract(Duration(days: date.weekday - 1));
+  DateTime _mondayOf(DateTime date) => DateTime(date.year, date.month, date.day)
+      .subtract(Duration(days: date.weekday - 1));
 
   Future<void> _loadData() async {
     setState(() {
@@ -91,7 +93,8 @@ class _StaffScreenState extends State<StaffScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Nouveau Tailleur'),
           content: Form(
             key: formKey,
@@ -110,10 +113,11 @@ class _StaffScreenState extends State<StaffScreen> {
                   onSaved: (v) => phone = v ?? '',
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Tous les tailleurs sont payés à la pièce. Les employés mensuels '
                   'se gèrent dans la section « Staff ».',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                      fontSize: 12, color: CoutureScheme.of(context).inkSoft),
                 ),
               ],
             ),
@@ -136,7 +140,9 @@ class _StaffScreenState extends State<StaffScreen> {
                   } catch (e) {
                     if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+                      SnackBar(
+                          content: Text('Impossible : $e'),
+                          backgroundColor: CouturePalette.terracottaDeep),
                     );
                   }
                 }
@@ -177,7 +183,7 @@ class _StaffScreenState extends State<StaffScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Bilan indisponible: $error'),
-          backgroundColor: AppColors.error,
+          backgroundColor: CoutureScheme.of(context).urgentText,
         ),
       );
       return;
@@ -197,10 +203,12 @@ class _StaffScreenState extends State<StaffScreen> {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
           children: <Widget>[
             Text(fullName,
-                style: const TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.w900)),
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
             Text(
-              s.type == 'couturier' ? 'Couturier — depuis le début' : 'Employé mensuel',
+              s.type == 'couturier'
+                  ? 'Couturier — depuis le début'
+                  : 'Employé mensuel',
               style: TextStyle(color: Colors.grey[600], fontSize: 12),
             ),
             const SizedBox(height: 16),
@@ -212,8 +220,8 @@ class _StaffScreenState extends State<StaffScreen> {
                   child: _SummaryStat(
                     label: 'Pièces cousues',
                     value: '${s.piecesTotal}',
-                    icon: Icons.content_cut_rounded,
-                    color: AppColors.primary,
+                    icon: CoutureIcons.scissors,
+                    color: CoutureScheme.of(context).iconInk,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -221,8 +229,8 @@ class _StaffScreenState extends State<StaffScreen> {
                   child: _SummaryStat(
                     label: 'Total gagné',
                     value: formatFcfa(s.earnedTotal),
-                    icon: Icons.trending_up_rounded,
-                    color: AppColors.success,
+                    icon: CoutureIcons.chartBar,
+                    color: CoutureScheme.of(context).goodInk,
                   ),
                 ),
               ],
@@ -235,7 +243,7 @@ class _StaffScreenState extends State<StaffScreen> {
                     label: 'Jours travaillés',
                     value: '${s.daysWorked}',
                     icon: Icons.event_available_rounded,
-                    color: AppColors.primary,
+                    color: CoutureScheme.of(context).iconInk,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -243,8 +251,8 @@ class _StaffScreenState extends State<StaffScreen> {
                   child: _SummaryStat(
                     label: 'Dernière saisie',
                     value: s.lastEntryDate?.split('T').first ?? '—',
-                    icon: Icons.history_rounded,
-                    color: AppColors.primary,
+                    icon: CoutureIcons.clockCounterClockwise,
+                    color: CoutureScheme.of(context).iconInk,
                   ),
                 ),
               ],
@@ -262,19 +270,21 @@ class _StaffScreenState extends State<StaffScreen> {
                     child: _SummaryStat(
                       label: 'Déjà payé',
                       value: formatFcfa(s.salaryPaidTotal!),
-                      icon: Icons.payments_rounded,
-                      color: AppColors.warning,
+                      icon: CoutureIcons.wallet,
+                      color: CoutureScheme.of(context).urgentInk,
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: _SummaryStat(
-                      label: s.netBalance! >= 0 ? 'Reste à payer' : 'Avance versée',
+                      label: s.netBalance! >= 0
+                          ? 'Reste à payer'
+                          : 'Avance versée',
                       value: formatFcfa(s.netBalance!.abs()),
-                      icon: Icons.account_balance_wallet_rounded,
+                      icon: CoutureIcons.wallet,
                       color: s.netBalance! >= 0
-                          ? AppColors.error
-                          : AppColors.success,
+                          ? CoutureScheme.of(context).urgentText
+                          : CoutureScheme.of(context).goodInk,
                     ),
                   ),
                 ],
@@ -311,17 +321,20 @@ class _StaffScreenState extends State<StaffScreen> {
                       Padding(
                         padding: EdgeInsets.all(8),
                         child: Text('Modèle',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12)),
                       ),
                       Padding(
                         padding: EdgeInsets.all(8),
                         child: Text('Pièces',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12)),
                       ),
                       Padding(
                         padding: EdgeInsets.all(8),
                         child: Text('Montant',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12)),
                       ),
                     ],
                   ),
@@ -374,19 +387,22 @@ class _StaffScreenState extends State<StaffScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: [
               const Expanded(child: Text('Modifier Infos Contact')),
               IconButton(
                 tooltip: 'Supprimer définitivement',
-                icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                icon: Icon(CoutureIcons.trash,
+                    color: CoutureScheme.of(context).urgentText),
                 onPressed: () async {
                   final bool ok = await confirmDeleteByTyping(
                     ctx,
                     itemName: fullName,
                     itemLabel: 'ce couturier',
-                    historyNote: 'Les salaires et pièces déjà enregistrés de ce '
+                    historyNote:
+                        'Les salaires et pièces déjà enregistrés de ce '
                         'couturier restent conservés dans les rapports financiers '
                         '(au nom mémorisé, marqué « ancien »). Seule sa fiche est '
                         'supprimée.',
@@ -403,7 +419,9 @@ class _StaffScreenState extends State<StaffScreen> {
                   } catch (e) {
                     if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+                      SnackBar(
+                          content: Text('Impossible : $e'),
+                          backgroundColor: CouturePalette.terracottaDeep),
                     );
                   }
                 },
@@ -433,10 +451,14 @@ class _StaffScreenState extends State<StaffScreen> {
                   initialValue: typeVal,
                   decoration: const InputDecoration(labelText: 'Rôle'),
                   items: const [
-                    DropdownMenuItem(value: 'couturier', child: Text('Couturier (À la pièce)')),
-                    DropdownMenuItem(value: 'autre', child: Text('Autre (Mensuel)')),
+                    DropdownMenuItem(
+                        value: 'couturier',
+                        child: Text('Couturier (À la pièce)')),
+                    DropdownMenuItem(
+                        value: 'autre', child: Text('Autre (Mensuel)')),
                   ],
-                  onChanged: (v) => setDlgState(() => typeVal = v ?? 'couturier'),
+                  onChanged: (v) =>
+                      setDlgState(() => typeVal = v ?? 'couturier'),
                 ),
                 const SizedBox(height: 12),
                 SwitchListTile(
@@ -448,20 +470,28 @@ class _StaffScreenState extends State<StaffScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Annuler')),
             ElevatedButton(
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
                   formKey.currentState!.save();
                   try {
-                    await _repo.updateStaff(staffId, fullName: name, phone: phoneVal, type: typeVal, active: activeVal);
+                    await _repo.updateStaff(staffId,
+                        fullName: name,
+                        phone: phoneVal,
+                        type: typeVal,
+                        active: activeVal);
                     if (!ctx.mounted) return;
                     Navigator.pop(ctx);
                     _loadData();
                   } catch (e) {
                     if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+                      SnackBar(
+                          content: Text('Impossible : $e'),
+                          backgroundColor: CouturePalette.terracottaDeep),
                     );
                   }
                 }
@@ -479,14 +509,17 @@ class _StaffScreenState extends State<StaffScreen> {
     int pieceRate = member.pieceRate ?? 0;
     int monthlySalary = member.monthlySalary ?? 0;
     int salaryDueDay = member.salaryDueDay ?? 1;
-    final pieceRateCtrl = TextEditingController(text: formatThousands(pieceRate));
-    final salaryCtrl = TextEditingController(text: formatThousands(monthlySalary));
+    final pieceRateCtrl =
+        TextEditingController(text: formatThousands(pieceRate));
+    final salaryCtrl =
+        TextEditingController(text: formatThousands(monthlySalary));
 
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text('Paramètres Financiers - ${member.fullName}'),
           content: Form(
             key: formKey,
@@ -510,11 +543,14 @@ class _StaffScreenState extends State<StaffScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     initialValue: salaryDueDay.toString(),
-                    decoration: const InputDecoration(labelText: 'Jour de versement (1 - 31)'),
+                    decoration: const InputDecoration(
+                        labelText: 'Jour de versement (1 - 31)'),
                     keyboardType: TextInputType.number,
                     validator: (v) {
                       final val = int.tryParse(v ?? '');
-                      if (val == null || val < 1 || val > 31) return 'Jour invalide (1 - 31)';
+                      if (val == null || val < 1 || val > 31) {
+                        return 'Un jour entre 1 et 31.';
+                      }
                       return null;
                     },
                     onSaved: (v) => salaryDueDay = int.tryParse(v ?? '') ?? 1,
@@ -524,7 +560,9 @@ class _StaffScreenState extends State<StaffScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Annuler')),
             ElevatedButton(
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
@@ -533,8 +571,10 @@ class _StaffScreenState extends State<StaffScreen> {
                     await _repo.updatePay(
                       member.staffId,
                       pieceRate: member.type == 'couturier' ? pieceRate : null,
-                      monthlySalary: member.type == 'autre' ? monthlySalary : null,
-                      salaryDueDay: member.type == 'autre' ? salaryDueDay : null,
+                      monthlySalary:
+                          member.type == 'autre' ? monthlySalary : null,
+                      salaryDueDay:
+                          member.type == 'autre' ? salaryDueDay : null,
                     );
                     if (!ctx.mounted) return;
                     Navigator.pop(ctx);
@@ -542,7 +582,9 @@ class _StaffScreenState extends State<StaffScreen> {
                   } catch (e) {
                     if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+                      SnackBar(
+                          content: Text('Impossible : $e'),
+                          backgroundColor: CouturePalette.terracottaDeep),
                     );
                   }
                 }
@@ -557,11 +599,14 @@ class _StaffScreenState extends State<StaffScreen> {
 
   Future<void> _addTailorEntry({StaffPayInfo? preselect}) async {
     final formKey = GlobalKey<FormState>();
-    final activeTailors = _payInfoList.where((x) => x.active && x.type == 'couturier').toList();
+    final activeTailors =
+        _payInfoList.where((x) => x.active && x.type == 'couturier').toList();
 
     if (activeTailors.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aucun couturier actif trouvé pour ajouter une entrée.')),
+        const SnackBar(
+            content:
+                Text('Aucun couturier actif trouvé pour ajouter une entrée.')),
       );
       return;
     }
@@ -599,7 +644,8 @@ class _StaffScreenState extends State<StaffScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Nouvelle Entrée Couture'),
           content: Form(
             key: formKey,
@@ -611,15 +657,18 @@ class _StaffScreenState extends State<StaffScreen> {
                     initialValue: tailorId,
                     decoration: const InputDecoration(labelText: 'Couturier'),
                     items: activeTailors
-                        .map((t) => DropdownMenuItem(value: t.staffId, child: Text(t.fullName)))
+                        .map((t) => DropdownMenuItem(
+                            value: t.staffId, child: Text(t.fullName)))
                         .toList(),
                     onChanged: (v) {
                       if (v != null) {
                         tailorId = v;
-                        final sel = activeTailors.firstWhere((t) => t.staffId == tailorId);
+                        final sel = activeTailors
+                            .firstWhere((t) => t.staffId == tailorId);
                         setDlgState(() {
                           rate = sel.pieceRate;
-                          rateController.text = rate != null ? formatThousands(rate!) : '';
+                          rateController.text =
+                              rate != null ? formatThousands(rate!) : '';
                         });
                       }
                     },
@@ -636,7 +685,8 @@ class _StaffScreenState extends State<StaffScreen> {
                   DropdownButtonFormField<String>(
                     initialValue: garment,
                     isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Type de vêtement'),
+                    decoration:
+                        const InputDecoration(labelText: 'Type de vêtement'),
                     items: GarmentTypes.all
                         .map((g) => DropdownMenuItem(value: g, child: Text(g)))
                         .toList(),
@@ -678,7 +728,8 @@ class _StaffScreenState extends State<StaffScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     initialValue: '1',
-                    decoration: const InputDecoration(labelText: 'Nombre de pièces'),
+                    decoration:
+                        const InputDecoration(labelText: 'Nombre de pièces'),
                     keyboardType: TextInputType.number,
                     validator: (v) {
                       final val = int.tryParse(v ?? '');
@@ -692,14 +743,16 @@ class _StaffScreenState extends State<StaffScreen> {
                     controller: rateController,
                     label: 'Prix par pièce (FCFA)',
                     hint: 'Modifiable selon le type de vêtement',
-                    validator: (v) => (v == null || v < 1) ? 'Prix invalide' : null,
+                    validator: (v) =>
+                        (v == null || v < 1) ? 'Prix invalide' : null,
                     onChanged: (v) => rate = v,
                   ),
                   const SizedBox(height: 12),
                   ListTile(
                     title: const Text('Date'),
-                    subtitle: Text('${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}'),
-                    trailing: const Icon(Icons.calendar_month_rounded),
+                    subtitle: Text(
+                        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}'),
+                    trailing: const Icon(CoutureIcons.calendarBlank),
                     onTap: () async {
                       final picked = await showDatePicker(
                         context: context,
@@ -717,13 +770,16 @@ class _StaffScreenState extends State<StaffScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Annuler')),
             ElevatedButton(
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
                   formKey.currentState!.save();
                   try {
-                    final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                    final dateStr =
+                        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
                     await _repo.createTailorEntry(
                       tailorId: tailorId,
                       entryDate: dateStr,
@@ -739,7 +795,9 @@ class _StaffScreenState extends State<StaffScreen> {
                   } catch (e) {
                     if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+                      SnackBar(
+                          content: Text('Impossible : $e'),
+                          backgroundColor: CouturePalette.terracottaDeep),
                     );
                   }
                 }
@@ -753,8 +811,7 @@ class _StaffScreenState extends State<StaffScreen> {
   }
 
   Widget _buildManagerStaffTab() {
-    final tailors =
-        _payInfoList.where((m) => m.type == 'couturier').toList();
+    final tailors = _payInfoList.where((m) => m.type == 'couturier').toList();
     return tailors.isEmpty
         ? const Center(child: Text('Aucun tailleur enregistré.'))
         : ListView.builder(
@@ -767,78 +824,98 @@ class _StaffScreenState extends State<StaffScreen> {
                   'Tarif p. pièce: ${formatFcfa(m.pieceRate ?? 0)}';
 
               return Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15)),
                 margin: const EdgeInsets.only(bottom: 12),
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
                   onTap: () => _openTailorSheet(m),
                   child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: (m.active ? AppColors.primary : Colors.grey).withValues(alpha: 0.1),
-                        child: Icon(
-                          m.type == 'couturier' ? Icons.content_cut_rounded : Icons.person_rounded,
-                          color: m.active ? AppColors.primary : Colors.grey,
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: (m.active
+                                  ? CoutureScheme.of(context).iconInk
+                                  : Colors.grey)
+                              .withValues(alpha: 0.1),
+                          child: Icon(
+                            m.type == 'couturier'
+                                ? CoutureIcons.scissors
+                                : CoutureIcons.user,
+                            color: m.active
+                                ? CoutureScheme.of(context).iconInk
+                                : Colors.grey,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(m.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                const SizedBox(width: 8),
-                                if (!m.active)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[200],
-                                      borderRadius: BorderRadius.circular(4),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(m.fullName,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16)),
+                                  const SizedBox(width: 8),
+                                  if (!m.active)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[200],
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text('Inactif',
+                                          style: TextStyle(
+                                              color: Colors.grey,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold)),
                                     ),
-                                    child: const Text('Inactif', style: TextStyle(color: Colors.grey, fontSize: 9, fontWeight: FontWeight.bold)),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text('$typeLabel | $payLabel', style: TextStyle(color: Colors.grey[700], fontSize: 12)),
-                          ],
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text('$typeLabel | $payLabel',
+                                  style: TextStyle(
+                                      color: Colors.grey[700], fontSize: 12)),
+                            ],
+                          ),
                         ),
-                      ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.insights_rounded,
-                                color: AppColors.primary),
-                            tooltip: 'Bilan & Performance',
-                            onPressed: () =>
-                                _showAllTimeSummary(m.staffId, m.fullName),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.edit_rounded, color: Colors.blue),
-                            tooltip: 'Modifier Contact',
-                            onPressed: () => _editStaffContact(
-                              staffId: m.staffId,
-                              fullName: m.fullName,
-                              phone: m.phone,
-                              type: m.type,
-                              active: m.active,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.insights_rounded,
+                                  color: CoutureScheme.of(context).iconInk),
+                              tooltip: 'Bilan & Performance',
+                              onPressed: () =>
+                                  _showAllTimeSummary(m.staffId, m.fullName),
                             ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.monetization_on_rounded, color: AppColors.success),
-                            tooltip: 'Paramètres Financiers',
-                            onPressed: () => _editStaffPay(m),
-                          ),
-                        ],
-                      )
-                    ],
+                            IconButton(
+                              icon: const Icon(CoutureIcons.pencil,
+                                  color: Colors.blue),
+                              tooltip: 'Modifier Contact',
+                              onPressed: () => _editStaffContact(
+                                staffId: m.staffId,
+                                fullName: m.fullName,
+                                phone: m.phone,
+                                type: m.type,
+                                active: m.active,
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.monetization_on_rounded,
+                                  color: CoutureScheme.of(context).goodInk),
+                              tooltip: 'Paramètres Financiers',
+                              onPressed: () => _editStaffPay(m),
+                            ),
+                          ],
+                        )
+                      ],
+                    ),
                   ),
-                ),
                 ),
               );
             },
@@ -858,7 +935,13 @@ class _StaffScreenState extends State<StaffScreen> {
     bool started = false;
 
     const dayNames = <String>[
-      'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'
+      'Lundi',
+      'Mardi',
+      'Mercredi',
+      'Jeudi',
+      'Vendredi',
+      'Samedi',
+      'Dimanche'
     ];
 
     await showModalBottomSheet<void>(
@@ -911,7 +994,8 @@ class _StaffScreenState extends State<StaffScreen> {
                   children: <Widget>[
                     Center(
                       child: Container(
-                        height: 4, width: 40,
+                        height: 4,
+                        width: 40,
                         decoration: BoxDecoration(
                           color: Theme.of(context).dividerColor,
                           borderRadius: BorderRadius.circular(2),
@@ -923,9 +1007,11 @@ class _StaffScreenState extends State<StaffScreen> {
                     Row(
                       children: <Widget>[
                         CircleAvatar(
-                          backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                          child: const Icon(Icons.content_cut_rounded,
-                              color: AppColors.primary),
+                          backgroundColor: CoutureScheme.of(context)
+                              .iconInk
+                              .withValues(alpha: 0.12),
+                          child: Icon(CoutureIcons.scissors,
+                              color: CoutureScheme.of(context).iconInk),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -934,18 +1020,21 @@ class _StaffScreenState extends State<StaffScreen> {
                             children: <Widget>[
                               Text(member.fullName,
                                   style: Theme.of(ctx).textTheme.titleLarge),
-                              Text('Tarif p. pièce: ${formatFcfa(member.pieceRate ?? 0)}',
+                              Text(
+                                  'Tarif p. pièce: ${formatFcfa(member.pieceRate ?? 0)}',
                                   style: Theme.of(ctx).textTheme.bodySmall),
                             ],
                           ),
                         ),
                         if (member.phone.isNotEmpty)
                           IconButton(
-                            icon: const Icon(Icons.phone_rounded, color: AppColors.success),
+                            icon: Icon(CoutureIcons.phone,
+                                color: CoutureScheme.of(context).goodInk),
                             onPressed: () => _callPhone(member.phone),
                           ),
                         IconButton(
-                          icon: const Icon(Icons.monetization_on_rounded, color: AppColors.success),
+                          icon: Icon(Icons.monetization_on_rounded,
+                              color: CoutureScheme.of(context).goodInk),
                           tooltip: 'Modifier le tarif',
                           onPressed: () async {
                             await _editStaffPay(member);
@@ -969,7 +1058,7 @@ class _StaffScreenState extends State<StaffScreen> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.chevron_right_rounded),
+                          icon: const Icon(CoutureIcons.caretRight),
                           onPressed: () => shiftWeek(7),
                         ),
                       ],
@@ -981,8 +1070,8 @@ class _StaffScreenState extends State<StaffScreen> {
                           : SingleChildScrollView(
                               controller: scrollCtrl,
                               child: Table(
-                                border:
-                                    TableBorder.all(color: Theme.of(context).dividerColor),
+                                border: TableBorder.all(
+                                    color: Theme.of(context).dividerColor),
                                 columnWidths: const <int, TableColumnWidth>{
                                   0: FlexColumnWidth(1.7),
                                   1: FlexColumnWidth(2.2),
@@ -992,8 +1081,9 @@ class _StaffScreenState extends State<StaffScreen> {
                                 },
                                 children: <TableRow>[
                                   TableRow(
-                                    decoration: const BoxDecoration(
-                                        color: AppColors.primary),
+                                    decoration: BoxDecoration(
+                                        color:
+                                            CoutureScheme.of(context).iconInk),
                                     children: <Widget>[
                                       for (final h in const <String>[
                                         'Jours',
@@ -1033,10 +1123,11 @@ class _StaffScreenState extends State<StaffScreen> {
                             style: Theme.of(ctx).textTheme.titleMedium),
                         const Spacer(),
                         Text(formatFcfa(detail?.total ?? 0),
-                            style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w800,
-                                )),
+                            style:
+                                Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                                      color: CoutureScheme.of(context).iconInk,
+                                      fontWeight: FontWeight.w800,
+                                    )),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -1045,7 +1136,7 @@ class _StaffScreenState extends State<StaffScreen> {
                         await _addTailorEntry(preselect: member);
                         await load();
                       },
-                      icon: const Icon(Icons.add_rounded),
+                      icon: const Icon(CoutureIcons.plus),
                       label: const Text('Ajouter une entrée'),
                       style: ElevatedButton.styleFrom(
                           minimumSize: const Size.fromHeight(46)),
@@ -1054,7 +1145,7 @@ class _StaffScreenState extends State<StaffScreen> {
                     OutlinedButton.icon(
                       onPressed: () => _printTailorWeekReceipt(
                           member, weekStart, weekEnd, detail?.total ?? 0),
-                      icon: const Icon(Icons.receipt_long_rounded),
+                      icon: const Icon(CoutureIcons.receipt),
                       label: const Text('Imprimer le reçu de la semaine'),
                       style: OutlinedButton.styleFrom(
                           minimumSize: const Size.fromHeight(46)),
@@ -1073,8 +1164,8 @@ class _StaffScreenState extends State<StaffScreen> {
   /// A printable weekly payment receipt for a tailor (documentation). Weekly
   /// piece-rate wages are already tracked in the daily entries, so this only
   /// prints — it does not create a separate ledger row.
-  Future<void> _printTailorWeekReceipt(
-      StaffPayInfo member, DateTime weekStart, DateTime weekEnd, int total) async {
+  Future<void> _printTailorWeekReceipt(StaffPayInfo member, DateTime weekStart,
+      DateTime weekEnd, int total) async {
     final settings = context.read<ShopSettingsProvider>();
     final DateTime now = DateTime.now();
     try {
@@ -1094,7 +1185,7 @@ class _StaffScreenState extends State<StaffScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Erreur reçu: $e'),
-            backgroundColor: AppColors.error));
+            backgroundColor: CoutureScheme.of(context).urgentText));
       }
     }
   }
@@ -1153,10 +1244,11 @@ class _StaffScreenState extends State<StaffScreen> {
                             '${e.piecesCount > 1 ? ' ×${e.piecesCount}' : ''}',
                             style: TextStyle(
                               fontSize: 12.0,
-                              decoration: e.voided
-                                  ? TextDecoration.lineThrough
+                              decoration:
+                                  e.voided ? TextDecoration.lineThrough : null,
+                              color: e.voided
+                                  ? CoutureScheme.of(context).inkSoft
                                   : null,
-                              color: e.voided ? AppColors.textSecondary : null,
                             ),
                           ),
                         ),
@@ -1184,7 +1276,9 @@ class _StaffScreenState extends State<StaffScreen> {
                                 textAlign: TextAlign.right,
                                 style: TextStyle(
                                   fontSize: 11.5,
-                                  color: e.voided ? AppColors.textSecondary : null,
+                                  color: e.voided
+                                      ? CoutureScheme.of(context).inkSoft
+                                      : null,
                                   fontStyle: e.voided ? FontStyle.italic : null,
                                 ),
                               ),
@@ -1198,9 +1292,11 @@ class _StaffScreenState extends State<StaffScreen> {
                               child: Padding(
                                 padding: const EdgeInsets.all(2),
                                 child: Icon(
-                                  Icons.edit_rounded,
+                                  CoutureIcons.pencil,
                                   size: 15,
-                                  color: AppColors.primary.withValues(alpha: 0.8),
+                                  color: CoutureScheme.of(context)
+                                      .iconInk
+                                      .withValues(alpha: 0.8),
                                 ),
                               ),
                             ),
@@ -1211,12 +1307,12 @@ class _StaffScreenState extends State<StaffScreen> {
                               message: 'Annuler / Supprimer',
                               child: InkWell(
                                 onTap: () => onVoid(e),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(2),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(2),
                                   child: Icon(
-                                    Icons.delete_outline_rounded,
+                                    CoutureIcons.trash,
                                     size: 15,
-                                    color: AppColors.error,
+                                    color: CoutureScheme.of(context).urgentText,
                                   ),
                                 ),
                               ),
@@ -1241,11 +1337,14 @@ class _StaffScreenState extends State<StaffScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        title: Row(
           children: <Widget>[
-            Icon(Icons.warning_amber_rounded, color: AppColors.error),
-            SizedBox(width: 8),
-            Expanded(child: Text('Annuler la saisie', style: TextStyle(fontSize: 18))),
+            Icon(CoutureIcons.warningCircle,
+                color: CoutureScheme.of(context).urgentText),
+            const SizedBox(width: 8),
+            const Expanded(
+                child:
+                    Text('Annuler la saisie', style: TextStyle(fontSize: 18))),
           ],
         ),
         content: Form(
@@ -1283,10 +1382,10 @@ class _StaffScreenState extends State<StaffScreen> {
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
+              backgroundColor: CoutureScheme.of(context).urgentText,
               foregroundColor: Colors.white,
             ),
-            icon: const Icon(Icons.delete_rounded, size: 18),
+            icon: const Icon(CoutureIcons.trash, size: 18),
             label: const Text('Confirmer l\'annulation'),
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
@@ -1301,9 +1400,9 @@ class _StaffScreenState extends State<StaffScreen> {
                 await reload();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Saisie annulée avec succès.'),
-                      backgroundColor: AppColors.success,
+                    SnackBar(
+                      content: const Text('Saisie annulée avec succès.'),
+                      backgroundColor: CoutureScheme.of(context).goodInk,
                     ),
                   );
                 }
@@ -1312,7 +1411,7 @@ class _StaffScreenState extends State<StaffScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Erreur: $err'),
-                      backgroundColor: AppColors.error,
+                      backgroundColor: CoutureScheme.of(context).urgentText,
                     ),
                   );
                 }
@@ -1336,9 +1435,8 @@ class _StaffScreenState extends State<StaffScreen> {
     List<TailoringOrder> linkableOrders = <TailoringOrder>[];
     try {
       final allOrders = await OrdersRepository().list(limit: 100);
-      linkableOrders = allOrders
-          .where((o) => !o.isLivre || o.id == e.orderId)
-          .toList();
+      linkableOrders =
+          allOrders.where((o) => !o.isLivre || o.id == e.orderId).toList();
     } catch (_) {}
     if (!mounted) return;
 
@@ -1348,7 +1446,8 @@ class _StaffScreenState extends State<StaffScreen> {
         e.garmentType,
       ...GarmentTypes.all,
     ];
-    String garment = e.garmentType.isEmpty ? garmentChoices.first : e.garmentType;
+    String garment =
+        e.garmentType.isEmpty ? garmentChoices.first : e.garmentType;
     String customClientName = e.clientName ?? '';
     String? linkedOrderId = e.orderId;
     int pieces = e.piecesCount;
@@ -1374,7 +1473,9 @@ class _StaffScreenState extends State<StaffScreen> {
       } catch (err) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur: $err'), backgroundColor: AppColors.error),
+            SnackBar(
+                content: Text('Erreur: $err'),
+                backgroundColor: CoutureScheme.of(context).urgentText),
           );
         }
       }
@@ -1384,7 +1485,8 @@ class _StaffScreenState extends State<StaffScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlg) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Modifier la saisie'),
           content: Form(
             key: formKey,
@@ -1397,10 +1499,16 @@ class _StaffScreenState extends State<StaffScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: (e.voided ? AppColors.error : AppColors.warning).withValues(alpha: 0.12),
+                        color: (e.voided
+                                ? CoutureScheme.of(context).urgentText
+                                : CoutureScheme.of(context).urgentInk)
+                            .withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: (e.voided ? AppColors.error : AppColors.warning).withValues(alpha: 0.4),
+                          color: (e.voided
+                                  ? CoutureScheme.of(context).urgentText
+                                  : CoutureScheme.of(context).urgentInk)
+                              .withValues(alpha: 0.4),
                         ),
                       ),
                       child: Column(
@@ -1409,18 +1517,26 @@ class _StaffScreenState extends State<StaffScreen> {
                           Row(
                             children: <Widget>[
                               Icon(
-                                e.voided ? Icons.block_rounded : Icons.history_rounded,
+                                e.voided
+                                    ? CoutureIcons.prohibit
+                                    : CoutureIcons.clockCounterClockwise,
                                 size: 16,
-                                color: e.voided ? AppColors.error : Colors.amber[900],
+                                color: e.voided
+                                    ? CoutureScheme.of(context).urgentText
+                                    : Colors.amber[900],
                               ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
-                                  e.voided ? 'Saisie actuellement annulée' : 'Dernière modification enregistrée',
+                                  e.voided
+                                      ? 'Saisie actuellement annulée'
+                                      : 'Dernière modification enregistrée',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
-                                    color: e.voided ? AppColors.error : Colors.amber[900],
+                                    color: e.voided
+                                        ? CoutureScheme.of(context).urgentText
+                                        : Colors.amber[900],
                                   ),
                                 ),
                               ),
@@ -1446,7 +1562,8 @@ class _StaffScreenState extends State<StaffScreen> {
                       isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Commande liée (optionnel)',
-                        helperText: 'Associe la saisie à une commande et son client',
+                        helperText:
+                            'Associe la saisie à une commande et son client',
                       ),
                       items: <DropdownMenuItem<String?>>[
                         const DropdownMenuItem<String?>(
@@ -1466,7 +1583,8 @@ class _StaffScreenState extends State<StaffScreen> {
                           if (ord != null) {
                             clientCtrl.text = ord.clientName;
                             customClientName = ord.clientName;
-                            if (ord.garmentType.isNotEmpty && GarmentTypes.all.contains(ord.garmentType)) {
+                            if (ord.garmentType.isNotEmpty &&
+                                GarmentTypes.all.contains(ord.garmentType)) {
                               garment = ord.garmentType;
                             }
                           }
@@ -1477,7 +1595,8 @@ class _StaffScreenState extends State<StaffScreen> {
                   ],
                   TextFormField(
                     controller: clientCtrl,
-                    decoration: const InputDecoration(labelText: 'Nom du client'),
+                    decoration:
+                        const InputDecoration(labelText: 'Nom du client'),
                     onSaved: (v) => customClientName = v?.trim() ?? '',
                   ),
                   const SizedBox(height: 12),
@@ -1494,43 +1613,57 @@ class _StaffScreenState extends State<StaffScreen> {
                   TextFormField(
                     controller: piecesCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Quantité (pièces)'),
+                    decoration:
+                        const InputDecoration(labelText: 'Quantité (pièces)'),
                     validator: (v) {
                       final n = int.tryParse(v ?? '');
                       return (n == null || n < 1) ? 'Quantité invalide' : null;
                     },
-                    onChanged: (v) => setDlg(() => pieces = int.tryParse(v) ?? pieces),
+                    onChanged: (v) =>
+                        setDlg(() => pieces = int.tryParse(v) ?? pieces),
                     onSaved: (v) => pieces = int.tryParse(v ?? '') ?? pieces,
                   ),
                   const SizedBox(height: 12),
                   FormattedNumberField(
                     controller: rateCtrl,
                     label: 'Prix par pièce (FCFA)',
-                    validator: (v) => (v == null || v < 1) ? 'Prix invalide' : null,
+                    validator: (v) =>
+                        (v == null || v < 1) ? 'Prix invalide' : null,
                     onChanged: (v) => setDlg(() => rate = v ?? rate),
                   ),
                   const SizedBox(height: 10),
                   // Live montant = quantité × prix.
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10, horizontal: 12),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
+                      color: CoutureScheme.of(context)
+                          .iconInk
+                          .withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       'Montant : ${formatFcfa(pieces * rate)}',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, color: AppColors.primary),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: CoutureScheme.of(context).iconInk),
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
-                    decoration: const InputDecoration(labelText: 'Motif (obligatoire)'),
+                    decoration:
+                        const InputDecoration(labelText: 'Motif (obligatoire)'),
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Motif requis' : null,
                     onSaved: (v) => reason = v?.trim() ?? '',
                   ),
+                  // Audit trail, collapsed so the form stays as simple as it
+                  // was. Both the manager and the secretary may correct
+                  // entries, so the owner needs to see who touched a tailor's
+                  // numbers if the pay is ever disputed.
+                  if (e.corrected)
+                    _EntryCorrectionHistory(entryId: e.id, repo: _repo),
                 ],
               ),
             ),
@@ -1538,9 +1671,11 @@ class _StaffScreenState extends State<StaffScreen> {
           actions: <Widget>[
             // Cancel-entry (void): keeps the audit trail, contributes 0.
             TextButton.icon(
-              icon: const Icon(Icons.block_rounded, color: AppColors.error, size: 18),
-              label: const Text('Annuler cette entrée',
-                  style: TextStyle(color: AppColors.error)),
+              icon: Icon(CoutureIcons.prohibit,
+                  color: CoutureScheme.of(context).urgentText, size: 18),
+              label: Text('Annuler cette entrée',
+                  style:
+                      TextStyle(color: CoutureScheme.of(context).urgentText)),
               onPressed: () {
                 if (!formKey.currentState!.validate()) return;
                 formKey.currentState!.save();
@@ -1548,7 +1683,9 @@ class _StaffScreenState extends State<StaffScreen> {
                 submit(true);
               },
             ),
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Fermer')),
             ElevatedButton(
               onPressed: () {
                 if (!formKey.currentState!.validate()) return;
@@ -1565,8 +1702,18 @@ class _StaffScreenState extends State<StaffScreen> {
   }
 
   static const List<String> _monthNames = <String>[
-    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet',
-    'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+    'Janvier',
+    'Février',
+    'Mars',
+    'Avril',
+    'Mai',
+    'Juin',
+    'Juillet',
+    'Août',
+    'Septembre',
+    'Octobre',
+    'Novembre',
+    'Décembre'
   ];
 
   static String _monthId(DateTime d) =>
@@ -1623,7 +1770,8 @@ class _StaffScreenState extends State<StaffScreen> {
                   children: <Widget>[
                     Center(
                       child: Container(
-                        height: 4, width: 40,
+                        height: 4,
+                        width: 40,
                         decoration: BoxDecoration(
                           color: Theme.of(ctx).dividerColor,
                           borderRadius: BorderRadius.circular(2),
@@ -1632,7 +1780,8 @@ class _StaffScreenState extends State<StaffScreen> {
                     ),
                     const SizedBox(height: 10),
                     Row(children: <Widget>[
-                      const Icon(Icons.emoji_events_rounded, color: AppColors.accent),
+                      Icon(CoutureIcons.chartBar,
+                          color: CoutureScheme.of(context).iconInk),
                       const SizedBox(width: 8),
                       Text('Les meilleurs couturiers',
                           style: Theme.of(ctx).textTheme.titleLarge),
@@ -1651,7 +1800,7 @@ class _StaffScreenState extends State<StaffScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.chevron_right_rounded),
+                        icon: const Icon(CoutureIcons.caretRight),
                         onPressed: () => shiftMonth(1),
                       ),
                     ]),
@@ -1707,31 +1856,40 @@ class _StaffScreenState extends State<StaffScreen> {
                                                 ClipRRect(
                                                   borderRadius:
                                                       BorderRadius.circular(4),
-                                                  child: LinearProgressIndicator(
+                                                  child:
+                                                      LinearProgressIndicator(
                                                     value: frac,
                                                     minHeight: 6,
                                                     backgroundColor:
-                                                        Theme.of(ctx).brightness == Brightness.dark ? AppColors.darkSurfaceAlt : AppColors.surfaceAlt,
+                                                        CoutureScheme.of(ctx)
+                                                            .quiet,
                                                     color: i == 0
-                                                        ? AppColors.accent
-                                                        : AppColors.primary,
+                                                        ? CoutureScheme.of(
+                                                                context)
+                                                            .iconInk
+                                                        : CoutureScheme.of(
+                                                                context)
+                                                            .iconInk,
                                                   ),
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
                                                     '${r.piecesTotal} pièces · ${r.daysWorked} j',
-                                                    style: const TextStyle(
+                                                    style: TextStyle(
                                                         fontSize: 12,
-                                                        color: AppColors
-                                                            .textSecondary)),
+                                                        color: CoutureScheme.of(
+                                                                ctx)
+                                                            .inkSoft)),
                                               ],
                                             ),
                                           ),
                                           const SizedBox(width: 10),
                                           Text(formatFcfa(r.amountTotal),
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                   fontWeight: FontWeight.w800,
-                                                  color: AppColors.primary)),
+                                                  color:
+                                                      CoutureScheme.of(context)
+                                                          .iconInk)),
                                         ]),
                                       ),
                                     );
@@ -1752,33 +1910,42 @@ class _StaffScreenState extends State<StaffScreen> {
   Widget build(BuildContext context) {
     final shopName = context.watch<ShopSettingsProvider>().shopName;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('$shopName - Tailleurs'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.emoji_events_rounded),
-            tooltip: 'Classement du mois',
-            onPressed: _openMonthlyRanking,
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _loadData,
-          )
-        ],
-      ),
+    return CoutureScaffold(
+      title: 'Tailleurs',
+      subtitle: shopName.isEmpty ? 'Le travail de l\'atelier' : shopName,
+      actions: <Widget>[
+        CoutureBandAction(
+          icon: CoutureIcons.chartBar,
+          tooltip: 'Classement du mois',
+          onPressed: _openMonthlyRanking,
+        ),
+        CoutureBandAction(
+          icon: CoutureIcons.refresh,
+          tooltip: 'Actualiser',
+          onPressed: _loadData,
+        ),
+      ],
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addStaffMember,
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: const Text('Tailleur', style: TextStyle(color: Colors.white)),
+        backgroundColor: CoutureScheme.of(context).urgentInk,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        icon: const Icon(CoutureIcons.plus, size: 20),
+        label: const Text('Nouveau tailleur',
+            style: TextStyle(fontWeight: FontWeight.w600)),
       ),
       // Identical for BOTH roles (owner decision 2026-07-20): the tailor list;
       // tap a tailor for everything (week detail, entries, add-entry, rate).
-      body: _loading
+      child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text('Erreur: $_error'))
+              ? const CoutureEmpty(
+                  icon: CoutureIcons.warningCircle,
+                  tone: CoutureTone.urgent,
+                  title: 'La liste ne s\'affiche pas',
+                  message:
+                      'Vérifiez la connexion, puis appuyez sur Actualiser.',
+                )
               : RefreshIndicator(
                   onRefresh: _loadData,
                   child: _buildManagerStaffTab(),
@@ -1840,6 +2007,158 @@ class _SummaryStat extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Collapsed "who changed this entry" log shown inside the correction dialog.
+///
+/// A tailor's weekly entries decide their pay, and BOTH the manager and the
+/// secretary are allowed to correct them (deliberate owner decision, see
+/// CLAUDE.md rule 2). Attribution is therefore not decoration: if a tailor
+/// disputes their pay, this is where the owner sees exactly who changed what,
+/// when, and why. The data comes from the append-only correction log — the
+/// entry itself is never edited in place.
+class _EntryCorrectionHistory extends StatefulWidget {
+  const _EntryCorrectionHistory({required this.entryId, required this.repo});
+
+  final String entryId;
+  final StaffRepository repo;
+
+  @override
+  State<_EntryCorrectionHistory> createState() =>
+      _EntryCorrectionHistoryState();
+}
+
+class _EntryCorrectionHistoryState extends State<_EntryCorrectionHistory> {
+  bool _open = false;
+  bool _loading = false;
+  bool _failed = false;
+  List<Map<String, dynamic>> _items = const <Map<String, dynamic>>[];
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
+    try {
+      final List<Map<String, dynamic>> items =
+          await widget.repo.listEntryCorrections(widget.entryId);
+      if (mounted) setState(() => _items = items);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// "4 → 6 pièces", "2,500 → 3,000 FCFA la pièce", "Chemise → Boubou".
+  List<String> _changes(Map<String, dynamic> c) {
+    final List<String> out = <String>[];
+    final int? oldP = c['old_pieces'] as int?;
+    final int? newP = c['new_pieces'] as int?;
+    if (oldP != null && newP != null && oldP != newP) {
+      out.add('$oldP → $newP pièces');
+    }
+    final int? oldR = c['old_piece_rate'] as int?;
+    final int? newR = c['new_piece_rate'] as int?;
+    if (oldR != null && newR != null && oldR != newR) {
+      out.add(
+          '${formatThousands(oldR)} → ${formatThousands(newR)} FCFA la pièce');
+    }
+    final String? oldG = c['old_garment_type'] as String?;
+    final String? newG = c['new_garment_type'] as String?;
+    if (oldG != null && newG != null && oldG != newG) {
+      out.add('$oldG → $newG');
+    }
+    if (c['voided'] == true) out.add('Entrée annulée');
+    return out;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final CoutureScheme c = CoutureScheme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            style: TextButton.styleFrom(
+                padding: EdgeInsets.zero, foregroundColor: c.inkSoft),
+            icon: Icon(
+                _open ? CoutureIcons.close : CoutureIcons.clockCounterClockwise,
+                size: 16),
+            label: const Text('Qui a modifié cette saisie ?',
+                style: TextStyle(fontSize: 13)),
+            onPressed: () {
+              setState(() => _open = !_open);
+              if (_open && _items.isEmpty && !_loading) _load();
+            },
+          ),
+        ),
+        if (_open)
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: CouturePalette.s2),
+              child: SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else if (_failed)
+            Text('L\'historique ne s\'affiche pas.',
+                style: TextStyle(fontSize: 12, color: c.urgentText))
+          else if (_items.isEmpty)
+            Text('Aucune modification.',
+                style: TextStyle(fontSize: 12, color: c.inkFaint))
+          else
+            Column(
+              children: _items.map((Map<String, dynamic> item) {
+                final String who =
+                    (item['corrected_by_name'] as String?) ?? 'Inconnu';
+                final String when = (item['corrected_at'] as String?)
+                        ?.replaceFirst('T', ' ')
+                        .split('.')
+                        .first ??
+                    '';
+                final List<String> changes = _changes(item);
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: CouturePalette.s2),
+                  padding: const EdgeInsets.all(CouturePalette.s2 + 2),
+                  decoration: BoxDecoration(
+                    color: c.quiet,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text('$who · $when',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: c.inkSoft)),
+                      if (changes.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(changes.join(' · '),
+                              style: TextStyle(fontSize: 12.5, color: c.ink)),
+                        ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text('Motif : ${item['reason'] ?? ''}',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontStyle: FontStyle.italic,
+                                color: c.inkSoft)),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(growable: false),
+            ),
+      ],
     );
   }
 }

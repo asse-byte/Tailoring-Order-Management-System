@@ -70,7 +70,9 @@ class SalaryReceiptService {
                   alignment: pw.Alignment.center,
                   child: logo == null
                       ? pw.Text(
-                          shopName.trim().isNotEmpty ? shopName.trim()[0].toUpperCase() : 'C',
+                          shopName.trim().isNotEmpty
+                              ? shopName.trim()[0].toUpperCase()
+                              : 'C',
                           style: const pw.TextStyle(
                               color: PdfColors.white,
                               fontSize: 26,
@@ -97,10 +99,12 @@ class SalaryReceiptService {
                 ),
                 pw.Spacer(),
                 pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const pw.EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
                   decoration: pw.BoxDecoration(
                     color: PdfColors.grey100,
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(8)),
                     border: pw.Border.all(color: PdfColors.grey300, width: 0.8),
                   ),
                   child: pw.Column(
@@ -166,23 +170,32 @@ class SalaryReceiptService {
                       ),
                       if (staffPhone.isNotEmpty)
                         pw.Text('Tél: $staffPhone',
-                            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                            style: const pw.TextStyle(
+                                fontSize: 10, color: PdfColors.grey700)),
                       pw.SizedBox(height: 2),
                       pw.Text('Poste / Fonction: $roleLabel',
-                          style: const pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: _teal)),
+                          style: const pw.TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: pw.FontWeight.bold,
+                              color: _teal)),
                     ],
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: <pw.Widget>[
                       pw.Text('Période: $periodLabel',
-                          style: const pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.grey900)),
+                          style: const pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.grey900)),
                       pw.SizedBox(height: 4),
                       pw.Text('Date de règlement: $paidAtLabel',
-                          style: const pw.TextStyle(fontSize: 9.5, color: PdfColors.grey800)),
+                          style: const pw.TextStyle(
+                              fontSize: 9.5, color: PdfColors.grey800)),
                       pw.SizedBox(height: 2),
                       pw.Text('Type: Salaire mensuel / Acompte',
-                          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+                          style: const pw.TextStyle(
+                              fontSize: 9, color: PdfColors.grey700)),
                     ],
                   ),
                 ],
@@ -206,10 +219,14 @@ class SalaryReceiptService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text('MONTANT TOTAL RÉGLÉ',
-                          style: const pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _teal)),
+                          style: const pw.TextStyle(
+                              fontSize: 11,
+                              fontWeight: pw.FontWeight.bold,
+                              color: _teal)),
                       pw.SizedBox(height: 2),
                       pw.Text('Paiement validé et acquitté',
-                          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+                          style: const pw.TextStyle(
+                              fontSize: 9, color: PdfColors.grey700)),
                     ],
                   ),
                   pw.Text(
@@ -235,17 +252,22 @@ class SalaryReceiptService {
                   height: 90,
                   padding: const pw.EdgeInsets.all(8),
                   decoration: pw.BoxDecoration(
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(6)),
                     border: pw.Border.all(color: PdfColors.grey300, width: 0.8),
                   ),
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text('Signature du Bénéficiaire :',
-                          style: const pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: _teal)),
+                          style: const pw.TextStyle(
+                              fontSize: 9,
+                              fontWeight: pw.FontWeight.bold,
+                              color: _teal)),
                       pw.Spacer(),
                       pw.Text('Date et signature',
-                          style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500)),
+                          style: const pw.TextStyle(
+                              fontSize: 8, color: PdfColors.grey500)),
                     ],
                   ),
                 ),
@@ -254,17 +276,22 @@ class SalaryReceiptService {
                   height: 90,
                   padding: const pw.EdgeInsets.all(8),
                   decoration: pw.BoxDecoration(
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(6)),
                     border: pw.Border.all(color: PdfColors.grey300, width: 0.8),
                   ),
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text('Cachet & Signature de la Direction :',
-                          style: const pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: _teal)),
+                          style: const pw.TextStyle(
+                              fontSize: 9,
+                              fontWeight: pw.FontWeight.bold,
+                              color: _teal)),
                       pw.Spacer(),
                       pw.Text('Pour accord et paiement',
-                          style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500)),
+                          style: const pw.TextStyle(
+                              fontSize: 8, color: PdfColors.grey500)),
                     ],
                   ),
                 ),
@@ -275,7 +302,8 @@ class SalaryReceiptService {
             pw.Center(
               child: pw.Text(
                 '$shopName — Pièce justificative comptable | Couture Pro',
-                style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey600),
+                style:
+                    const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey600),
               ),
             ),
           ],

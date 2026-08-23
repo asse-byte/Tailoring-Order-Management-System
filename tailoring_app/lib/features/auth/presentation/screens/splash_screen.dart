@@ -1,67 +1,68 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/localization/app_localizations.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
 
-/// Branded splash screen. Auth/onboarding redirect logic is handled by
-/// the GoRouter `redirect` callback, so this screen mostly just renders
-/// while auth state is resolving.
+/// The half-second before the app knows who is holding the phone. Auth and
+/// redirect logic live in the GoRouter `redirect` callback; this screen only
+/// has to be something to look at while that resolves.
+///
+/// It cannot show the shop's own colour or logo: the settings that carry them
+/// have not been fetched yet at this point. So it shows the house indigo and
+/// the app's own name, and hands over to the login screen — which does know
+/// the shop — as soon as it can.
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: CouturePalette.indigo,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Container(
-              height: 96,
-              width: 96,
+              height: 88,
+              width: 88,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
+                color: Colors.white.withValues(alpha: 0.10),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: AppColors.accent.withValues(alpha: 0.6),
-                  width: 1.5,
+                  color: Colors.white.withValues(alpha: 0.22),
                 ),
               ),
               child: const Icon(
-                Icons.content_cut_rounded,
-                size: 44,
-                color: AppColors.accent,
+                CoutureIcons.scissors,
+                size: 38,
+                color: Colors.white,
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: CouturePalette.s6),
             Text(
               context.loc.appName,
-              style: GoogleFonts.poppins(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                letterSpacing: 0.4,
+              style: const TextStyle(
+                fontFamily: 'CormorantGaramond',
+                fontSize: 30,
+                fontWeight: FontWeight.w600,
+                color: CouturePalette.onBand,
+                height: 1.1,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: CouturePalette.s2),
             Text(
-              context.loc.tagline,
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-                color: Colors.white.withValues(alpha: 0.7),
-                letterSpacing: 1.4,
-              ),
+              context.loc.tagline.toUpperCase(),
+              style: CouturePalette.sectionLabel
+                  .copyWith(color: CouturePalette.onBandSoft),
             ),
-            const SizedBox(height: 36),
-            const SizedBox(
-              height: 22,
-              width: 22,
+            const SizedBox(height: CouturePalette.s8 + CouturePalette.s1),
+            SizedBox(
+              height: 20,
+              width: 20,
               child: CircularProgressIndicator(
-                color: AppColors.accent,
-                strokeWidth: 2.4,
+                color: Colors.white.withValues(alpha: 0.7),
+                strokeWidth: 2.2,
               ),
             ),
           ],

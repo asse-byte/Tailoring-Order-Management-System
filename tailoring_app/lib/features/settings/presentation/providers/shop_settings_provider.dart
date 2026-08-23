@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_palette.dart';
 import '../../../../core/utils/web_helper.dart';
 import '../../data/settings_repository.dart';
 
@@ -30,7 +30,7 @@ class ShopSettingsProvider extends ChangeNotifier {
   /// The shop's brand colour (item 9). Falls back to the house Deep Teal when
   /// unset or malformed, so the UI always has a valid primary.
   String get themeColorHex => _themeColorHex;
-  Color get themeColor => _parseHex(_themeColorHex) ?? AppColors.primary;
+  Color get themeColor => _parseHex(_themeColorHex) ?? CouturePalette.indigo;
 
   static Color? _parseHex(String? hex) {
     if (hex == null) return null;

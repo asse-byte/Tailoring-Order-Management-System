@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/utils/whatsapp.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
@@ -22,19 +24,13 @@ class SaleReceiptScreen extends StatelessWidget {
     final shop = context.watch<ShopSettingsProvider>();
     final live = receipt.lines.where((l) => !l.voided).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Vente terminée'),
-        automaticallyImplyLeading: false,
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Fermer'),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+    return CoutureScaffold(
+      title: 'Vente terminée',
+      subtitle: 'Le client peut partir',
+      onBack: () => Navigator.of(context).pop(),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(CouturePalette.s4, CouturePalette.s6,
+            CouturePalette.s4, CouturePalette.s6),
         children: <Widget>[
           Center(
             child: Column(
@@ -42,26 +38,27 @@ class SaleReceiptScreen extends StatelessWidget {
                 Container(
                   width: 72,
                   height: 72,
-                  decoration: const BoxDecoration(
-                    color: AppColors.success,
+                  decoration: BoxDecoration(
+                    color: CoutureScheme.of(context).goodInk,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.check_rounded,
+                  child: const Icon(CoutureIcons.checkCircle,
                       color: Colors.white, size: 42),
                 ),
                 const SizedBox(height: 14),
                 Text(formatFcfa(receipt.total),
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.primary)),
+                        color: CoutureScheme.of(context).iconInk)),
                 const SizedBox(height: 4),
                 Text('${receipt.itemsCount} article(s) vendu(s)',
-                    style: const TextStyle(color: AppColors.textSecondary)),
+                    style: TextStyle(color: CoutureScheme.of(context).inkSoft)),
                 if ((receipt.clientName ?? '').isNotEmpty) ...<Widget>[
                   const SizedBox(height: 2),
                   Text('Pour ${receipt.clientName}',
-                      style: const TextStyle(color: AppColors.textSecondary)),
+                      style:
+                          TextStyle(color: CoutureScheme.of(context).inkSoft)),
                 ],
               ],
             ),
@@ -85,9 +82,9 @@ class SaleReceiptScreen extends StatelessWidget {
           FilledButton.icon(
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
-              backgroundColor: AppColors.primary,
+              backgroundColor: CoutureScheme.of(context).iconInk,
             ),
-            icon: const Icon(Icons.share_rounded),
+            icon: const Icon(CoutureIcons.share),
             label: const Text('Envoyer la facture'),
             onPressed: () => _share(context, shop),
           ),
@@ -96,16 +93,17 @@ class SaleReceiptScreen extends StatelessWidget {
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50)),
-              icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
+              icon: const Icon(CoutureIcons.whatsapp, color: Color(0xFF25D366)),
               label: const Text('Écrire au client sur WhatsApp'),
               onPressed: () => _whatsAppText(context, shop),
             ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Choisissez WhatsApp dans la liste de partage pour envoyer la '
             'facture au client.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+            style: TextStyle(
+                fontSize: 12, color: CoutureScheme.of(context).inkFaint),
           ),
         ],
       ),
@@ -114,6 +112,7 @@ class SaleReceiptScreen extends StatelessWidget {
 
   Future<void> _share(BuildContext context, ShopSettingsProvider shop) async {
     final messenger = ScaffoldMessenger.of(context);
+    const Color errorTone = CouturePalette.terracottaDeep;
     try {
       await const ReceiptInvoiceService().shareInvoice(
         receipt,
@@ -124,7 +123,7 @@ class SaleReceiptScreen extends StatelessWidget {
     } catch (e) {
       messenger.showSnackBar(SnackBar(
         content: Text('Facture impossible : $e'),
-        backgroundColor: AppColors.error,
+        backgroundColor: errorTone,
       ));
     }
   }
@@ -133,7 +132,8 @@ class SaleReceiptScreen extends StatelessWidget {
       BuildContext context, ShopSettingsProvider shop) async {
     final messenger = ScaffoldMessenger.of(context);
     final buffer = StringBuffer()
-      ..writeln('Bonjour${(receipt.clientName ?? '').isEmpty ? '' : ' ${receipt.clientName}'},')
+      ..writeln(
+          'Bonjour${(receipt.clientName ?? '').isEmpty ? '' : ' ${receipt.clientName}'},')
       ..writeln('Merci pour votre achat chez ${shop.shopName}.')
       ..writeln();
     for (final l in receipt.lines.where((l) => !l.voided)) {
@@ -147,8 +147,8 @@ class SaleReceiptScreen extends StatelessWidget {
         await openWhatsApp(receipt.clientPhone ?? '', text: buffer.toString());
     if (!opened) {
       messenger.showSnackBar(const SnackBar(
-        content: Text('Numéro WhatsApp introuvable pour ce client.'),
-        backgroundColor: AppColors.error,
+        content: Text('Pas de numéro WhatsApp pour ce client.'),
+        backgroundColor: CouturePalette.terracottaDeep,
       ));
     }
   }

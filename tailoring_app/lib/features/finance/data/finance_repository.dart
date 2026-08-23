@@ -32,7 +32,8 @@ class FinanceSummary {
   });
 
   factory FinanceSummary.fromJson(Map<String, dynamic> json) {
-    final rev = (json['revenue'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+    final rev =
+        (json['revenue'] as Map<String, dynamic>?) ?? <String, dynamic>{};
     final cos = (json['costs'] as Map<String, dynamic>?) ?? <String, dynamic>{};
     return FinanceSummary(
       from: json['from']?.toString() ?? '',
@@ -130,7 +131,8 @@ class FinanceRepository {
 
   final ApiClient _api;
 
-  Future<FinanceSummary> getSummary({required String from, required String to}) async {
+  Future<FinanceSummary> getSummary(
+      {required String from, required String to}) async {
     final dynamic res = await _api.get('/api/finance/summary', query: {
       'from': from,
       'to': to,
@@ -140,8 +142,10 @@ class FinanceRepository {
 
   // ---- period-filtered detail rows (each finance category) ----------------
 
-  Future<List<FinanceRow>> expenseRows({required String from, required String to}) async {
-    final dynamic res = await _api.get('/api/expenses', query: {'from': from, 'to': to});
+  Future<List<FinanceRow>> expenseRows(
+      {required String from, required String to}) async {
+    final dynamic res =
+        await _api.get('/api/expenses', query: {'from': from, 'to': to});
     return (res['items'] as List)
         .map((e) => e as Map<String, dynamic>)
         .where((e) => (e['voided'] as bool? ?? false) == false)
@@ -153,8 +157,10 @@ class FinanceRepository {
         .toList();
   }
 
-  Future<List<FinanceRow>> saleRows({required String from, required String to}) async {
-    final dynamic res = await _api.get('/api/sales', query: {'from': from, 'to': to});
+  Future<List<FinanceRow>> saleRows(
+      {required String from, required String to}) async {
+    final dynamic res =
+        await _api.get('/api/sales', query: {'from': from, 'to': to});
     return (res['items'] as List)
         .map((e) => e as Map<String, dynamic>)
         .where((e) => (e['voided'] as bool? ?? false) == false)
@@ -166,9 +172,13 @@ class FinanceRepository {
         .toList();
   }
 
-  Future<List<FinanceRow>> tailorWageRows({required String from, required String to}) async {
-    final dynamic res = await _api.get('/api/tailor-entries', query: {'from': from, 'to': to});
-    return (res['items'] as List).map((e) => e as Map<String, dynamic>).map((e) {
+  Future<List<FinanceRow>> tailorWageRows(
+      {required String from, required String to}) async {
+    final dynamic res =
+        await _api.get('/api/tailor-entries', query: {'from': from, 'to': to});
+    return (res['items'] as List)
+        .map((e) => e as Map<String, dynamic>)
+        .map((e) {
       final garment = (e['garment_type'] as String?) ?? '';
       final name = (e['tailor_name'] as String?) ?? '';
       return FinanceRow(
@@ -179,14 +189,19 @@ class FinanceRepository {
     }).toList();
   }
 
-  Future<List<FinanceRow>> deliveredOrderRows({required String from, required String to}) async {
-    final dynamic res = await _api.get('/api/orders',
-        query: {'status': 'livre', 'from': from, 'to': to});
-    return (res['items'] as List).map((e) => e as Map<String, dynamic>).map((e) {
+  Future<List<FinanceRow>> deliveredOrderRows(
+      {required String from, required String to}) async {
+    final dynamic res = await _api
+        .get('/api/orders', query: {'status': 'livre', 'from': from, 'to': to});
+    return (res['items'] as List)
+        .map((e) => e as Map<String, dynamic>)
+        .map((e) {
       return FinanceRow(
         title: (e['client_name'] as String?) ?? 'Client',
-        subtitle: 'Livré ${((e['delivered_date'] as String?) ?? '').split('T').first}',
-        amount: (e['total'] as num?)?.toInt() ?? (e['price'] as num?)?.toInt() ?? 0,
+        subtitle:
+            'Livré ${((e['delivered_date'] as String?) ?? '').split('T').first}',
+        amount:
+            (e['total'] as num?)?.toInt() ?? (e['price'] as num?)?.toInt() ?? 0,
       );
     }).toList();
   }

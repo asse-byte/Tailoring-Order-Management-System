@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
+import '../../../../core/theme/couture_palette.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
@@ -26,15 +29,25 @@ class MonthlyStaffScreen extends StatefulWidget {
 class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
   final StaffRepository _repo = StaffRepository();
   final SalaryPaymentsRepository _payRepo = SalaryPaymentsRepository();
-  List<StaffPayInfo> _staff = <StaffPayInfo>[];      // manager (with salary)
-  List<StaffContact> _contacts = <StaffContact>[];   // secretary (roster only)
+  List<StaffPayInfo> _staff = <StaffPayInfo>[]; // manager (with salary)
+  List<StaffContact> _contacts = <StaffContact>[]; // secretary (roster only)
   bool _isSec = false;
   bool _loading = true;
   String? _error;
 
   static const List<String> _monthNames = <String>[
-    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet',
-    'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+    'Janvier',
+    'Février',
+    'Mars',
+    'Avril',
+    'Mai',
+    'Juin',
+    'Juillet',
+    'Août',
+    'Septembre',
+    'Octobre',
+    'Novembre',
+    'Décembre'
   ];
 
   @override
@@ -53,7 +66,8 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
       if (_isSec) {
         // Roster only — no pay endpoint (that would be a 403 anyway).
         final all = await _repo.listContacts();
-        setState(() => _contacts = all.where((s) => s.type == 'autre').toList());
+        setState(
+            () => _contacts = all.where((s) => s.type == 'autre').toList());
       } else {
         final all = await _repo.listPayInfo();
         setState(() => _staff = all.where((s) => s.type == 'autre').toList());
@@ -79,7 +93,8 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
             const Expanded(child: Text('Modifier l\'employé')),
             IconButton(
               tooltip: 'Supprimer définitivement',
-              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+              icon: Icon(CoutureIcons.trash,
+                  color: CoutureScheme.of(context).urgentText),
               onPressed: () async {
                 final bool ok = await confirmDeleteByTyping(
                   ctx,
@@ -111,7 +126,8 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
               TextFormField(
                 initialValue: name,
                 decoration: const InputDecoration(labelText: 'Nom complet'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Requis' : null,
                 onSaved: (v) => name = v?.trim() ?? '',
               ),
               const SizedBox(height: 12),
@@ -125,14 +141,19 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
           ),
         ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               formKey.currentState!.save();
               try {
                 await _repo.updateStaff(c.id,
-                    fullName: name, phone: phone, type: 'autre', active: c.active);
+                    fullName: name,
+                    phone: phone,
+                    type: 'autre',
+                    active: c.active);
                 if (!ctx.mounted) return;
                 Navigator.pop(ctx);
                 _load();
@@ -150,7 +171,9 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
   void _toast(String msg, {bool error = false}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
-      backgroundColor: error ? AppColors.error : AppColors.success,
+      backgroundColor: error
+          ? CoutureScheme.of(context).urgentText
+          : CoutureScheme.of(context).goodInk,
     ));
   }
 
@@ -170,7 +193,8 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
             children: <Widget>[
               TextFormField(
                 decoration: const InputDecoration(labelText: 'Nom complet'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Requis' : null,
                 onSaved: (v) => name = v?.trim() ?? '',
               ),
               const SizedBox(height: 12),
@@ -183,13 +207,16 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
           ),
         ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               formKey.currentState!.save();
               try {
-                await _repo.createStaff(fullName: name, phone: phone, type: 'autre');
+                await _repo.createStaff(
+                    fullName: name, phone: phone, type: 'autre');
                 if (!ctx.mounted) return;
                 Navigator.pop(ctx);
                 _load();
@@ -213,26 +240,31 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
     int weeklySalary = member.weeklySalary ?? 0;
     int dueDay = member.salaryDueDay ?? 1;
 
-    final monthlyCtrl = TextEditingController(text: formatThousands(monthlySalary));
-    final weeklyCtrl = TextEditingController(text: formatThousands(weeklySalary));
+    final monthlyCtrl =
+        TextEditingController(text: formatThousands(monthlySalary));
+    final weeklyCtrl =
+        TextEditingController(text: formatThousands(weeklySalary));
 
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlg) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: <Widget>[
               Expanded(child: Text('Modifier l\'employé — ${member.fullName}')),
               IconButton(
                 tooltip: 'Supprimer définitivement',
-                icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                icon: Icon(CoutureIcons.trash,
+                    color: CoutureScheme.of(context).urgentText),
                 onPressed: () async {
                   final bool ok = await confirmDeleteByTyping(
                     ctx,
                     itemName: member.fullName,
                     itemLabel: 'cet employé',
-                    historyNote: 'Les paiements de salaire déjà enregistrés restent conservés.',
+                    historyNote:
+                        'Les paiements de salaire déjà enregistrés restent conservés.',
                   );
                   if (!ok) return;
                   try {
@@ -257,7 +289,8 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                   TextFormField(
                     initialValue: name,
                     decoration: const InputDecoration(labelText: 'Nom complet'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Requis' : null,
                     onSaved: (v) => name = v?.trim() ?? '',
                   ),
                   const SizedBox(height: 12),
@@ -270,10 +303,16 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: frequency,
-                    decoration: const InputDecoration(labelText: 'Fréquence de paiement'),
+                    decoration: const InputDecoration(
+                        labelText: 'Fréquence de paiement'),
                     items: const [
-                      DropdownMenuItem(value: 'mensuel', child: Text('Mensuel (Fin de mois)')),
-                      DropdownMenuItem(value: 'hebdo', child: Text('Hebdomadaire (Fin de semaine / Samedi)')),
+                      DropdownMenuItem(
+                          value: 'mensuel',
+                          child: Text('Mensuel (Fin de mois)')),
+                      DropdownMenuItem(
+                          value: 'hebdo',
+                          child:
+                              Text('Hebdomadaire (Fin de semaine / Samedi)')),
                     ],
                     onChanged: (val) {
                       if (val != null) setDlg(() => frequency = val);
@@ -291,10 +330,13 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                     TextFormField(
                       initialValue: dueDay.toString(),
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Jour du mois (1 - 31)'),
+                      decoration: const InputDecoration(
+                          labelText: 'Jour du mois (1 - 31)'),
                       validator: (v) {
                         final n = int.tryParse(v ?? '');
-                        return (n == null || n < 1 || n > 31) ? 'Jour invalide' : null;
+                        return (n == null || n < 1 || n > 31)
+                            ? 'Jour invalide'
+                            : null;
                       },
                       onSaved: (v) => dueDay = int.tryParse(v ?? '') ?? 1,
                     ),
@@ -311,7 +353,9 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
             ),
           ),
           actions: <Widget>[
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Annuler')),
             ElevatedButton(
               onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
@@ -366,7 +410,8 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlg) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text('Payer — ${_monthNames[monthIdx]} $year'),
           content: Form(
             key: formKey,
@@ -383,9 +428,9 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Date de paiement'),
-                  subtitle: Text(
-                      '${paidAt.day}/${paidAt.month}/${paidAt.year}'),
-                  trailing: const Icon(Icons.calendar_month_rounded),
+                  subtitle:
+                      Text('${paidAt.day}/${paidAt.month}/${paidAt.year}'),
+                  trailing: const Icon(CoutureIcons.calendarBlank),
                   onTap: () async {
                     final picked = await showDatePicker(
                       context: ctx,
@@ -397,7 +442,8 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                   },
                 ),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Note (optionnel)'),
+                  decoration:
+                      const InputDecoration(labelText: 'Note (optionnel)'),
                   onSaved: (v) => note = v?.trim() ?? '',
                 ),
               ],
@@ -438,7 +484,8 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
       final bool? print = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Reçu de paiement'),
           content: const Text('Voulez-vous imprimer le reçu maintenant ?'),
           actions: <Widget>[
@@ -502,7 +549,8 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Retour')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: CoutureScheme.of(context).urgentText),
             onPressed: () {
               if (!formKey.currentState!.validate()) return;
               formKey.currentState!.save();
@@ -555,7 +603,8 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
           }
 
           SalaryPayment? paymentForMonth(int monthIdx) {
-            final String period = '$year-${(monthIdx + 1).toString().padLeft(2, '0')}';
+            final String period =
+                '$year-${(monthIdx + 1).toString().padLeft(2, '0')}';
             for (final SalaryPayment p in payments) {
               if (p.period == period && !p.voided) return p;
             }
@@ -563,15 +612,22 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
           }
 
           SalaryPayment? paymentForWeek(int weekNum) {
-            final String period = '$year-W${weekNum.toString().padLeft(2, '0')}';
+            final String period =
+                '$year-W${weekNum.toString().padLeft(2, '0')}';
             for (final SalaryPayment p in payments) {
               if (p.period == period && !p.voided) return p;
             }
             return null;
           }
 
-          final int paidMonthCount = List.generate(12, (i) => paymentForMonth(i)).whereType<SalaryPayment>().length;
-          final int paidWeekCount = List.generate(52, (i) => paymentForWeek(i + 1)).whereType<SalaryPayment>().length;
+          final int paidMonthCount =
+              List.generate(12, (i) => paymentForMonth(i))
+                  .whereType<SalaryPayment>()
+                  .length;
+          final int paidWeekCount =
+              List.generate(52, (i) => paymentForWeek(i + 1))
+                  .whereType<SalaryPayment>()
+                  .length;
 
           return SafeArea(
             child: DraggableScrollableSheet(
@@ -586,7 +642,8 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                   children: <Widget>[
                     Center(
                       child: Container(
-                        height: 4, width: 40,
+                        height: 4,
+                        width: 40,
                         decoration: BoxDecoration(
                           color: Theme.of(ctx).dividerColor,
                           borderRadius: BorderRadius.circular(2),
@@ -597,15 +654,22 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                     Row(
                       children: <Widget>[
                         CircleAvatar(
-                          backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                          child: const Icon(Icons.person_rounded, color: AppColors.primary),
+                          backgroundColor: CoutureScheme.of(context)
+                              .iconInk
+                              .withValues(alpha: 0.12),
+                          child: Icon(CoutureIcons.user,
+                              color: CoutureScheme.of(context).iconInk),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
-                              Text(member.fullName, style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                              Text(member.fullName,
+                                  style: Theme.of(ctx)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(fontWeight: FontWeight.bold)),
                               Text(
                                 selectedPlan == 'hebdo'
                                     ? 'Salaire Hebdomadaire: ${formatFcfa(member.weeklySalary ?? 0)} / semaine'
@@ -617,7 +681,9 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                         ),
                         IconButton(
                           tooltip: 'Modifier Salaire / Fréquence',
-                          icon: const Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 28),
+                          icon: Icon(CoutureIcons.pencil,
+                              color: CoutureScheme.of(context).iconInk,
+                              size: 28),
                           onPressed: () async {
                             Navigator.pop(ctx);
                             _editPay(member);
@@ -634,7 +700,7 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                           ButtonSegment(
                             value: 'mensuel',
                             label: Text('Plan Mensuel'),
-                            icon: Icon(Icons.calendar_month_rounded),
+                            icon: Icon(CoutureIcons.calendarBlank),
                           ),
                           ButtonSegment(
                             value: 'hebdo',
@@ -654,7 +720,10 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                       children: <Widget>[
                         IconButton(
                           icon: const Icon(Icons.chevron_left_rounded),
-                          onPressed: () { year -= 1; load(); },
+                          onPressed: () {
+                            year -= 1;
+                            load();
+                          },
                         ),
                         Expanded(
                           child: Text(
@@ -666,8 +735,11 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.chevron_right_rounded),
-                          onPressed: () { year += 1; load(); },
+                          icon: const Icon(CoutureIcons.caretRight),
+                          onPressed: () {
+                            year += 1;
+                            load();
+                          },
                         ),
                       ],
                     ),
@@ -680,42 +752,68 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                               ? ListView.separated(
                                   controller: scrollCtrl,
                                   itemCount: 12,
-                                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: 6),
                                   itemBuilder: (ctx, i) {
                                     final SalaryPayment? p = paymentForMonth(i);
                                     final bool paid = p != null;
                                     return Card(
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
                                       child: ListTile(
                                         leading: Icon(
-                                          paid ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                                          color: paid ? AppColors.success : AppColors.textSecondary,
+                                          paid
+                                              ? CoutureIcons.checkCircle
+                                              : Icons
+                                                  .radio_button_unchecked_rounded,
+                                          color: paid
+                                              ? CoutureScheme.of(context)
+                                                  .goodInk
+                                              : CoutureScheme.of(context)
+                                                  .inkSoft,
                                         ),
-                                        title: Text(_monthNames[i], style: const TextStyle(fontWeight: FontWeight.w600)),
+                                        title: Text(_monthNames[i],
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w600)),
                                         subtitle: paid
-                                            ? Text('Payé le ${p.paidAt} · ${formatFcfa(p.amount)}')
+                                            ? Text(
+                                                'Payé le ${p.paidAt} · ${formatFcfa(p.amount)}')
                                             : const Text('Non payé'),
                                         trailing: paid
                                             ? PopupMenuButton<String>(
                                                 onSelected: (v) {
                                                   if (v == 'receipt') {
-                                                    _printReceipt(member, p, '${_monthNames[i]} $year');
+                                                    _printReceipt(member, p,
+                                                        '${_monthNames[i]} $year');
                                                   } else if (v == 'void') {
                                                     _voidPayment(p, load);
                                                   }
                                                 },
                                                 itemBuilder: (_) => const [
-                                                  PopupMenuItem(value: 'receipt', child: Text('Imprimer le reçu')),
-                                                  PopupMenuItem(value: 'void', child: Text('Annuler le paiement')),
+                                                  PopupMenuItem(
+                                                      value: 'receipt',
+                                                      child: Text(
+                                                          'Imprimer le reçu')),
+                                                  PopupMenuItem(
+                                                      value: 'void',
+                                                      child: Text(
+                                                          'Annuler le paiement')),
                                                 ],
                                               )
                                             : ElevatedButton(
                                                 style: ElevatedButton.styleFrom(
-                                                  minimumSize: const Size(0, 40),
-                                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                  minimumSize:
+                                                      const Size(0, 40),
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 16),
+                                                  tapTargetSize:
+                                                      MaterialTapTargetSize
+                                                          .shrinkWrap,
                                                 ),
-                                                onPressed: () => _recordPayment(member, i, year, load),
+                                                onPressed: () => _recordPayment(
+                                                    member, i, year, load),
                                                 child: const Text('Payer'),
                                               ),
                                       ),
@@ -725,40 +823,65 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                               : ListView.separated(
                                   controller: scrollCtrl,
                                   itemCount: 52,
-                                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: 6),
                                   itemBuilder: (ctx, i) {
                                     final int weekNum = i + 1;
-                                    final SalaryPayment? p = paymentForWeek(weekNum);
+                                    final SalaryPayment? p =
+                                        paymentForWeek(weekNum);
                                     final bool paid = p != null;
 
                                     // ISO Week Date Range calculation
                                     final jan4 = DateTime(year, 1, 4);
-                                    final firstMonday = jan4.subtract(Duration(days: jan4.weekday - 1));
-                                    final weekStart = firstMonday.add(Duration(days: (weekNum - 1) * 7));
-                                    final weekEnd = weekStart.add(const Duration(days: 6));
-                                    final String rangeStr = '${weekStart.day.toString().padLeft(2, '0')}/${weekStart.month.toString().padLeft(2, '0')} au ${weekEnd.day.toString().padLeft(2, '0')}/${weekEnd.month.toString().padLeft(2, '0')}';
+                                    final firstMonday = jan4.subtract(
+                                        Duration(days: jan4.weekday - 1));
+                                    final weekStart = firstMonday
+                                        .add(Duration(days: (weekNum - 1) * 7));
+                                    final weekEnd =
+                                        weekStart.add(const Duration(days: 6));
+                                    final String rangeStr =
+                                        '${weekStart.day.toString().padLeft(2, '0')}/${weekStart.month.toString().padLeft(2, '0')} au ${weekEnd.day.toString().padLeft(2, '0')}/${weekEnd.month.toString().padLeft(2, '0')}';
 
                                     final now = DateTime.now();
-                                    final bool isCurrentWeek = (now.year == year) &&
-                                        (now.isAfter(weekStart.subtract(const Duration(seconds: 1))) &&
-                                         now.isBefore(weekEnd.add(const Duration(days: 1))));
+                                    final bool isCurrentWeek = (now.year ==
+                                            year) &&
+                                        (now.isAfter(weekStart.subtract(
+                                                const Duration(seconds: 1))) &&
+                                            now.isBefore(weekEnd
+                                                .add(const Duration(days: 1))));
 
-                                    final String weekLabel = 'Semaine $weekNum ($rangeStr)';
+                                    final String weekLabel =
+                                        'Semaine $weekNum ($rangeStr)';
 
                                     return Card(
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                         side: isCurrentWeek
-                                            ? const BorderSide(color: AppColors.primary, width: 2)
+                                            ? BorderSide(
+                                                color: CoutureScheme.of(context)
+                                                    .iconInk,
+                                                width: 2)
                                             : BorderSide.none,
                                       ),
                                       color: isCurrentWeek
-                                          ? AppColors.primary.withValues(alpha: 0.08)
+                                          ? CoutureScheme.of(context)
+                                              .iconInk
+                                              .withValues(alpha: 0.08)
                                           : null,
                                       child: ListTile(
                                         leading: Icon(
-                                          paid ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                                          color: paid ? AppColors.success : (isCurrentWeek ? AppColors.primary : AppColors.textSecondary),
+                                          paid
+                                              ? CoutureIcons.checkCircle
+                                              : Icons
+                                                  .radio_button_unchecked_rounded,
+                                          color: paid
+                                              ? CoutureScheme.of(context)
+                                                  .goodInk
+                                              : (isCurrentWeek
+                                                  ? CoutureScheme.of(context)
+                                                      .iconInk
+                                                  : CoutureScheme.of(context)
+                                                      .inkSoft),
                                         ),
                                         title: Row(
                                           children: [
@@ -766,51 +889,89 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                                               child: Text(
                                                 weekLabel,
                                                 style: TextStyle(
-                                                  fontWeight: isCurrentWeek ? FontWeight.bold : FontWeight.w600,
-                                                  color: isCurrentWeek ? AppColors.primary : null,
+                                                  fontWeight: isCurrentWeek
+                                                      ? FontWeight.bold
+                                                      : FontWeight.w600,
+                                                  color: isCurrentWeek
+                                                      ? CoutureScheme.of(
+                                                              context)
+                                                          .iconInk
+                                                      : null,
                                                 ),
                                               ),
                                             ),
                                             if (isCurrentWeek)
                                               Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2),
                                                 decoration: BoxDecoration(
-                                                  color: AppColors.primary,
-                                                  borderRadius: BorderRadius.circular(10),
+                                                  color:
+                                                      CoutureScheme.of(context)
+                                                          .iconInk,
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
                                                 ),
                                                 child: const Text(
                                                   'EN COURS',
-                                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                                  style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.white),
                                                 ),
                                               ),
                                           ],
                                         ),
                                         subtitle: paid
-                                            ? Text('Payé le ${p.paidAt} · ${formatFcfa(p.amount)}')
-                                            : Text(isCurrentWeek ? 'Semaine actuelle — Non payé' : 'Non payé'),
+                                            ? Text(
+                                                'Payé le ${p.paidAt} · ${formatFcfa(p.amount)}')
+                                            : Text(isCurrentWeek
+                                                ? 'Semaine actuelle — Non payé'
+                                                : 'Non payé'),
                                         trailing: paid
                                             ? PopupMenuButton<String>(
                                                 onSelected: (v) {
                                                   if (v == 'receipt') {
-                                                    _printReceipt(member, p, weekLabel);
+                                                    _printReceipt(
+                                                        member, p, weekLabel);
                                                   } else if (v == 'void') {
                                                     _voidPayment(p, load);
                                                   }
                                                 },
                                                 itemBuilder: (_) => const [
-                                                  PopupMenuItem(value: 'receipt', child: Text('Imprimer le reçu')),
-                                                  PopupMenuItem(value: 'void', child: Text('Annuler le paiement')),
+                                                  PopupMenuItem(
+                                                      value: 'receipt',
+                                                      child: Text(
+                                                          'Imprimer le reçu')),
+                                                  PopupMenuItem(
+                                                      value: 'void',
+                                                      child: Text(
+                                                          'Annuler le paiement')),
                                                 ],
                                               )
                                             : ElevatedButton(
                                                 style: ElevatedButton.styleFrom(
-                                                  minimumSize: const Size(0, 40),
-                                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                                  backgroundColor: isCurrentWeek ? AppColors.primary : null,
-                                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                  minimumSize:
+                                                      const Size(0, 40),
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 16),
+                                                  backgroundColor: isCurrentWeek
+                                                      ? CoutureScheme.of(
+                                                              context)
+                                                          .iconInk
+                                                      : null,
+                                                  tapTargetSize:
+                                                      MaterialTapTargetSize
+                                                          .shrinkWrap,
                                                 ),
-                                                onPressed: () => _recordWeeklyPayment(member, weekNum, year, load),
-                                                child: const Text('Payer Semaine'),
+                                                onPressed: () =>
+                                                    _recordWeeklyPayment(member,
+                                                        weekNum, year, load),
+                                                child:
+                                                    const Text('Payer Semaine'),
                                               ),
                                       ),
                                     );
@@ -845,7 +1006,8 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlg) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text('Payer — $weekLabel'),
           content: Form(
             key: formKey,
@@ -862,8 +1024,9 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Date de paiement'),
-                  subtitle: Text('${paidAt.day}/${paidAt.month}/${paidAt.year}'),
-                  trailing: const Icon(Icons.calendar_month_rounded),
+                  subtitle:
+                      Text('${paidAt.day}/${paidAt.month}/${paidAt.year}'),
+                  trailing: const Icon(CoutureIcons.calendarBlank),
                   onTap: () async {
                     final picked = await showDatePicker(
                       context: ctx,
@@ -875,14 +1038,17 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
                   },
                 ),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Note (optionnel)'),
+                  decoration:
+                      const InputDecoration(labelText: 'Note (optionnel)'),
                   onSaved: (v) => note = v?.trim() ?? '',
                 ),
               ],
             ),
           ),
           actions: <Widget>[
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Annuler')),
             ElevatedButton(
               onPressed: () {
                 if (!formKey.currentState!.validate()) return;
@@ -913,12 +1079,17 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
       final bool? print = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Reçu de paiement'),
           content: const Text('Voulez-vous imprimer le reçu maintenant ?'),
           actions: <Widget>[
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Plus tard')),
-            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Imprimer')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Plus tard')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Imprimer')),
           ],
         ),
       );
@@ -945,18 +1116,21 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
           final c = _contacts[i];
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                child: const Icon(Icons.person_rounded, color: AppColors.primary),
+                backgroundColor:
+                    CoutureScheme.of(context).iconInk.withValues(alpha: 0.12),
+                child: Icon(CoutureIcons.user,
+                    color: CoutureScheme.of(context).iconInk),
               ),
               title: Text(c.fullName,
                   style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text('Tél: ${c.phone}'),
               onTap: () => _editContact(c),
               trailing: IconButton(
-                icon: const Icon(Icons.edit_outlined),
+                icon: const Icon(CoutureIcons.pencil),
                 tooltip: 'Modifier',
                 onPressed: () => _editContact(c),
               ),
@@ -969,69 +1143,94 @@ class _MonthlyStaffScreenState extends State<MonthlyStaffScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Staff (mensuel)')),
-      body: _loading
+    return CoutureScaffold(
+      title: 'Staff',
+      subtitle: 'Les employés payés au mois',
+      actions: <Widget>[
+        CoutureBandAction(
+          icon: CoutureIcons.refresh,
+          tooltip: 'Actualiser',
+          onPressed: _load,
+        ),
+      ],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addStaff,
+        backgroundColor: CoutureScheme.of(context).urgentInk,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        icon: const Icon(CoutureIcons.plus, size: 20),
+        label: const Text('Nouvel employé',
+            style: TextStyle(fontWeight: FontWeight.w600)),
+      ),
+      child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text('Erreur: $_error'))
+              ? const CoutureEmpty(
+                  icon: CoutureIcons.warningCircle,
+                  tone: CoutureTone.urgent,
+                  title: 'La liste ne s\'affiche pas',
+                  message:
+                      'Vérifiez la connexion, puis appuyez sur Actualiser.',
+                )
               : _isSec
                   ? _buildSecretaryList()
                   : _staff.isEmpty
-                  ? const Center(child: Text('Aucun employé mensuel.'))
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _staff.length,
-                        itemBuilder: (context, i) {
-                          final m = _staff[i];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor:
-                                    AppColors.primary.withValues(alpha: 0.12),
-                                child: const Icon(Icons.person_rounded,
-                                    color: AppColors.primary),
-                              ),
-                              title: Text(m.fullName,
-                                  style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text(
-                                m.payFrequency == 'hebdo'
-                                    ? 'Salaire Hebdo: ${formatFcfa(m.weeklySalary ?? 0)} / semaine\nTél: ${m.phone}'
-                                    : 'Salaire Mensuel: ${formatFcfa(m.monthlySalary ?? 0)} (le ${m.salaryDueDay ?? 1})\nTél: ${m.phone}',
-                              ),
-                              isThreeLine: true,
-                              onTap: () => _openPaymentSheet(m),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: <Widget>[
-                                  IconButton(
-                                    icon: const Icon(Icons.payments_outlined),
-                                    tooltip: 'Paiements mensuels',
-                                    onPressed: () => _openPaymentSheet(m),
+                      ? const CoutureEmpty(
+                          icon: CoutureIcons.identificationBadge,
+                          title: 'Aucun employé au mois',
+                          message:
+                              'Les couturiers, eux, sont dans « Tailleurs ».',
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _load,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _staff.length,
+                            itemBuilder: (context, i) {
+                              final m = _staff[i];
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: CoutureScheme.of(context)
+                                        .iconInk
+                                        .withValues(alpha: 0.12),
+                                    child: Icon(CoutureIcons.user,
+                                        color:
+                                            CoutureScheme.of(context).iconInk),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.edit_outlined),
-                                    tooltip: 'Modifier le salaire',
-                                    onPressed: () => _editPay(m),
+                                  title: Text(m.fullName,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                  subtitle: Text(
+                                    m.payFrequency == 'hebdo'
+                                        ? 'Salaire Hebdo: ${formatFcfa(m.weeklySalary ?? 0)} / semaine\nTél: ${m.phone}'
+                                        : 'Salaire Mensuel: ${formatFcfa(m.monthlySalary ?? 0)} (le ${m.salaryDueDay ?? 1})\nTél: ${m.phone}',
                                   ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addStaff,
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: const Text('Employé', style: TextStyle(color: Colors.white)),
-      ),
+                                  isThreeLine: true,
+                                  onTap: () => _openPaymentSheet(m),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      IconButton(
+                                        icon: const Icon(CoutureIcons.wallet),
+                                        tooltip: 'Paiements mensuels',
+                                        onPressed: () => _openPaymentSheet(m),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(CoutureIcons.pencil),
+                                        tooltip: 'Modifier le salaire',
+                                        onPressed: () => _editPay(m),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
     );
   }
 }

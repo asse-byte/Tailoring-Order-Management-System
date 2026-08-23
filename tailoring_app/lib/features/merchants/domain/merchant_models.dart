@@ -50,7 +50,8 @@ class SupplierPurchase {
     required this.purchaseDate,
   });
 
-  factory SupplierPurchase.fromJson(Map<String, dynamic> json) => SupplierPurchase(
+  factory SupplierPurchase.fromJson(Map<String, dynamic> json) =>
+      SupplierPurchase(
         id: json['id'] as String,
         supplierId: json['supplier_id'] as String?,
         supplierName: json['supplier_name'] as String? ?? 'Fournisseur',
@@ -85,7 +86,8 @@ class SupplierPayment {
     required this.createdByName,
   });
 
-  factory SupplierPayment.fromJson(Map<String, dynamic> json) => SupplierPayment(
+  factory SupplierPayment.fromJson(Map<String, dynamic> json) =>
+      SupplierPayment(
         id: json['id'] as String,
         purchaseId: json['purchase_id'] as String,
         amount: (json['amount'] as num?)?.toInt() ?? 0,
@@ -110,7 +112,8 @@ class WholesaleOrderItem {
 
   int get total => qty * unitPrice;
 
-  factory WholesaleOrderItem.fromJson(Map<String, dynamic> json) => WholesaleOrderItem(
+  factory WholesaleOrderItem.fromJson(Map<String, dynamic> json) =>
+      WholesaleOrderItem(
         model: json['model'] as String? ?? '',
         qty: (json['qty'] as num?)?.toInt() ?? 0,
         unitPrice: (json['unit_price'] as num?)?.toInt() ?? 0,
@@ -191,7 +194,8 @@ class WholesalePayment {
     required this.createdByName,
   });
 
-  factory WholesalePayment.fromJson(Map<String, dynamic> json) => WholesalePayment(
+  factory WholesalePayment.fromJson(Map<String, dynamic> json) =>
+      WholesalePayment(
         id: json['id'] as String,
         orderId: json['order_id'] as String,
         amount: (json['amount'] as num?)?.toInt() ?? 0,

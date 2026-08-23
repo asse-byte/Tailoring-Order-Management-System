@@ -298,6 +298,12 @@ Two further corrections, not rule violations but wrong-in-fact:
   `WHATSAPP_API_KEY` are set, and otherwise reports `not_configured` and sends
   nothing. **Never make this report success without a provider.** The flow the
   shops actually use is the client-side `wa.me` button.
+  **The Paramètres tile went on claiming otherwise until 2026-08-23**: it read
+  "Envoi 100% automatique (Actif)" and its dialog promised the client is told
+  "sans appuyer sur aucun bouton" — the server-side lie fixed above, still being
+  told to the manager by the app. It now says the sending depends on a provider
+  installed on the shop's server, and to use the order's WhatsApp button
+  otherwise. **Do not let this tile assert that messages are going out.**
 - **One shop's logo shipped to all of them.** `assets/logo.jpeg` had been
   replaced with 72H Couture's real logo, and one build serves every shop. The
   bundled asset is gone (no Dart code read it any more); logos are per-shop via
@@ -311,6 +317,44 @@ Deliberately kept as Antigravity built it, on the owner's instruction:
 This relaxes the original "server-priced, the client never sends prices" rule —
 the server still computes `total` and decrements stock atomically, but the unit
 price is now the caller's to set, with no ceiling. Owner decision 2026-08-03.
+
+## Correcting the tailors' weekly programme (owner decision 2026-08-06)
+
+The owner asked repeatedly that every hand-entered item be editable and
+deletable, above all the tailors' page and their weekly programme — the daily
+piece counts that decide each tailor's pay. Entry mistakes are routine (wrong
+quantity, wrong tailor, wrong date) and have to be fixable on the spot.
+
+**`tailor_daily_entries` stays append-only. That was not weakened.** What the
+shop sees as "edit" and "delete" is the correction log:
+
+- "Modifier" writes a NEW `entry_corrections` row (quantity, piece rate and/or
+  garment type) with a mandatory reason — never an `UPDATE`.
+- "Annuler cette entrée" writes a correction with `voided = true`: the entry
+  contributes 0 to `tailor_entries_effective` and shows struck through, without
+  leaving the database.
+- The base row is never edited or deleted and the append-only triggers are
+  never disabled.
+
+**Because BOTH roles can change pay figures (rule 2), attribution is
+mandatory.** Every correction records `corrected_by` (a real `users.id`, never
+a role) and `corrected_at`. `GET /api/tailor-entries/:id/corrections` resolves
+the whole chain into from → to for pieces, rate, garment and amount — a
+correction only stores the fields it changed, so the "from" side is the previous
+correction, or the original entry for the first one — and the app shows it in
+the correction dialog under "Qui a modifié cette saisie ?". If a tailor ever
+disputes their pay, the owner can see exactly who changed what, when and why.
+**Never remove that attribution or hide that history.** Pinned by
+`backend/tests/entry_corrections.test.js`.
+
+Do NOT extend this correction-as-edit pattern to any other financial table
+(`sales`, `expenses`, `staff_pay_history`, `salary_payments`,
+`order_payments`) without an explicit decision from the owner.
+
+Non-financial hand-entered data is plain editable in place, both roles: order
+notes/fabric/advance/tailor, and the order's reference photos and videos
+(`model_media`, add + remove on the order detail screen — descriptive data on
+the `orders` row, not financial history).
 
 ## Master-data deletion — Type A vs Type B (NON-NEGOTIABLE, added 2026-07-17)
 
@@ -530,12 +574,14 @@ alternative's accent was 3.9:1, under the AA floor); each shop's own
 cannot break the palette; and indigo is this region's dye rather than borrowed
 luxury vocabulary.
 
-**The rollout is one screen per session, and the tokens are deliberately
-additive.** `lib/core/theme/couture_palette.dart` is new and `AppColors` is
-untouched, so a screen nobody has reviewed still looks exactly as it did. Do
-NOT "tidy up" by pointing `AppColors` at the new values — that restyles a dozen
-unreviewed screens in one go. When the last screen has moved, `AppColors` can
-be retired.
+**The rollout is DONE: every screen has moved, and `AppColors` has been retired
+as planned.** It ran screen by screen, tokens additive, so that a screen nobody
+had reviewed yet still looked exactly as it did — `AppColors`,
+`context_colors.dart`, `status_badge.dart` and `empty_state.dart` came out only
+once nothing referenced them. `app_theme.dart` reads `CouturePalette` directly
+now, which is what dialogs, date pickers, text fields and chips inherit.
+Material's "container" roles are pinned to the app's own washes in the
+`ColorScheme`, because seeding them tinted a selected segmented button lavender.
 
 - **`CouturePalette`** holds the raw tokens (warm paper `#F6F1EA`, indigo
   `#1E2E52`, terracotta `#B04E31`, the ink greys, a 4-pt spacing scale and a
@@ -574,8 +620,31 @@ its place immediately: the day cards were sized by aspect ratio, which ties
 card height to screen width, and they clipped their caption by 1.3 px on a
 small phone. They use a fixed `mainAxisExtent` now.
 
-Still to move: every other screen, one per session, same rules — visual only,
-`flutter analyze` and the full test suite green after each edit.
+**The shared pieces live in `lib/core/widgets/couture/`** and every redesigned
+screen is built from them: `CoutureScaffold` (the band is the shop's own
+`theme_color`, thinner than the home screen's, with `below` for a search/filter
+header, `bottomBar` for a pinned save button and `CoutureBandAction` for the
+icon buttons), plus `CoutureCard`, `CoutureWash`, `CoutureSearchField`,
+`CoutureFilterChip`, `CoutureStatusPill` and `CoutureEmpty`. A new screen uses
+these, never a bare `Scaffold` + `AppBar`.
+
+**Every screen moved**, in this order, one commit per group: dashboard →
+Commandes + Historique → Clients + Vendre → Rendez-vous + Les ventes + Album →
+Produits + Prêt-à-porter → détail commande + nouvelle commande → fiche client +
+formulaire + mesures → Finances + Rapports + Impayés + Gros → Tailleurs + Staff
+→ connexion + splash + Réglages + reçu + programme + compte.
+
+Things found and fixed on the way, none of them style: a bottom sheet Material
+had tinted lilac; a line total wrapping onto two lines; the one money field in
+the app with no thousands separators; a sold-out card reading "Plus que 0"; a
+"Bas / Low" badge in a French-only app; a gender toggle offering "Homme /
+Homme"; a sales list that only searched when you pressed Enter; and an "en
+couture" badge showing a mallet, because the Material set has no sewing glyph.
+
+Rules that held throughout and still hold: **visual only** — no query,
+computation, filter or permission was changed on any screen, rule 1 and rule 2
+are byte-for-byte what they were, and `flutter analyze` plus the full test suite
+were green at every commit.
 
 ## Working conventions
 

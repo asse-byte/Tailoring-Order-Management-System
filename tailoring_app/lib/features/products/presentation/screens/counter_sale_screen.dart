@@ -4,9 +4,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/network/api_client.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
 import '../../../../core/utils/money.dart';
-import '../../../../core/widgets/empty_state.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
+import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../clients/data/clients_repository.dart';
 import '../../../clients/domain/client.dart';
 import '../../../ready_to_wear/data/pret_a_porter_repository.dart';
@@ -27,7 +30,18 @@ import 'sale_receipt_screen.dart';
 ///
 /// Both roles use it: the secretary is the one standing at the counter.
 class CounterSaleScreen extends StatefulWidget {
-  const CounterSaleScreen({super.key});
+  const CounterSaleScreen({
+    super.key,
+    this.salesRepository,
+    this.productsRepository,
+    this.modelsRepository,
+  });
+
+  // Injectable only so this screen can be rendered in a test without a server.
+  // Every caller in the app passes nothing and gets the real ones.
+  final SalesRepository? salesRepository;
+  final ProductsRepository? productsRepository;
+  final PretAPorterRepository? modelsRepository;
 
   @override
   State<CounterSaleScreen> createState() => _CounterSaleScreenState();
@@ -35,9 +49,12 @@ class CounterSaleScreen extends StatefulWidget {
 
 class _CounterSaleScreenState extends State<CounterSaleScreen> {
   final SaleCart _cart = SaleCart();
-  final SalesRepository _sales = SalesRepository();
-  final ProductsRepository _products = ProductsRepository();
-  final PretAPorterRepository _models = PretAPorterRepository();
+  late final SalesRepository _sales =
+      widget.salesRepository ?? SalesRepository();
+  late final ProductsRepository _products =
+      widget.productsRepository ?? ProductsRepository();
+  late final PretAPorterRepository _models =
+      widget.modelsRepository ?? PretAPorterRepository();
 
   /// One page of the visible tab, not the whole shop.
   ///
@@ -50,6 +67,7 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
   static const int _pageSize = 40;
 
   final ScrollController _scroll = ScrollController();
+  final TextEditingController _searchCtrl = TextEditingController();
 
   List<ProductCategory> _categories = <ProductCategory>[];
   List<Product> _catalogue = <Product>[];
@@ -75,6 +93,7 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _searchCtrl.dispose();
     _scroll.dispose();
     _cart.removeListener(_onCartChanged);
     _cart.dispose();
@@ -174,9 +193,10 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
 
   void _toast(String msg, {bool error = false}) {
     if (!mounted) return;
+    final CoutureScheme c = CoutureScheme.of(context);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
-      backgroundColor: error ? AppColors.error : AppColors.success,
+      backgroundColor: error ? CouturePalette.terracottaDeep : c.goodInk,
       behavior: SnackBarBehavior.floating,
     ));
   }
@@ -200,7 +220,9 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
       name: p.name,
       unitPrice: p.price.toInt(),
       quantity: 1,
-      imageUrl: p.images.isNotEmpty ? p.images.first.thumbUrl ?? p.images.first.url : null,
+      imageUrl: p.images.isNotEmpty
+          ? p.images.first.thumbUrl ?? p.images.first.url
+          : null,
       stockLeft: p.quantity,
     ));
   }
@@ -229,23 +251,21 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Vendre'),
-        actions: <Widget>[
-          IconButton(
-            tooltip: 'Recharger',
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _reload,
-          ),
-        ],
-      ),
-      body: _loading
+    return CoutureScaffold(
+      title: 'Vendre',
+      subtitle: 'Touchez ce que le client emporte',
+      actions: <Widget>[
+        CoutureBandAction(
+          icon: CoutureIcons.refresh,
+          tooltip: 'Recharger',
+          onPressed: _reload,
+        ),
+      ],
+      below: _loading ? null : _header(),
+      child: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: <Widget>[
-                _searchBar(),
-                _tabStrip(),
                 Expanded(child: _grid()),
                 if (_loadingMore)
                   const Padding(
@@ -256,63 +276,59 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   ),
+                if (_cart.isNotEmpty) _basketBar(),
               ],
             ),
-      bottomNavigationBar: _cart.isEmpty ? null : _basketBar(),
     );
   }
 
-  Widget _searchBar() => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-        child: TextField(
-          onChanged: _onSearchChanged,
-          decoration: InputDecoration(
-            hintText: 'Chercher un article…',
-            prefixIcon: const Icon(Icons.search_rounded),
-            isDense: true,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-          ),
-        ),
-      );
-
-  Widget _tabStrip() => SizedBox(
-        height: 52,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  Widget _header() => Padding(
+        padding: const EdgeInsets.fromLTRB(
+            CouturePalette.s3, CouturePalette.s3, CouturePalette.s3, 0),
+        child: Column(
           children: <Widget>[
-            for (final c in _categories)
-              _tabChip(
-                label: c.label,
-                icon: c.iconData,
-                selected: !_readyToWearTab && _tab == c.slug,
-                onTap: () => _switchTab(slug: c.slug),
-              ),
-            _tabChip(
-              label: 'Prêt-à-porter',
-              icon: Icons.checkroom_rounded,
-              selected: _readyToWearTab,
-              onTap: () => _switchTab(readyToWear: true),
+            CoutureSearchField(
+              controller: _searchCtrl,
+              hint: 'Chercher un article',
+              onChanged: (String v) {
+                _onSearchChanged(v);
+                setState(() {});
+              },
+              onClear: () {
+                _searchCtrl.clear();
+                _onSearchChanged('');
+                setState(() {});
+              },
             ),
+            const SizedBox(height: CouturePalette.s3),
+            SizedBox(
+              height: 38,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _categories.length + 1,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: CouturePalette.s2),
+                itemBuilder: (_, int i) {
+                  if (i == _categories.length) {
+                    return CoutureFilterChip(
+                      label: 'Prêt-à-porter',
+                      icon: CoutureIcons.coatHanger,
+                      selected: _readyToWearTab,
+                      onTap: () => _switchTab(readyToWear: true),
+                    );
+                  }
+                  final ProductCategory cat = _categories[i];
+                  return CoutureFilterChip(
+                    label: cat.label,
+                    icon: cat.iconData,
+                    selected: !_readyToWearTab && _tab == cat.slug,
+                    onTap: () => _switchTab(slug: cat.slug),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: CouturePalette.s3),
           ],
-        ),
-      );
-
-  Widget _tabChip({
-    required String label,
-    required IconData icon,
-    required bool selected,
-    required VoidCallback onTap,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.only(right: 8),
-        child: ChoiceChip(
-          avatar: Icon(icon,
-              size: 18,
-              color: selected ? Colors.white : AppColors.textSecondary),
-          label: Text(label),
-          selected: selected,
-          onSelected: (_) => onTap(),
         ),
       );
 
@@ -320,44 +336,44 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
     final bool rtw = _readyToWearTab;
     final int count = rtw ? _visibleModels.length : _visibleProducts.length;
     if (count == 0) {
-      return const EmptyState(
+      return const CoutureEmpty(
+        icon: CoutureIcons.package,
         title: 'Rien à vendre ici',
-        message: 'Aucun article dans cette catégorie.',
-        icon: Icons.inventory_2_outlined,
+        message: 'Cette catégorie est vide, ou la recherche ne donne rien.',
       );
     }
     return RefreshIndicator(
       onRefresh: _reload,
       child: GridView.builder(
-      controller: _scroll,
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 220,
-        mainAxisExtent: 208,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-      ),
-      itemCount: count,
-      itemBuilder: (_, i) => rtw
-          ? _card(
-              name: _visibleModels[i].name,
-              price: _visibleModels[i].price.toInt(),
-              imageUrl: _firstImage(_visibleModels[i]),
-              inCart: _cart.quantityOf('pret_a_porter', _visibleModels[i].id),
-              stockLeft: null,
-              onTap: () => _addModel(_visibleModels[i]),
-            )
-          : _card(
-              name: _visibleProducts[i].name,
-              price: _visibleProducts[i].price.toInt(),
-              imageUrl: _visibleProducts[i].images.isNotEmpty
-                  ? _visibleProducts[i].images.first.thumbUrl ??
-                      _visibleProducts[i].images.first.url
-                  : null,
-              inCart: _cart.quantityOf('produit', _visibleProducts[i].id),
-              stockLeft: _visibleProducts[i].quantity,
-              onTap: () => _addProduct(_visibleProducts[i]),
-            ),
+        controller: _scroll,
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 220,
+          mainAxisExtent: 208,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+        ),
+        itemCount: count,
+        itemBuilder: (_, i) => rtw
+            ? _card(
+                name: _visibleModels[i].name,
+                price: _visibleModels[i].price.toInt(),
+                imageUrl: _firstImage(_visibleModels[i]),
+                inCart: _cart.quantityOf('pret_a_porter', _visibleModels[i].id),
+                stockLeft: null,
+                onTap: () => _addModel(_visibleModels[i]),
+              )
+            : _card(
+                name: _visibleProducts[i].name,
+                price: _visibleProducts[i].price.toInt(),
+                imageUrl: _visibleProducts[i].images.isNotEmpty
+                    ? _visibleProducts[i].images.first.thumbUrl ??
+                        _visibleProducts[i].images.first.url
+                    : null,
+                inCart: _cart.quantityOf('produit', _visibleProducts[i].id),
+                stockLeft: _visibleProducts[i].quantity,
+                onTap: () => _addProduct(_visibleProducts[i]),
+              ),
       ),
     );
   }
@@ -370,16 +386,17 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
     required int? stockLeft,
     required VoidCallback onTap,
   }) {
+    final CoutureScheme c = CoutureScheme.of(context);
     final bool soldOut = stockLeft != null && stockLeft <= 0;
     return InkWell(
       onTap: soldOut ? null : onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: c.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: inCart > 0 ? AppColors.primary : AppColors.border,
+            color: inCart > 0 ? c.iconInk : c.line,
             width: inCart > 0 ? 2 : 1,
           ),
         ),
@@ -406,9 +423,14 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
                     Container(
                       color: Colors.black.withValues(alpha: 0.55),
                       alignment: Alignment.center,
-                      child: const Text('Épuisé',
-                          style: TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        'Épuisé',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                     ),
                   if (inCart > 0)
                     Positioned(
@@ -416,12 +438,12 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
                       right: 6,
                       child: CircleAvatar(
                         radius: 13,
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: c.iconInk,
                         child: Text('$inCart',
-                            style: const TextStyle(
-                                color: Colors.white,
+                            style: TextStyle(
+                                color: c.card,
                                 fontSize: 12,
-                                fontWeight: FontWeight.bold)),
+                                fontWeight: FontWeight.w700)),
                       ),
                     ),
                 ],
@@ -436,15 +458,30 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
                   Text(name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: c.ink)),
                   const SizedBox(height: 2),
                   Text(formatFcfa(price),
-                      style: const TextStyle(
-                          color: AppColors.primary, fontWeight: FontWeight.bold)),
-                  if (stockLeft != null)
-                    Text('Reste $stockLeft',
-                        style: const TextStyle(
-                            fontSize: 11, color: AppColors.textMuted)),
+                      style: TextStyle(
+                          fontSize: 13.5,
+                          color: c.ink,
+                          fontWeight: FontWeight.w700)),
+                  // Nothing under a sold-out card: the "Épuisé" band already
+                  // says it, and "Plus que 0" reads like a stock figure.
+                  if (stockLeft != null && !soldOut)
+                    Text(
+                      stockLeft <= 3
+                          ? 'Plus que $stockLeft'
+                          : '$stockLeft en boutique',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight:
+                            stockLeft <= 3 ? FontWeight.w600 : FontWeight.w400,
+                        color: stockLeft <= 3 ? c.urgentText : c.inkFaint,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -454,45 +491,64 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
     );
   }
 
-  Widget _imagePlaceholder() => Container(
-        color: AppColors.background,
-        alignment: Alignment.center,
-        child: const Icon(Icons.image_outlined,
-            size: 34, color: AppColors.textMuted),
-      );
+  Widget _imagePlaceholder() {
+    final CoutureScheme c = CoutureScheme.of(context);
+    return Container(
+      color: c.quiet,
+      alignment: Alignment.center,
+      child: Icon(CoutureIcons.images, size: 30, color: c.inkFaint),
+    );
+  }
 
   // ---------------------------------------------------------------------------
 
-  Widget _basketBar() => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-          child: FilledButton(
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(56),
-              backgroundColor: AppColors.primary,
-            ),
-            onPressed: _openBasket,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                Row(children: <Widget>[
-                  const Icon(Icons.shopping_basket_rounded, size: 20),
-                  const SizedBox(width: 8),
-                  Text('${_cart.itemCount} article(s)'),
-                ]),
-                Text(formatFcfa(_cart.total),
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.bold)),
-              ],
-            ),
+  /// The basket bar is the warm colour, like the till button on the home
+  /// screen: on this screen it is the one thing that finishes the job.
+  Widget _basketBar() {
+    final CoutureScheme c = CoutureScheme.of(context);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(CouturePalette.s3, CouturePalette.s2,
+            CouturePalette.s3, CouturePalette.s3),
+        child: FilledButton(
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(58),
+            backgroundColor: c.urgentInk,
+            foregroundColor: Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          onPressed: _openBasket,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(children: <Widget>[
+                const Icon(CoutureIcons.shoppingBag, size: 20),
+                const SizedBox(width: CouturePalette.s2),
+                Text(
+                  _cart.itemCount == 1
+                      ? '1 article'
+                      : '${_cart.itemCount} articles',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ]),
+              Text(formatFcfa(_cart.total),
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w700)),
+            ],
           ),
         ),
-      );
+      ),
+    );
+  }
 
   Future<void> _openBasket() async {
     final SaleReceipt? done = await showModalBottomSheet<SaleReceipt>(
       context: context,
       isScrollControlled: true,
+      // Material 3 tints a bottom sheet with the primary colour, which turned
+      // the basket faintly lilac. The basket is paper, like everything else.
+      backgroundColor: CoutureScheme.of(context).paper,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -543,7 +599,8 @@ class _BasketSheetState extends State<_BasketSheet> {
       return;
     }
     try {
-      final List<Client> found = await _clients.list(search: q.trim(), limit: 6);
+      final List<Client> found =
+          await _clients.list(search: q.trim(), limit: 6);
       if (mounted) setState(() => _matches = found);
     } catch (_) {/* the sale works without a client */}
   }
@@ -553,8 +610,8 @@ class _BasketSheetState extends State<_BasketSheet> {
     if (cart.isEmpty || _saving) return;
     if (cart.hasStockProblem) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Un article dépasse le stock disponible.'),
-        backgroundColor: AppColors.error,
+        content: Text('Un article dépasse ce qu\'il reste en boutique.'),
+        backgroundColor: CouturePalette.terracottaDeep,
       ));
       return;
     }
@@ -569,8 +626,8 @@ class _BasketSheetState extends State<_BasketSheet> {
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Vente impossible : $e'),
-          backgroundColor: AppColors.error,
+          content: Text('La vente n\'est pas passée : $e'),
+          backgroundColor: CouturePalette.terracottaDeep,
         ));
       }
     }
@@ -581,7 +638,8 @@ class _BasketSheetState extends State<_BasketSheet> {
     final cart = widget.cart;
     return AnimatedPadding(
       duration: const Duration(milliseconds: 150),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: DraggableScrollableSheet(
         initialChildSize: 0.85,
         minChildSize: 0.5,
@@ -596,19 +654,27 @@ class _BasketSheetState extends State<_BasketSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.border,
+                  color: CoutureScheme.of(context).line,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+                padding: const EdgeInsets.fromLTRB(20, 14, 12, 6),
                 child: Row(
                   children: <Widget>[
-                    Text('La vente',
-                        style: Theme.of(context).textTheme.headlineSmall),
+                    Text(
+                      'La vente',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: CoutureScheme.of(context).ink,
+                      ),
+                    ),
                     const Spacer(),
                     TextButton(
                       onPressed: cart.isEmpty ? null : cart.clear,
+                      style: TextButton.styleFrom(
+                          foregroundColor: CoutureScheme.of(context).inkSoft),
                       child: const Text('Tout enlever'),
                     ),
                   ],
@@ -619,8 +685,7 @@ class _BasketSheetState extends State<_BasketSheet> {
                   controller: scrollController,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: <Widget>[
-                    for (int i = 0; i < cart.lines.length; i++)
-                      _line(cart, i),
+                    for (int i = 0; i < cart.lines.length; i++) _line(cart, i),
                     const SizedBox(height: 18),
                     _clientPicker(),
                     const SizedBox(height: 90),
@@ -636,11 +701,12 @@ class _BasketSheetState extends State<_BasketSheet> {
   }
 
   Widget _line(SaleCart cart, int i) {
+    final CoutureScheme c = CoutureScheme.of(context);
     final CartLine l = cart.lines[i];
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: CouturePalette.s2),
+      child: CoutureCard(
+        padding: const EdgeInsets.fromLTRB(CouturePalette.s3, 10, 4, 10),
         child: Row(
           children: <Widget>[
             Expanded(
@@ -650,44 +716,61 @@ class _BasketSheetState extends State<_BasketSheet> {
                   Text(l.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                          color: c.ink)),
                   const SizedBox(height: 2),
+                  // The unit price is tappable because VIP discounts are a real
+                  // part of how these shops sell (owner decision 2026-08-03).
                   GestureDetector(
                     onTap: () => _editPrice(cart, i),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                         Text(formatFcfa(l.unitPrice),
-                            style: const TextStyle(color: AppColors.textSecondary)),
+                            style: TextStyle(fontSize: 12.5, color: c.inkSoft)),
                         const SizedBox(width: 4),
-                        const Icon(Icons.edit_rounded,
-                            size: 13, color: AppColors.textMuted),
+                        Icon(CoutureIcons.pencil, size: 12, color: c.inkFaint),
                       ],
                     ),
                   ),
                   if (l.exceedsStock)
-                    Text('Plus que ${l.stockLeft} en stock',
-                        style: const TextStyle(
-                            fontSize: 11, color: AppColors.error)),
+                    Text('Il n\'en reste que ${l.stockLeft}',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: c.urgentText)),
                 ],
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.remove_circle_outline_rounded),
-              onPressed: () => cart.setQuantity(i, l.quantity - 1),
-            ),
-            Text('${l.quantity}',
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold)),
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline_rounded),
-              onPressed: () => cart.setQuantity(i, l.quantity + 1),
+            _StepButton(
+              icon: CoutureIcons.minus,
+              tooltip: 'Un de moins',
+              onTap: () => cart.setQuantity(i, l.quantity - 1),
             ),
             SizedBox(
-              width: 78,
-              child: Text(formatFcfa(l.lineTotal),
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              width: 26,
+              child: Text('${l.quantity}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w700, color: c.ink)),
+            ),
+            _StepButton(
+              icon: CoutureIcons.plus,
+              tooltip: 'Un de plus',
+              onTap: () => cart.setQuantity(i, l.quantity + 1),
+            ),
+            SizedBox(
+              width: 92,
+              child: Text(
+                formatFcfa(l.lineTotal),
+                textAlign: TextAlign.right,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700, color: c.ink),
+              ),
             ),
           ],
         ),
@@ -696,27 +779,33 @@ class _BasketSheetState extends State<_BasketSheet> {
   }
 
   Future<void> _editPrice(SaleCart cart, int i) async {
-    final controller =
-        TextEditingController(text: '${cart.lines[i].unitPrice}');
+    // Grouped thousands like every other money field in the app: 45,000 is read
+    // correctly at a glance, 45000 is not. Display only — `parseThousands`
+    // strips the commas before the number goes anywhere near the cart.
+    final TextEditingController controller =
+        TextEditingController(text: formatThousands(cart.lines[i].unitPrice));
+    final CoutureScheme c = CoutureScheme.of(context);
     final int? newPrice = await showDialog<int>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Changer le prix'),
-        content: TextField(
+      builder: (BuildContext ctx) => AlertDialog(
+        backgroundColor: c.card,
+        title: Text('Changer le prix',
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.w600, color: c.ink)),
+        content: FormattedNumberField(
           controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Prix pour une pièce (FCFA)',
-          ),
+          label: 'Prix d\'une pièce',
         ),
         actions: <Widget>[
           TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Retour')),
+            onPressed: () => Navigator.of(ctx).pop(),
+            style: TextButton.styleFrom(foregroundColor: c.inkSoft),
+            child: const Text('Retour'),
+          ),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: c.iconInk),
             onPressed: () =>
-                Navigator.of(ctx).pop(int.tryParse(controller.text.trim())),
+                Navigator.of(ctx).pop(parseThousands(controller.text)),
             child: const Text('Garder'),
           ),
         ],
@@ -725,92 +814,169 @@ class _BasketSheetState extends State<_BasketSheet> {
     if (newPrice != null && newPrice >= 0) cart.setUnitPrice(i, newPrice);
   }
 
-  Widget _clientPicker() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Text('Le client (facultatif)',
-              style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 6),
-          if (_client != null)
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.person_rounded),
-                title: Text(_client!.fullName),
-                subtitle: Text(_client!.phone),
-                trailing: IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => setState(() => _client = null),
-                ),
-              ),
-            )
-          else ...<Widget>[
-            TextField(
-              controller: _clientSearch,
-              onChanged: _searchClients,
-              decoration: InputDecoration(
-                hintText: 'Nom ou téléphone du client',
-                prefixIcon: const Icon(Icons.person_search_rounded),
-                isDense: true,
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-            for (final c in _matches)
-              ListTile(
-                dense: true,
-                leading: const Icon(Icons.person_outline_rounded),
-                title: Text(c.fullName),
-                subtitle: Text(c.phone),
-                onTap: () => setState(() {
-                  _client = c;
-                  _matches = <Client>[];
-                  _clientSearch.clear();
-                }),
-              ),
-          ],
-        ],
-      );
-
-  Widget _footer(SaleCart cart) => Material(
-        elevation: 8,
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+  Widget _clientPicker() {
+    final CoutureScheme c = CoutureScheme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text('LE CLIENT — SI VOUS LE CONNAISSEZ',
+            style: CouturePalette.sectionLabel.copyWith(color: c.inkFaint)),
+        const SizedBox(height: CouturePalette.s2),
+        if (_client != null)
+          CoutureCard(
+            padding: const EdgeInsets.fromLTRB(
+                CouturePalette.s3, CouturePalette.s2, 4, CouturePalette.s2),
+            child: Row(
               children: <Widget>[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    const Text('À payer',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
-                    Text(formatFcfa(cart.total),
-                        style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary)),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    backgroundColor: AppColors.success,
+                const CoutureWash(
+                    icon: CoutureIcons.user, size: 38, iconSize: 19),
+                const SizedBox(width: CouturePalette.s3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(_client!.fullName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w600,
+                              color: c.ink)),
+                      Text(_client!.phone,
+                          style: TextStyle(fontSize: 12.5, color: c.inkSoft)),
+                    ],
                   ),
-                  icon: _saving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.check_circle_rounded),
-                  label: Text(_saving ? 'Enregistrement…' : 'Encaisser'),
-                  onPressed: cart.isEmpty || _saving ? null : _checkout,
+                ),
+                IconButton(
+                  tooltip: 'Enlever le client',
+                  icon: Icon(CoutureIcons.close, size: 18, color: c.inkFaint),
+                  onPressed: () => setState(() => _client = null),
                 ),
               ],
             ),
+          )
+        else ...<Widget>[
+          CoutureSearchField(
+            controller: _clientSearch,
+            hint: 'Nom ou téléphone du client',
+            onChanged: (String v) {
+              _searchClients(v);
+              setState(() {});
+            },
+            onClear: () {
+              _clientSearch.clear();
+              setState(() => _matches = <Client>[]);
+            },
+          ),
+          for (final Client match in _matches)
+            ListTile(
+              dense: true,
+              leading: Icon(CoutureIcons.user, size: 20, color: c.inkSoft),
+              title: Text(match.fullName,
+                  style: TextStyle(fontSize: 14, color: c.ink)),
+              subtitle: Text(match.phone,
+                  style: TextStyle(fontSize: 12, color: c.inkSoft)),
+              onTap: () => setState(() {
+                _client = match;
+                _matches = <Client>[];
+                _clientSearch.clear();
+              }),
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _footer(SaleCart cart) {
+    final CoutureScheme c = CoutureScheme.of(context);
+    return Material(
+      color: c.card,
+      elevation: 8,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(CouturePalette.s4,
+              CouturePalette.s3, CouturePalette.s4, CouturePalette.s3),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  Text('Le client paie',
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: c.inkSoft)),
+                  Text(formatFcfa(cart.total),
+                      style: TextStyle(
+                          fontSize: 23,
+                          fontWeight: FontWeight.w700,
+                          color: c.ink)),
+                ],
+              ),
+              const SizedBox(height: CouturePalette.s3),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(54),
+                  backgroundColor: c.urgentInk,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15)),
+                ),
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(CoutureIcons.checkCircle, size: 20),
+                label: Text(
+                  _saving ? 'Un instant…' : 'Encaisser',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                onPressed: cart.isEmpty || _saving ? null : _checkout,
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    );
+  }
+}
+
+/// The + / − beside a basket line. A plain IconButton is a 48-px hit area with
+/// a 24-px glyph floating in it; this keeps the target and shows where it is.
+class _StepButton extends StatelessWidget {
+  const _StepButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final CoutureScheme c = CoutureScheme.of(context);
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 34,
+          height: 34,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            color: c.quiet,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 17, color: c.inkList),
+        ),
+      ),
+    );
+  }
 }

@@ -55,8 +55,10 @@ class AuthRepository {
     try {
       await _api.post('/api/auth/change-password', body: {
         'current_password': currentPassword,
-        if (newPassword != null && newPassword.isNotEmpty) 'new_password': newPassword,
-        if (newUsername != null && newUsername.isNotEmpty) 'new_username': newUsername,
+        if (newPassword != null && newPassword.isNotEmpty)
+          'new_password': newPassword,
+        if (newUsername != null && newUsername.isNotEmpty)
+          'new_username': newUsername,
       });
     } on ApiException catch (e) {
       throw AuthFailure(e.message);

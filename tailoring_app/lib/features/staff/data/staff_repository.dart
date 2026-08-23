@@ -344,9 +344,11 @@ class StaffRepository {
       'entry_date': entryDate,
       'pieces_count': piecesCount,
       if (pieceRate != null) 'piece_rate': pieceRate,
-      if (garmentType != null && garmentType.isNotEmpty) 'garment_type': garmentType,
+      if (garmentType != null && garmentType.isNotEmpty)
+        'garment_type': garmentType,
       if (orderId != null) 'order_id': orderId,
-      if (customClientName != null && customClientName.isNotEmpty) 'custom_client_name': customClientName,
+      if (customClientName != null && customClientName.isNotEmpty)
+        'custom_client_name': customClientName,
     });
     return TailorEntry.fromJson(res as Map<String, dynamic>);
   }
@@ -375,15 +377,30 @@ class StaffRepository {
       if (newPieces != null) 'new_pieces': newPieces,
       if (newPieceRate != null) 'new_piece_rate': newPieceRate,
       if (newGarmentType != null) 'new_garment_type': newGarmentType,
-      if (newCustomClientName != null) 'new_custom_client_name': newCustomClientName,
+      if (newCustomClientName != null)
+        'new_custom_client_name': newCustomClientName,
       if (newOrderId != null) 'new_order_id': newOrderId,
       if (voided != null) 'voided': voided,
       'reason': reason,
     });
   }
 
+  /// Who changed a daily entry, when, from → to, and why — newest first.
+  ///
+  /// Both roles may correct entries (owner decision), so this is what lets the
+  /// owner see exactly who touched a tailor's numbers if the pay is ever
+  /// disputed. The rows come from the append-only correction log; the entry
+  /// itself is never edited in place.
+  Future<List<Map<String, dynamic>>> listEntryCorrections(
+      String entryId) async {
+    final dynamic res =
+        await _api.get('/api/tailor-entries/$entryId/corrections');
+    return (res['items'] as List).cast<Map<String, dynamic>>();
+  }
+
   Future<List<WeeklyTailorSummary>> listWeeklyTotals(String weekId) async {
-    final dynamic res = await _api.get('/api/tailor-entries/weekly?week_id=$weekId');
+    final dynamic res =
+        await _api.get('/api/tailor-entries/weekly?week_id=$weekId');
     return (res['items'] as List)
         .map((e) => WeeklyTailorSummary.fromJson(e as Map<String, dynamic>))
         .toList();

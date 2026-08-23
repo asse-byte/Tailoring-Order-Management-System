@@ -33,8 +33,9 @@ bool canWhatsApp(String? raw) => waPhone(raw) != null;
 Future<bool> openWhatsApp(String? phone, {String? text}) async {
   final String? normalised = waPhone(phone);
   if (normalised == null) return false;
-  final String query =
-      (text == null || text.isEmpty) ? '' : '?text=${Uri.encodeComponent(text)}';
+  final String query = (text == null || text.isEmpty)
+      ? ''
+      : '?text=${Uri.encodeComponent(text)}';
   return launchUrl(
     Uri.parse('https://wa.me/$normalised$query'),
     mode: LaunchMode.externalApplication,

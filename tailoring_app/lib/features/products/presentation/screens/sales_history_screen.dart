@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
 import '../../../../core/utils/money.dart';
-import '../../../../core/widgets/empty_state.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 import '../../data/receipt_invoice_service.dart';
 import '../../data/sales_repository.dart';
@@ -27,6 +31,8 @@ class SalesHistoryScreen extends StatefulWidget {
 
 class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
   final SalesRepository _repo = SalesRepository();
+  final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
 
   List<SaleReceipt> _items = <SaleReceipt>[];
   int _totalAmount = 0;
@@ -39,6 +45,24 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  /// The list used to search only when the keyboard's Enter was pressed, which
+  /// nobody at a counter does. It searches as you pause typing now, like the
+  /// clients list and the till — one request per pause, not per keystroke.
+  void _onSearchChanged(String value) {
+    _search = value;
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) _load();
+    });
   }
 
   String? _fmt(DateTime? d) => d == null
@@ -71,7 +95,9 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
-      backgroundColor: error ? AppColors.error : AppColors.success,
+      backgroundColor: error
+          ? CouturePalette.terracottaDeep
+          : CoutureScheme.of(context).goodInk,
       behavior: SnackBarBehavior.floating,
     ));
   }
@@ -91,119 +117,175 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Les ventes'),
-        actions: <Widget>[
-          IconButton(
-            tooltip: _range == null ? 'Choisir des dates' : 'Changer les dates',
-            icon: Icon(_range == null
-                ? Icons.date_range_rounded
-                : Icons.event_available_rounded),
-            onPressed: _pickRange,
+    return CoutureScaffold(
+      title: 'Les ventes',
+      subtitle: 'Ce qui est sorti de la boutique',
+      actions: <Widget>[
+        if (_range != null)
+          CoutureBandAction(
+            icon: CoutureIcons.filterOff,
+            tooltip: 'Toutes les dates',
+            onPressed: () {
+              setState(() => _range = null);
+              _load();
+            },
           ),
-          if (_range != null)
-            IconButton(
-              tooltip: 'Toutes les dates',
-              icon: const Icon(Icons.clear_rounded),
-              onPressed: () {
-                setState(() => _range = null);
-                _load();
+        CoutureBandAction(
+          icon: CoutureIcons.refresh,
+          tooltip: 'Actualiser',
+          onPressed: _load,
+        ),
+      ],
+      below: _header(),
+      child: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _items.isEmpty
+              ? const CoutureEmpty(
+                  icon: CoutureIcons.receipt,
+                  title: 'Aucune vente',
+                  message: 'Rien pour cette recherche, ou pour ces dates.',
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(
+                        CouturePalette.s4,
+                        CouturePalette.s1,
+                        CouturePalette.s4,
+                        CouturePalette.s6),
+                    itemCount: _items.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: CouturePalette.s2),
+                    itemBuilder: (_, int i) => _row(_items[i]),
+                  ),
+                ),
+    );
+  }
+
+  Widget _header() => Padding(
+        padding: const EdgeInsets.fromLTRB(
+            CouturePalette.s4, CouturePalette.s3, CouturePalette.s4, 0),
+        child: Column(
+          children: <Widget>[
+            CoutureSearchField(
+              controller: _searchCtrl,
+              hint: 'Nom du client',
+              onChanged: (String v) {
+                _onSearchChanged(v);
+                setState(() {});
+              },
+              onSubmitted: (_) => _load(),
+              onClear: () {
+                _searchCtrl.clear();
+                _onSearchChanged('');
+                setState(() {});
               },
             ),
-        ],
-      ),
-      body: Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-            child: TextField(
-              onSubmitted: (v) {
-                setState(() => _search = v);
-                _load();
-              },
-              decoration: InputDecoration(
-                hintText: 'Chercher par nom de client',
-                prefixIcon: const Icon(Icons.search_rounded),
-                isDense: true,
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+            const SizedBox(height: CouturePalette.s3),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: CoutureFilterChip(
+                icon: CoutureIcons.calendarBlank,
+                label: _range == null
+                    ? 'Choisir des dates'
+                    : '${_SalesHistoryScreenState._day(_range!.start.toIso8601String())} – ${_SalesHistoryScreenState._day(_range!.end.toIso8601String())}',
+                selected: _range != null,
+                onTap: _pickRange,
               ),
             ),
+            const SizedBox(height: CouturePalette.s3),
+            _summaryStrip(),
+            const SizedBox(height: CouturePalette.s3),
+          ],
+        ),
+      );
+
+  /// The day's takings, in the words the shop uses. Both roles see this: it is
+  /// what the shop TOOK, never what it paid — the purchase cost never leaves
+  /// the server for the secretary.
+  Widget _summaryStrip() {
+    final CoutureScheme c = CoutureScheme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+          vertical: CouturePalette.s3, horizontal: CouturePalette.s4),
+      decoration: BoxDecoration(
+        color: c.iconWash,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: <Widget>[
+          Text(
+            _totalCount == 1 ? '1 vente' : '$_totalCount ventes',
+            style: TextStyle(
+                fontSize: 13.5, fontWeight: FontWeight.w600, color: c.iconInk),
           ),
-          _summaryStrip(),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _items.isEmpty
-                    ? const EmptyState(
-                        title: 'Aucune vente',
-                        message: 'Rien pour cette recherche.',
-                        icon: Icons.receipt_long_outlined,
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _load,
-                        child: ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
-                          itemCount: _items.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
-                          itemBuilder: (_, i) => _row(_items[i]),
-                        ),
-                      ),
-          ),
+          Text(formatFcfa(_totalAmount),
+              style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w700, color: c.iconInk)),
         ],
       ),
     );
   }
 
-  Widget _summaryStrip() => Container(
-        margin: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.07),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: <Widget>[
-            Text('$_totalCount vente(s)',
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            Text(formatFcfa(_totalAmount),
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, color: AppColors.primary)),
-          ],
-        ),
-      );
-
-  Widget _row(SaleReceipt r) => Card(
-        margin: EdgeInsets.zero,
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: r.voided
-                ? AppColors.error.withValues(alpha: 0.15)
-                : AppColors.primary.withValues(alpha: 0.12),
-            child: Icon(
-              r.voided ? Icons.block_rounded : Icons.receipt_long_rounded,
-              color: r.voided ? AppColors.error : AppColors.primary,
-              size: 20,
+  Widget _row(SaleReceipt r) {
+    final CoutureScheme c = CoutureScheme.of(context);
+    return CoutureCard(
+      onTap: () => _openDetail(r.id),
+      padding: const EdgeInsets.fromLTRB(CouturePalette.s3, CouturePalette.s3,
+          CouturePalette.s3, CouturePalette.s3),
+      child: Row(
+        children: <Widget>[
+          CoutureWash(
+            icon: r.voided ? CoutureIcons.prohibit : CoutureIcons.receipt,
+            tone: r.voided ? CoutureTone.urgent : CoutureTone.normal,
+            size: 40,
+            iconSize: 20,
+          ),
+          const SizedBox(width: CouturePalette.s3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  (r.clientName ?? '').isEmpty
+                      ? 'Client de passage'
+                      : r.clientName!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w600, color: c.ink),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  '${_day(r.soldAt)} · '
+                  '${r.itemsCount == 1 ? '1 article' : '${r.itemsCount} articles'}'
+                  '${r.voided ? ' · annulée' : ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      color: r.voided ? c.urgentText : c.inkSoft),
+                ),
+              ],
             ),
           ),
-          title: Text(
-            (r.clientName ?? '').isEmpty ? 'Client de passage' : r.clientName!,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text('${_day(r.soldAt)} · ${r.itemsCount} article(s)'),
-          trailing: Text(
+          const SizedBox(width: CouturePalette.s2),
+          Text(
             formatFcfa(r.total),
             style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: r.voided ? AppColors.textMuted : AppColors.textPrimary,
+              fontSize: 14.5,
+              fontWeight: FontWeight.w700,
+              color: r.voided ? c.inkFaint : c.ink,
               decoration: r.voided ? TextDecoration.lineThrough : null,
             ),
           ),
-          onTap: () => _openDetail(r.id),
-        ),
-      );
+        ],
+      ),
+    );
+  }
 
   static String _day(String raw) {
     final DateTime? d = DateTime.tryParse(raw);
@@ -262,7 +344,9 @@ class _SaleDetailScreenState extends State<_SaleDetailScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
-      backgroundColor: error ? AppColors.error : AppColors.success,
+      backgroundColor: error
+          ? CouturePalette.terracottaDeep
+          : CoutureScheme.of(context).goodInk,
       behavior: SnackBarBehavior.floating,
     ));
   }
@@ -270,122 +354,182 @@ class _SaleDetailScreenState extends State<_SaleDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final r = _receipt;
-    return PopScope(
-      canPop: true,
-      onPopInvokedWithResult: (_, __) {},
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Détail de la vente'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: () => Navigator.of(context).pop(_changed),
-          ),
-        ),
-        body: _loading || r == null
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                children: <Widget>[
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+    final CoutureScheme c = CoutureScheme.of(context);
+    return CoutureScaffold(
+      title: 'La vente',
+      subtitle: r == null ? null : _SalesHistoryScreenState._day(r.soldAt),
+      onBack: () => Navigator.of(context).pop(_changed),
+      child: _loading || r == null
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(CouturePalette.s4,
+                  CouturePalette.s4, CouturePalette.s4, CouturePalette.s8),
+              children: <Widget>[
+                CoutureCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
                         children: <Widget>[
-                          Text(
-                            (r.clientName ?? '').isEmpty
-                                ? 'Client de passage'
-                                : r.clientName!,
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
+                          CoutureWash(
+                            icon: r.voided
+                                ? CoutureIcons.prohibit
+                                : CoutureIcons.user,
+                            tone: r.voided
+                                ? CoutureTone.urgent
+                                : CoutureTone.normal,
+                            size: 40,
+                            iconSize: 20,
                           ),
-                          if ((r.clientPhone ?? '').isNotEmpty)
-                            Text(r.clientPhone!,
-                                style: const TextStyle(
-                                    color: AppColors.textSecondary)),
-                          const SizedBox(height: 6),
-                          Text('Vendu le ${_SalesHistoryScreenState._day(r.soldAt)}',
-                              style: const TextStyle(
-                                  color: AppColors.textSecondary)),
-                          const Divider(height: 24),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                              const Text('Total',
+                          const SizedBox(width: CouturePalette.s3),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  (r.clientName ?? '').isEmpty
+                                      ? 'Client de passage'
+                                      : r.clientName!,
                                   style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600)),
-                              Text(formatFcfa(r.total),
-                                  style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primary)),
-                            ],
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w600,
+                                      color: c.ink),
+                                ),
+                                if ((r.clientPhone ?? '').isNotEmpty)
+                                  Text(r.clientPhone!,
+                                      style: TextStyle(
+                                          fontSize: 13, color: c.inkSoft)),
+                              ],
+                            ),
                           ),
                         ],
                       ),
-                    ),
+                      if (r.voided) ...<Widget>[
+                        const SizedBox(height: CouturePalette.s3),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: c.urgentWash,
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                          child: Text('Cette vente a été annulée',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: c.urgentText)),
+                        ),
+                      ],
+                      Divider(height: 26, color: c.line),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          Text('Le client a payé',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: c.inkSoft)),
+                          Text(formatFcfa(r.total),
+                              style: TextStyle(
+                                  fontSize: 21,
+                                  fontWeight: FontWeight.w700,
+                                  color: c.ink)),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  const Text('Les articles',
+                ),
+                const SizedBox(height: CouturePalette.s6),
+                Text('LES ARTICLES',
+                    style: CouturePalette.sectionLabel
+                        .copyWith(color: c.inkFaint)),
+                const SizedBox(height: CouturePalette.s2),
+                for (final SaleReceiptLine l in r.lines) _lineTile(l),
+                const SizedBox(height: CouturePalette.s6),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    backgroundColor: c.iconInk,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15)),
+                  ),
+                  icon: const Icon(CoutureIcons.share, size: 19),
+                  label: const Text('Renvoyer la facture',
                       style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  for (final l in r.lines) _lineTile(l),
-                  const SizedBox(height: 20),
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                      backgroundColor: AppColors.primary,
-                    ),
-                    icon: const Icon(Icons.share_rounded),
-                    label: const Text('Renvoyer la facture'),
-                    onPressed: () => _share(r),
+                  onPressed: () => _share(r),
+                ),
+                const SizedBox(height: CouturePalette.s2),
+                if (!r.voided)
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                        foregroundColor: c.urgentText,
+                        minimumSize: const Size.fromHeight(48)),
+                    icon: const Icon(CoutureIcons.prohibit, size: 18),
+                    label: const Text('Annuler toute la vente'),
+                    onPressed: () => _cancelAll(r),
                   ),
-                  const SizedBox(height: 8),
-                  if (!r.voided)
-                    TextButton.icon(
-                      style: TextButton.styleFrom(
-                          foregroundColor: AppColors.error,
-                          minimumSize: const Size.fromHeight(48)),
-                      icon: const Icon(Icons.block_rounded),
-                      label: const Text('Annuler toute la vente'),
-                      onPressed: () => _cancelAll(r),
-                    ),
-                ],
-              ),
-      ),
+              ],
+            ),
     );
   }
 
-  Widget _lineTile(SaleReceiptLine l) => Card(
-        margin: const EdgeInsets.only(bottom: 8),
-        child: ListTile(
-          title: Text(
-            l.itemName,
-            style: TextStyle(
-              decoration: l.voided ? TextDecoration.lineThrough : null,
-              color: l.voided ? AppColors.textMuted : null,
+  Widget _lineTile(SaleReceiptLine l) {
+    final CoutureScheme c = CoutureScheme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: CouturePalette.s2),
+      child: CoutureCard(
+        padding: const EdgeInsets.fromLTRB(CouturePalette.s3, CouturePalette.s3,
+            CouturePalette.s2, CouturePalette.s3),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    l.itemName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                      color: l.voided ? c.inkFaint : c.ink,
+                      decoration: l.voided ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    l.voided
+                        ? 'Annulé — remis en stock'
+                        : '${l.qty} × ${formatFcfa(l.unitPrice)}'
+                            '${l.corrected ? ' · modifié' : ''}',
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        color: l.voided ? c.urgentText : c.inkSoft),
+                  ),
+                ],
+              ),
             ),
-          ),
-          subtitle: Text(l.voided
-              ? 'Annulé'
-              : '${l.qty} × ${formatFcfa(l.unitPrice)}'
-                  '${l.corrected ? '  ·  modifié' : ''}'),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text(formatFcfa(l.voided ? 0 : l.total),
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-              if (!l.voided)
-                IconButton(
-                  tooltip: 'Modifier',
-                  icon: const Icon(Icons.edit_rounded, size: 18),
-                  onPressed: () => _editLine(l),
-                ),
-            ],
-          ),
+            Text(formatFcfa(l.voided ? 0 : l.total),
+                style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: l.voided ? c.inkFaint : c.ink)),
+            if (!l.voided)
+              IconButton(
+                tooltip: 'Corriger',
+                icon: Icon(CoutureIcons.pencil, size: 17, color: c.inkSoft),
+                onPressed: () => _editLine(l),
+              )
+            else
+              const SizedBox(width: CouturePalette.s2),
+          ],
         ),
-      );
+      ),
+    );
+  }
 
   /// Changing a quantity is a correction row underneath, never an edit of the
   /// original sale, and the difference goes back on the shelf. The seller only
@@ -481,7 +625,8 @@ class _SaleDetailScreenState extends State<_SaleDetailScreen> {
                   onPressed: () => Navigator.of(ctx).pop(false),
                   child: const Text('Retour')),
               FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+                style: FilledButton.styleFrom(
+                    backgroundColor: CouturePalette.terracottaDeep),
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: const Text('Oui, annuler'),
               ),

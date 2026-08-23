@@ -13,6 +13,12 @@ class AppConstants {
   static const String statusTermine = 'termine';
   static const String statusLivre = 'livre';
 
+  /// Cancelling an order is a status change, never a hard delete — the line
+  /// items, their corrections, the cash collected and the tailor's entries all
+  /// survive. Deliberately NOT in [orderStatuses]: it is not a step of the
+  /// workflow and must never appear in a status dropdown.
+  static const String statusAnnule = 'annule';
+
   /// The four fixed statuses in order (dropdown source of truth).
   static const List<String> orderStatuses = <String>[
     statusEnAttente,

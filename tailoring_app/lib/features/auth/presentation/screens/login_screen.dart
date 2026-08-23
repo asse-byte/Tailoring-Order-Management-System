@@ -3,11 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/api_client.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/context_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_text_field.dart';
-import '../../../../core/widgets/primary_button.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 import '../providers/auth_provider.dart';
 
@@ -46,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: AppColors.error,
+        backgroundColor: CouturePalette.terracottaDeep,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -59,155 +58,155 @@ class _LoginScreenState extends State<LoginScreen> {
     final String shopName = shopSettings.shopName;
     final String? logoUrl = shopSettings.logoUrl;
 
+    final CoutureScheme c = CoutureScheme.of(context);
+    final Color band = shopSettings.themeColor;
+
     return Scaffold(
-      backgroundColor: context.cBackground,
+      backgroundColor: c.paper,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        height: 96,
-                        width: 96,
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(CouturePalette.s6,
+                CouturePalette.s8, CouturePalette.s6, CouturePalette.s8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    // The shop, not the app. A tailoring shop's login screen
+                    // should look like its own front door.
+                    Center(
+                      child: Container(
+                        height: 92,
+                        width: 92,
                         decoration: BoxDecoration(
-                          color: context.cSurface,
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(color: context.cBorder, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: shopSettings.themeColor.withValues(alpha: 0.12),
-                              blurRadius: 16,
-                              offset: const Offset(0, 8),
-                            )
-                          ],
+                          color: band,
+                          shape: BoxShape.circle,
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(26),
-                          child: (logoUrl != null && logoUrl.isNotEmpty)
-                              ? Image.network(
-                                  logoUrl.startsWith('http')
-                                      ? logoUrl
-                                      : '${ApiClient.baseUrl}$logoUrl',
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (context, child, progress) {
-                                    if (progress == null) return child;
-                                    return const Center(
-                                      child: SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(strokeWidth: 2.5),
-                                      ),
-                                    );
-                                  },
-                                  errorBuilder: (context, error, stackTrace) => Icon(
-                                    Icons.storefront_rounded,
-                                    color: shopSettings.themeColor,
-                                    size: 42,
-                                  ),
-                                )
-                              : Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [shopSettings.themeColor, AppColors.accent],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
+                        clipBehavior: Clip.antiAlias,
+                        child: (logoUrl != null && logoUrl.isNotEmpty)
+                            ? Image.network(
+                                logoUrl.startsWith('http')
+                                    ? logoUrl
+                                    : '${ApiClient.baseUrl}$logoUrl',
+                                fit: BoxFit.cover,
+                                loadingBuilder: (BuildContext context,
+                                    Widget child, ImageChunkEvent? progress) {
+                                  if (progress == null) return child;
+                                  return const Center(
+                                    child: SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          color: Colors.white),
                                     ),
-                                  ),
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.storefront_rounded,
-                                      color: Colors.white,
-                                      size: 44,
-                                    ),
-                                  ),
-                                ),
-                        ),
+                                  );
+                                },
+                                errorBuilder: (_, __, ___) =>
+                                    _initial(shopName),
+                              )
+                            : _initial(shopName),
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        shopName,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.5,
-                          height: 1.15,
-                          color: context.cTextPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Atelier de Couture & Confection',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                          color: context.cTextSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 36),
-                Text(context.loc.welcomeBack,
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          color: context.cTextPrimary,
-                          fontWeight: FontWeight.w800,
-                        )),
-                const SizedBox(height: 6),
-                Text(
-                  context.loc.signInSubtitle,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: context.cTextSecondary,
-                  ),
-                ),
-                const SizedBox(height: 36),
-                AppTextField(
-                  controller: _emailCtrl,
-                  label: context.loc.username,
-                  hint: 'gerant',
-                  prefixIcon: Icons.person_outline_rounded,
-                  keyboardType: TextInputType.text,
-                  textInputAction: TextInputAction.next,
-                  validator: (v) => Validators.required(v, context),
-                ),
-                const SizedBox(height: 18),
-                AppTextField(
-                  controller: _passCtrl,
-                  label: context.loc.password,
-                  hint: '••••••••',
-                  prefixIcon: Icons.lock_outline_rounded,
-                  obscureText: _obscure,
-                  textInputAction: TextInputAction.done,
-                  validator: (v) => Validators.password(v, context),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscure
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      size: 20,
                     ),
-                    onPressed: () => setState(() => _obscure = !_obscure),
-                  ),
+                    const SizedBox(height: CouturePalette.s4),
+                    Text(
+                      shopName,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'CormorantGaramond',
+                        fontSize: 32,
+                        fontWeight: FontWeight.w600,
+                        height: 1.15,
+                        color: c.ink,
+                      ),
+                    ),
+                    const SizedBox(height: CouturePalette.s1 + 2),
+                    Text(
+                      'ATELIER DE COUTURE',
+                      textAlign: TextAlign.center,
+                      style: CouturePalette.sectionLabel
+                          .copyWith(color: c.inkFaint),
+                    ),
+                    const SizedBox(
+                        height: CouturePalette.s8 + CouturePalette.s2),
+                    AppTextField(
+                      controller: _emailCtrl,
+                      label: context.loc.username,
+                      hint: 'gerant',
+                      prefixIcon: CoutureIcons.user,
+                      keyboardType: TextInputType.text,
+                      textInputAction: TextInputAction.next,
+                      validator: (String? v) => Validators.required(v, context),
+                    ),
+                    const SizedBox(height: CouturePalette.s4),
+                    AppTextField(
+                      controller: _passCtrl,
+                      label: context.loc.password,
+                      hint: '••••••••',
+                      prefixIcon: CoutureIcons.lock,
+                      obscureText: _obscure,
+                      textInputAction: TextInputAction.done,
+                      validator: (String? v) => Validators.password(v, context),
+                      suffixIcon: IconButton(
+                        tooltip: _obscure ? 'Montrer' : 'Cacher',
+                        icon: Icon(
+                          _obscure ? CoutureIcons.eye : CoutureIcons.eyeSlash,
+                          size: 19,
+                          color: c.inkFaint,
+                        ),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
+                    ),
+                    const SizedBox(height: CouturePalette.s6),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: band,
+                        foregroundColor:
+                            ThemeData.estimateBrightnessForColor(band) ==
+                                    Brightness.light
+                                ? CouturePalette.ink
+                                : Colors.white,
+                        minimumSize: const Size.fromHeight(54),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15)),
+                      ),
+                      onPressed: auth.busy ? null : _submit,
+                      child: auth.busy
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : Text(context.loc.login,
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w600)),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-                PrimaryButton(
-                  label: context.loc.login,
-                  loading: auth.busy,
-                  onPressed: _submit,
-                ),
-              ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+
+  /// No logo uploaded: the shop's initial on its own colour, which is still
+  /// unmistakably this shop and never someone else's branding.
+  Widget _initial(String shopName) => Center(
+        child: Text(
+          shopName.isNotEmpty ? shopName.characters.first.toUpperCase() : 'C',
+          style: const TextStyle(
+            fontFamily: 'CormorantGaramond',
+            fontSize: 42,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+            height: 1,
+          ),
+        ),
+      );
 }

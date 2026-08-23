@@ -141,3 +141,78 @@ test('a correction still requires a mandatory reason', async () => {
     .send({ new_pieces: 4 }); // no reason
   expect(res.status).toBe(400);
 });
+
+// ---------------------------------------------------------------------------
+// The audit trail is the shop owner's evidence when a tailor disputes their
+// pay, so it must name the person who made each change and show what the value
+// was BEFORE it. Both roles may correct entries (owner decision 2026-07-20),
+// which is exactly why attribution has to be recorded and readable.
+// ---------------------------------------------------------------------------
+test('the correction history names who changed what, from → to, and why', async () => {
+  const e = await asM(request(app).post('/api/tailor-entries')).send({
+    tailor_id: tailorId, entry_date: '2027-03-05', pieces_count: 4,
+    piece_rate: 2500, garment_type: 'Chemise',
+  });
+  const entryId = e.body.id;
+
+  // The secretary corrects the quantity…
+  await asS(request(app).post(`/api/tailor-entries/${entryId}/corrections`))
+    .send({ new_pieces: 6, reason: 'Comptage refait le soir' });
+  // …then the manager corrects the rate.
+  await asM(request(app).post(`/api/tailor-entries/${entryId}/corrections`))
+    .send({ new_pieces: 6, new_piece_rate: 3000, reason: 'Tarif renégocié' });
+
+  const hist = await asM(request(app).get(`/api/tailor-entries/${entryId}/corrections`));
+  expect(hist.status).toBe(200);
+  expect(hist.body.items.length).toBe(2);
+
+  // Newest first.
+  const [rate, qty] = hist.body.items;
+
+  expect(rate.reason).toBe('Tarif renégocié');
+  expect(rate.old_piece_rate).toBe(2500);
+  expect(rate.new_piece_rate).toBe(3000);
+  expect(rate.old_pieces).toBe(6);      // carried over from the first correction
+  expect(rate.new_amount).toBe(18000);  // 6 × 3000
+
+  expect(qty.reason).toBe('Comptage refait le soir');
+  expect(qty.old_pieces).toBe(4);       // the original entry's value
+  expect(qty.new_pieces).toBe(6);
+  expect(qty.old_amount).toBe(10000);   // 4 × 2500
+  expect(qty.new_amount).toBe(15000);   // 6 × 2500
+  // The rate was not touched by this correction: it carries forward, so the
+  // "from → to" of the next one starts from the right number.
+  expect(qty.old_piece_rate).toBe(2500);
+  expect(qty.new_piece_rate).toBe(2500);
+
+  // Every row is attributed to a real user, never an anonymous role.
+  for (const item of hist.body.items) {
+    expect(item.corrected_by).toBeTruthy();
+    expect(item.corrected_by_name).toBeTruthy();
+    expect(item.corrected_at).toBeTruthy();
+  }
+  // The two corrections were made by two different people, and the history
+  // says so — that is the whole point of the log.
+  expect(rate.corrected_by).not.toBe(qty.corrected_by);
+});
+
+test('voiding an entry shows as a drop to zero in the history', async () => {
+  const e = await asM(request(app).post('/api/tailor-entries')).send({
+    tailor_id: tailorId, entry_date: '2027-03-06', pieces_count: 3,
+    piece_rate: 5000, garment_type: 'Boubou',
+  });
+  await asM(request(app).post(`/api/tailor-entries/${e.body.id}/corrections`))
+    .send({ new_pieces: 3, voided: true, reason: 'Saisie en double' });
+
+  const hist = await asM(request(app).get(`/api/tailor-entries/${e.body.id}/corrections`));
+  const [voidRow] = hist.body.items;
+  expect(voidRow.voided).toBe(true);
+  expect(voidRow.old_amount).toBe(15000);
+  expect(voidRow.new_amount).toBe(0);
+});
+
+test('the history of an unknown entry is a 404, not an empty list', async () => {
+  const res = await asM(request(app)
+    .get('/api/tailor-entries/00000000-0000-0000-0000-000000000000/corrections'));
+  expect(res.status).toBe(404);
+});

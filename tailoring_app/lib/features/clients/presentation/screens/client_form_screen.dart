@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../data/clients_repository.dart';
@@ -75,7 +77,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(e.toString()),
-          backgroundColor: AppColors.error,
+          backgroundColor: CouturePalette.terracottaDeep,
         ));
       }
     }
@@ -84,11 +86,11 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isEdit = widget.client != null;
-    return Scaffold(
-      appBar: AppBar(
-          title: Text(isEdit ? 'Modifier le client' : 'Nouveau client')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+    return CoutureScaffold(
+      title: isEdit ? 'Modifier le client' : 'Nouveau client',
+      subtitle: isEdit ? null : 'Nom et téléphone suffisent',
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(CouturePalette.s4),
         child: Form(
           key: _formKey,
           child: Column(
@@ -98,7 +100,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
                 controller: _nameCtrl,
                 label: 'Nom complet',
                 hint: 'Amadou Traoré',
-                prefixIcon: Icons.person_outline_rounded,
+                prefixIcon: CoutureIcons.user,
                 textInputAction: TextInputAction.next,
                 validator: (v) => (v == null || v.trim().isEmpty)
                     ? 'Le nom est obligatoire'
@@ -109,7 +111,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
                 controller: _phoneCtrl,
                 label: 'Téléphone',
                 hint: '70 00 00 00',
-                prefixIcon: Icons.phone_outlined,
+                prefixIcon: CoutureIcons.phone,
                 keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.next,
                 validator: (v) => (v == null || v.trim().isEmpty)
@@ -121,30 +123,33 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
                 controller: _addressCtrl,
                 label: 'Adresse (facultatif)',
                 hint: 'Quartier, ville…',
-                prefixIcon: Icons.location_on_outlined,
+                prefixIcon: CoutureIcons.mapPin,
                 textInputAction: TextInputAction.done,
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Genre du client',
+              Text(
+                'Homme ou femme ?',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: CoutureScheme.of(context).ink,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: CouturePalette.s2),
               SegmentedButton<String>(
                 segments: const <ButtonSegment<String>>[
+                  // These labels used to read "Homme / Homme" and
+                  // "Femme / Femme" — the leftover of a bilingual pair whose
+                  // second half was translated into the first.
                   ButtonSegment<String>(
                     value: 'homme',
-                    label: Text('Homme / Homme'),
-                    icon: Icon(Icons.male_rounded),
+                    label: Text('Homme'),
+                    icon: Icon(CoutureIcons.genderMale),
                   ),
                   ButtonSegment<String>(
                     value: 'femme',
-                    label: Text('Femme / Femme'),
-                    icon: Icon(Icons.female_rounded),
+                    label: Text('Femme'),
+                    icon: Icon(CoutureIcons.genderFemale),
                   ),
                 ],
                 selected: <String>{_gender},

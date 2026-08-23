@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/context_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -116,22 +118,34 @@ class _FinanceScreenState extends State<FinanceScreen> {
   Widget _detailSection(
       String title, List<FinanceRow> rows, IconData icon, Color color) {
     final int subtotal = rows.fold(0, (s, r) => s + r.amount);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    final CoutureScheme c = CoutureScheme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: CouturePalette.s2),
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: c.line),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
-        leading: Icon(icon, color: color),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        leading: Icon(icon, color: color, size: 20),
         title: Text(title,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-        subtitle: Text('${rows.length} opération(s)'),
+            style: TextStyle(
+                fontWeight: FontWeight.w600, fontSize: 13.5, color: c.ink)),
+        subtitle: Text(
+            rows.length == 1 ? '1 opération' : '${rows.length} opérations',
+            style: TextStyle(fontSize: 12, color: c.inkFaint)),
         trailing: Text(formatFcfa(subtotal),
-            style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+            style: TextStyle(fontWeight: FontWeight.w700, color: color)),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         children: rows.isEmpty
             ? <Widget>[
                 Padding(
                   padding: const EdgeInsets.all(8),
-                  child: Text('Aucune opération sur la période.', style: TextStyle(color: context.cTextSecondary)),
+                  child: Text('Rien sur cette période.',
+                      style: TextStyle(fontSize: 13, color: c.inkFaint)),
                 )
               ]
             : rows
@@ -144,17 +158,22 @@ class _FinanceScreenState extends State<FinanceScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
                                 Text(r.title,
-                                    style: TextStyle(fontSize: 13, color: context.cTextPrimary, fontWeight: FontWeight.w500)),
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: c.ink,
+                                        fontWeight: FontWeight.w500)),
                                 if (r.subtitle.isNotEmpty)
                                   Text(r.subtitle,
                                       style: TextStyle(
-                                          fontSize: 11, color: context.cTextSecondary)),
+                                          fontSize: 11, color: c.inkFaint)),
                               ],
                             ),
                           ),
                           Text(formatFcfa(r.amount),
                               style: TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 13, color: context.cTextPrimary)),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                  color: c.ink)),
                         ],
                       ),
                     ))
@@ -190,7 +209,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Nouvelle Dépense'),
           content: SingleChildScrollView(
             child: Form(
@@ -199,22 +219,25 @@ class _FinanceScreenState extends State<FinanceScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextFormField(
-                    decoration: const InputDecoration(labelText: 'Raison / Description'),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
+                    decoration: const InputDecoration(
+                        labelText: 'Raison / Description'),
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Requis' : null,
                     onSaved: (v) => reason = v ?? '',
                   ),
                   const SizedBox(height: 12),
                   FormattedNumberField(
                     controller: amountCtrl,
                     label: 'Montant (FCFA)',
-                    validator: (v) => (v == null || v <= 0) ? 'Montant invalide' : null,
+                    validator: (v) =>
+                        (v == null || v <= 0) ? 'Montant invalide' : null,
                     onChanged: (v) => amount = v ?? 0,
                   ),
                   const SizedBox(height: 12),
                   ListTile(
                     title: const Text('Date'),
                     subtitle: Text(_formatDate(date)),
-                    trailing: const Icon(Icons.calendar_month_rounded),
+                    trailing: const Icon(CoutureIcons.calendarBlank),
                     onTap: () async {
                       final picked = await showDatePicker(
                         context: context,
@@ -252,7 +275,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   } catch (e) {
                     if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+                      SnackBar(
+                          content: Text('Impossible : $e'),
+                          backgroundColor: CouturePalette.terracottaDeep),
                     );
                   }
                 }
@@ -268,7 +293,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
   Future<void> _correctExpense(Expense expense) async {
     final formKey = GlobalKey<FormState>();
     int newAmount = expense.amount;
-    final newAmountCtrl = TextEditingController(text: formatThousands(expense.amount));
+    final newAmountCtrl =
+        TextEditingController(text: formatThousands(expense.amount));
     String reason = '';
 
     await showDialog(
@@ -281,7 +307,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Dépense d\'origine: ${expense.reason} (${formatFcfa(expense.amount)})'),
+              Text(
+                  'Dépense d\'origine: ${expense.reason} (${formatFcfa(expense.amount)})'),
               const SizedBox(height: 12),
               FormattedNumberField(
                 controller: newAmountCtrl,
@@ -291,28 +318,35 @@ class _FinanceScreenState extends State<FinanceScreen> {
               ),
               const SizedBox(height: 12),
               TextFormField(
-                decoration: const InputDecoration(labelText: 'Raison de correction (Obligatoire)'),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Raison requise' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Raison de correction (Obligatoire)'),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Raison requise' : null,
                 onSaved: (v) => reason = v ?? '',
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () async {
               if (formKey.currentState!.validate()) {
                 formKey.currentState!.save();
                 try {
-                  await _repo.correctExpense(expense.id, newAmount: newAmount, reason: reason);
+                  await _repo.correctExpense(expense.id,
+                      newAmount: newAmount, reason: reason);
                   if (!ctx.mounted) return;
                   Navigator.pop(ctx);
                   _loadFinanceData();
                 } catch (e) {
                   if (!ctx.mounted) return;
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e'), backgroundColor: AppColors.error),
+                    SnackBar(
+                        content: Text('Impossible : $e'),
+                        backgroundColor: CouturePalette.terracottaDeep),
                   );
                 }
               }
@@ -327,55 +361,51 @@ class _FinanceScreenState extends State<FinanceScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    
+
     // Secretary access block
     if (auth.isSecretary) {
-      return const Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.lock_rounded, size: 64, color: AppColors.error),
-              SizedBox(height: 16),
-              Text(
-                'Accès refusé - Réservé au Gérant',
-                style: TextStyle(color: AppColors.error, fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
+      return const CoutureScaffold(
+        title: 'Finances',
+        child: CoutureEmpty(
+          icon: CoutureIcons.prohibit,
+          tone: CoutureTone.urgent,
+          title: 'Réservé au Gérant',
+          message: 'Cette partie de l\'application ne vous est pas ouverte.',
         ),
       );
     }
 
     final shopName = context.watch<ShopSettingsProvider>().shopName;
 
-    return Scaffold(
-      backgroundColor: context.cBackground,
-      appBar: AppBar(
-        title: Text('$shopName - Comptabilité'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.assessment_rounded),
-            tooltip: 'Rapport & statistiques',
-            onPressed: () => context.push('/admin/reports'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.date_range_rounded),
-            tooltip: 'Filtrer les dates',
-            onPressed: _selectDateRange,
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _loadFinanceData,
-          )
-        ],
-      ),
-      body: _loading
+    final CoutureScheme c = CoutureScheme.of(context);
+
+    return CoutureScaffold(
+      title: 'Finances',
+      subtitle: shopName.isEmpty ? 'L\'argent de la boutique' : shopName,
+      actions: <Widget>[
+        CoutureBandAction(
+          icon: CoutureIcons.chartBar,
+          tooltip: 'Rapports',
+          onPressed: () => context.push('/admin/reports'),
+        ),
+        CoutureBandAction(
+          icon: CoutureIcons.refresh,
+          tooltip: 'Actualiser',
+          onPressed: _loadFinanceData,
+        ),
+      ],
+      child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text('Erreur: $_error', style: TextStyle(color: context.cTextPrimary)))
+              ? const CoutureEmpty(
+                  icon: CoutureIcons.warningCircle,
+                  tone: CoutureTone.urgent,
+                  title: 'Les chiffres ne s\'affichent pas',
+                  message:
+                      'Vérifiez la connexion, puis appuyez sur Actualiser.',
+                )
               : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(CouturePalette.s4),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -384,24 +414,27 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: <Widget>[
-                            for (final p in const <({String key, String label})>[
-                              (key: 'jour', label: 'Jour'),
-                              (key: 'semaine', label: 'Semaine'),
-                              (key: 'mois', label: 'Mois'),
-                              (key: 'annee', label: 'Année'),
+                            for (final p
+                                in const <({String key, String label})>[
+                              (key: 'jour', label: 'Aujourd\'hui'),
+                              (key: 'semaine', label: 'Cette semaine'),
+                              (key: 'mois', label: 'Ce mois'),
+                              (key: 'annee', label: 'Cette année'),
                             ])
                               Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: ChoiceChip(
-                                  label: Text(p.label),
+                                padding: const EdgeInsets.only(
+                                    right: CouturePalette.s2),
+                                child: CoutureFilterChip(
+                                  label: p.label,
                                   selected: _period == p.key,
-                                  onSelected: (_) => _setPeriod(p.key),
+                                  onTap: () => _setPeriod(p.key),
                                 ),
                               ),
-                            ChoiceChip(
-                              label: const Text('Personnalisé'),
+                            CoutureFilterChip(
+                              icon: CoutureIcons.calendarBlank,
+                              label: 'Choisir',
                               selected: _period == 'perso',
-                              onSelected: (_) {
+                              onTap: () {
                                 setState(() => _period = 'perso');
                                 _selectDateRange();
                               },
@@ -416,14 +449,21 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Période: ${_formatDate(_fromDate)} au ${_formatDate(_toDate)}',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: context.cTextSecondary),
+                            Flexible(
+                              child: Text(
+                                'Du ${_formatDate(_fromDate)} au ${_formatDate(_toDate)}',
+                                style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: c.inkSoft),
+                              ),
                             ),
                             TextButton.icon(
                               onPressed: _selectDateRange,
-                              icon: const Icon(Icons.edit_rounded, size: 14),
-                              label: const Text('Modifier'),
+                              style: TextButton.styleFrom(
+                                  foregroundColor: c.iconInk),
+                              icon: const Icon(CoutureIcons.pencil, size: 14),
+                              label: const Text('Changer'),
                             ),
                           ],
                         ),
@@ -434,9 +474,10 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         _buildKpiCard(
                           title: 'Argent reçu',
                           value: formatFcfa(_summary!.totalRevenue),
-                          color: AppColors.success,
-                          icon: Icons.trending_up_rounded,
-                          details: 'Commandes des clients: ${formatFcfa(_summary!.ordersRevenue)}\n'
+                          color: c.goodInk,
+                          icon: CoutureIcons.wallet,
+                          details:
+                              'Commandes des clients: ${formatFcfa(_summary!.ordersRevenue)}\n'
                               'Ventes en boutique: ${formatFcfa(_summary!.salesRevenue)}\n'
                               'Ventes en gros: ${formatFcfa(_summary!.wholesaleRevenue)}',
                         ),
@@ -444,12 +485,13 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         _buildKpiCard(
                           title: 'Argent sorti',
                           value: formatFcfa(_summary!.totalCosts),
-                          color: AppColors.error,
-                          icon: Icons.trending_down_rounded,
+                          color: c.urgentText,
+                          icon: CoutureIcons.receipt,
                           // The cost of the goods sold belongs in this list:
                           // without it the four lines never added up to the
                           // total printed just above them.
-                          details: 'Achat de la marchandise vendue: ${formatFcfa(_summary!.costOfGoodsSold)}\n'
+                          details:
+                              'Achat de la marchandise vendue: ${formatFcfa(_summary!.costOfGoodsSold)}\n'
                               'Paie des couturiers: ${formatFcfa(_summary!.tailorWages)}\n'
                               'Salaires du personnel: ${formatFcfa(_summary!.salaries)}\n'
                               'Autres dépenses: ${formatFcfa(_summary!.expenses)}',
@@ -458,24 +500,28 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         _buildKpiCard(
                           title: 'Ce qui reste',
                           value: formatFcfa(_summary!.netProfit),
-                          color: _summary!.netProfit >= 0 ? Colors.teal : AppColors.warning,
-                          icon: Icons.account_balance_rounded,
-                          details: 'L\'argent qui reste après toutes les dépenses.',
+                          color: _summary!.netProfit >= 0
+                              ? c.iconInk
+                              : c.urgentText,
+                          icon: CoutureIcons.chartBar,
+                          details:
+                              'L\'argent qui reste après toutes les dépenses.',
                         ),
                       ],
 
                       const SizedBox(height: 20),
-                      Text('Le détail',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cTextPrimary)),
-                      const SizedBox(height: 8),
-                      _detailSection('Revenus — Commandes livrées',
-                          _orderRows, Icons.receipt_long_rounded, AppColors.success),
-                      _detailSection('Revenus — Ventes produits',
-                          _saleRows, Icons.shopping_bag_rounded, AppColors.success),
-                      _detailSection("Coûts — Main d'œuvre (couture)",
-                          _wageRows, Icons.content_cut_rounded, AppColors.error),
-                      _detailSection('Coûts — Dépenses',
-                          _expenseRows, Icons.receipt_rounded, AppColors.error),
+                      Text('LE DÉTAIL',
+                          style: CouturePalette.sectionLabel
+                              .copyWith(color: c.inkFaint)),
+                      const SizedBox(height: CouturePalette.s2),
+                      _detailSection('Argent reçu — commandes livrées',
+                          _orderRows, CoutureIcons.clipboardText, c.goodInk),
+                      _detailSection('Argent reçu — ventes en boutique',
+                          _saleRows, CoutureIcons.shoppingBag, c.goodInk),
+                      _detailSection('Argent sorti — paie des couturiers',
+                          _wageRows, CoutureIcons.scissors, c.urgentText),
+                      _detailSection('Argent sorti — autres dépenses',
+                          _expenseRows, CoutureIcons.receipt, c.urgentText),
 
                       const SizedBox(height: 24),
 
@@ -484,28 +530,37 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Dépenses Opérationnelles',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cTextPrimary),
+                            'LES DÉPENSES',
+                            style: CouturePalette.sectionLabel
+                                .copyWith(color: c.inkFaint),
                           ),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: c.iconInk,
+                              foregroundColor: Colors.white,
                               minimumSize: const Size(0, 40),
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: CouturePalette.s4),
                             ),
-                            icon: const Icon(Icons.add_rounded, size: 16),
-                            label: const Text('Dépense'),
+                            icon: const Icon(CoutureIcons.plus, size: 16),
+                            label: const Text('Ajouter'),
                             onPressed: _addExpense,
                           )
                         ],
                       ),
-                      
+
                       const SizedBox(height: 12),
-                      
+
                       _expenses.isEmpty
                           ? Card(
                               child: Padding(
                                 padding: const EdgeInsets.all(24.0),
-                                child: Center(child: Text('Aucune dépense enregistrée.', style: TextStyle(color: context.cTextSecondary))),
+                                child: Center(
+                                    child: Text('Aucune dépense notée.',
+                                        style: TextStyle(
+                                            fontSize: 13, color: c.inkFaint))),
                               ),
                             )
                           : ListView.builder(
@@ -515,25 +570,36 @@ class _FinanceScreenState extends State<FinanceScreen> {
                               itemBuilder: (context, index) {
                                 final exp = _expenses[index];
                                 return Card(
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
                                   margin: const EdgeInsets.only(bottom: 8),
                                   child: ListTile(
                                     leading: CircleAvatar(
-                                      backgroundColor: AppColors.error.withValues(alpha: 0.1),
-                                      child: const Icon(Icons.money_off_rounded, color: AppColors.error),
+                                      backgroundColor: c.urgentWash,
+                                      child: Icon(CoutureIcons.receipt,
+                                          color: c.urgentText, size: 19),
                                     ),
-                                    title: Text(exp.reason, style: TextStyle(fontWeight: FontWeight.bold, color: context.cTextPrimary)),
-                                    subtitle: Text(exp.spentAt, style: TextStyle(color: context.cTextSecondary)),
+                                    title: Text(exp.reason,
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: c.ink)),
+                                    subtitle: Text(exp.spentAt,
+                                        style: TextStyle(
+                                            fontSize: 12.5, color: c.inkSoft)),
                                     trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
                                           '-${formatFcfa(exp.amount)}',
-                                          style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold, fontSize: 16),
+                                          style: TextStyle(
+                                              color: c.urgentText,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 15),
                                         ),
                                         const SizedBox(width: 8),
                                         IconButton(
-                                          icon: const Icon(Icons.edit_note_rounded, color: AppColors.warning),
+                                          icon: Icon(CoutureIcons.pencil,
+                                              color: c.inkSoft, size: 18),
                                           tooltip: 'Corriger / Annuler',
                                           onPressed: () => _correctExpense(exp),
                                         )
@@ -556,44 +622,48 @@ class _FinanceScreenState extends State<FinanceScreen> {
     required IconData icon,
     required String details,
   }) {
-    return Card(
-      elevation: context.isDark ? 1 : 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: context.isDark ? AppColors.darkBorder : context.cBorder),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            colors: [color.withValues(alpha: 0.12), color.withValues(alpha: 0.02)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    final CoutureScheme c = CoutureScheme.of(context);
+    return CoutureCard(
+      padding: const EdgeInsets.all(CouturePalette.s4 + 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(icon, color: color, size: 23),
           ),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: color.withValues(alpha: 0.2),
-              radius: 28,
-              child: Icon(icon, color: color, size: 30),
+          const SizedBox(width: CouturePalette.s4),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: c.inkSoft)),
+                const SizedBox(height: 2),
+                // The figure is the point of the card: nothing else on it is
+                // allowed to be this size.
+                Text(value,
+                    style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: c.ink,
+                        height: 1.15)),
+                const SizedBox(height: CouturePalette.s2),
+                Text(details,
+                    style: TextStyle(
+                        fontSize: 12, color: c.inkSoft, height: 1.45)),
+              ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: context.cTextSecondary)),
-                  const SizedBox(height: 4),
-                  Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: context.cTextPrimary)),
-                  const SizedBox(height: 6),
-                  Text(details, style: TextStyle(fontSize: 12, color: context.cTextSecondary, height: 1.3)),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -56,6 +56,16 @@ class CouturePalette {
   /// The pale wash behind an urgent icon.
   static const Color terracottaWash = Color(0xFFF6E4DE);
 
+  /// Terracotta for TEXT rather than a glyph. `terracotta` on `terracottaWash`
+  /// is 4.3:1 — fine for a 20-px icon (graphics need 3:1) and a fail for an
+  /// 11-px label. This one is 5.5:1 on the same wash.
+  static const Color terracottaDeep = Color(0xFF8F3E22);
+
+  /// Finished, and finished well: the "terminé" / "livré" green. Chosen inside
+  /// the same earth family rather than a Material green — 5.2:1 on its wash.
+  static const Color sage = Color(0xFF3F6B4A);
+  static const Color sageWash = Color(0xFFE6EFE5);
+
   // ---- text -----------------------------------------------------------------
   /// Warm near-black, not the blue-black of the old palette.
   static const Color ink = Color(0xFF211D19);
@@ -115,6 +125,8 @@ class CouturePalette {
   static const Color indigoLight = Color(0xFF9FB3DC);
   static const Color terracottaWashDark = Color(0xFF3A241C);
   static const Color terracottaLight = Color(0xFFE08A6B);
+  static const Color sageWashDark = Color(0xFF212C22);
+  static const Color sageLight = Color(0xFF9CC4A2);
 
   static const Color inkDark = Color(0xFFF3ECE3);
   static const Color inkSoftDark = Color(0xFFB8ACA0);
@@ -135,6 +147,9 @@ class CoutureScheme {
     required this.iconInk,
     required this.urgentWash,
     required this.urgentInk,
+    required this.urgentText,
+    required this.goodWash,
+    required this.goodInk,
     required this.ink,
     required this.inkSoft,
     required this.inkFaint,
@@ -154,6 +169,14 @@ class CoutureScheme {
   final Color urgentWash;
   final Color urgentInk;
 
+  /// Terracotta at text weight — small labels on the urgent wash, where the
+  /// icon tone would fall below the AA floor.
+  final Color urgentText;
+
+  /// Finished / delivered / paid: the reassuring pair.
+  final Color goodWash;
+  final Color goodInk;
+
   final Color ink;
   final Color inkSoft;
   final Color inkFaint;
@@ -168,6 +191,9 @@ class CoutureScheme {
     iconInk: CouturePalette.indigo,
     urgentWash: CouturePalette.terracottaWash,
     urgentInk: CouturePalette.terracotta,
+    urgentText: CouturePalette.terracottaDeep,
+    goodWash: CouturePalette.sageWash,
+    goodInk: CouturePalette.sage,
     ink: CouturePalette.ink,
     inkSoft: CouturePalette.inkSoft,
     inkFaint: CouturePalette.inkFaint,
@@ -183,6 +209,10 @@ class CoutureScheme {
     iconInk: CouturePalette.indigoLight,
     urgentWash: CouturePalette.terracottaWashDark,
     urgentInk: CouturePalette.terracottaLight,
+    // On a near-black wash the light tone already clears the floor for text.
+    urgentText: CouturePalette.terracottaLight,
+    goodWash: CouturePalette.sageWashDark,
+    goodInk: CouturePalette.sageLight,
     ink: CouturePalette.inkDark,
     inkSoft: CouturePalette.inkSoftDark,
     inkFaint: CouturePalette.inkFaintDark,

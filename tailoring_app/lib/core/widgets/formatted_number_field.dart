@@ -77,12 +77,10 @@ class FormattedNumberField extends StatelessWidget {
       inputFormatters: const <TextInputFormatter>[
         ThousandsSeparatorInputFormatter(),
       ],
-      validator: validator == null
-          ? null
-          : (raw) => validator!(parseThousands(raw)),
-      onChanged: onChanged == null
-          ? null
-          : (raw) => onChanged!(parseThousands(raw)),
+      validator:
+          validator == null ? null : (raw) => validator!(parseThousands(raw)),
+      onChanged:
+          onChanged == null ? null : (raw) => onChanged!(parseThousands(raw)),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,

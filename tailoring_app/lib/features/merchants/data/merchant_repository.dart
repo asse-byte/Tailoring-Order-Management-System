@@ -57,7 +57,9 @@ class MerchantRepository {
     String? to,
   }) async {
     final params = <String>[];
-    if (supplierId != null && supplierId.isNotEmpty) params.add('supplier_id=$supplierId');
+    if (supplierId != null && supplierId.isNotEmpty) {
+      params.add('supplier_id=$supplierId');
+    }
     if (from != null && from.isNotEmpty) params.add('from=$from');
     if (to != null && to.isNotEmpty) params.add('to=$to');
     final query = params.isNotEmpty ? '?${params.join('&')}' : '';
@@ -111,7 +113,8 @@ class MerchantRepository {
   }
 
   Future<List<SupplierPayment>> listSupplierPayments(String purchaseId) async {
-    final dynamic res = await _api.get('/api/suppliers/purchases/$purchaseId/payments');
+    final dynamic res =
+        await _api.get('/api/suppliers/purchases/$purchaseId/payments');
     return (res['items'] as List)
         .map((e) => SupplierPayment.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -123,7 +126,8 @@ class MerchantRepository {
     String? paidAt,
     String? note,
   }) async {
-    final dynamic res = await _api.post('/api/suppliers/purchases/$purchaseId/payments', body: {
+    final dynamic res =
+        await _api.post('/api/suppliers/purchases/$purchaseId/payments', body: {
       'amount': amount,
       if (paidAt != null) 'paid_at': paidAt,
       if (note != null) 'note': note,
@@ -140,7 +144,9 @@ class MerchantRepository {
   }) async {
     final params = <String>[];
     if (status != null && status.isNotEmpty) params.add('status=$status');
-    if (merchant != null && merchant.isNotEmpty) params.add('merchant=$merchant');
+    if (merchant != null && merchant.isNotEmpty) {
+      params.add('merchant=$merchant');
+    }
     if (from != null && from.isNotEmpty) params.add('from=$from');
     if (to != null && to.isNotEmpty) params.add('to=$to');
     final query = params.isNotEmpty ? '?${params.join('&')}' : '';
@@ -200,7 +206,8 @@ class MerchantRepository {
   }
 
   Future<List<WholesalePayment>> listWholesalePayments(String orderId) async {
-    final dynamic res = await _api.get('/api/wholesale/orders/$orderId/payments');
+    final dynamic res =
+        await _api.get('/api/wholesale/orders/$orderId/payments');
     return (res['items'] as List)
         .map((e) => WholesalePayment.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -212,7 +219,8 @@ class MerchantRepository {
     String? paidAt,
     String? note,
   }) async {
-    final dynamic res = await _api.post('/api/wholesale/orders/$orderId/payments', body: {
+    final dynamic res =
+        await _api.post('/api/wholesale/orders/$orderId/payments', body: {
       'amount': amount,
       if (paidAt != null) 'paid_at': paidAt,
       if (note != null) 'note': note,

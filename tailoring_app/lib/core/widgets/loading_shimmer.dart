@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../theme/app_colors.dart';
+import '../theme/couture_palette.dart';
 
 /// Shimmer placeholder helpers for loading states.
 class LoadingShimmer {
@@ -99,8 +99,8 @@ class _ShimmerBase extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool dark = Theme.of(context).brightness == Brightness.dark;
     return Shimmer.fromColors(
-      baseColor: dark ? AppColors.darkSurfaceAlt : const Color(0xFFE7EAEE),
-      highlightColor: dark ? AppColors.darkBorder : const Color(0xFFF5F7FA),
+      baseColor: dark ? CouturePalette.quietDark : const Color(0xFFE7EAEE),
+      highlightColor: dark ? CouturePalette.lineDark : const Color(0xFFF5F7FA),
       child: child,
     );
   }

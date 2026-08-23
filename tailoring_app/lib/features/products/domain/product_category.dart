@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/couture_icons.dart';
+
 /// A product type the SHOP defines (`product_categories`, migration 026).
 ///
 /// The app used to hardcode Parfums / Chaussures / Tissus in three places, so
@@ -37,19 +39,22 @@ class ProductCategory {
   /// Names the manager can pick from when creating a type. Kept small and
   /// concrete on purpose: a long list of abstract glyphs is harder to choose
   /// from than a short list of recognisable objects.
+  ///
+  /// The stored NAMES are the contract with the database and never change; only
+  /// the glyph each one draws moved to the app's single icon family, so a shop
+  /// that already picked 'watch' keeps its watch.
   static const Map<String, IconData> iconChoices = <String, IconData>{
-    'spray': Icons.local_florist_rounded,
-    'shoe': Icons.ice_skating_rounded,
-    'fabric': Icons.layers_rounded,
-    'watch': Icons.watch_rounded,
-    'hat': Icons.emoji_people_rounded,
-    'bag': Icons.shopping_bag_rounded,
-    'glasses': Icons.remove_red_eye_rounded,
-    'jewel': Icons.diamond_rounded,
-    'shirt': Icons.checkroom_rounded,
-    'box': Icons.inventory_2_rounded,
+    'spray': CoutureIcons.sprayBottle,
+    'shoe': CoutureIcons.sneaker,
+    'fabric': CoutureIcons.stack,
+    'watch': CoutureIcons.watch,
+    'hat': CoutureIcons.baseballCap,
+    'bag': CoutureIcons.handbag,
+    'glasses': CoutureIcons.eyeglasses,
+    'jewel': CoutureIcons.diamond,
+    'shirt': CoutureIcons.tShirt,
+    'box': CoutureIcons.package,
   };
 
-  IconData get iconData =>
-      iconChoices[icon] ?? Icons.sell_rounded;
+  IconData get iconData => iconChoices[icon] ?? CoutureIcons.tag;
 }

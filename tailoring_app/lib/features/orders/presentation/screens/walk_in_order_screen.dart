@@ -6,8 +6,9 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/garment_types.dart';
 import '../../../../core/network/api_client.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/context_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/utils/validators.dart';
@@ -92,7 +93,8 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
   Future<void> _loadTailorsAndCustomGarments() async {
     _loadTailors();
     try {
-      final Map<String, dynamic> custom = await _clientsRepo.getCustomGarments();
+      final Map<String, dynamic> custom =
+          await _clientsRepo.getCustomGarments();
       if (!mounted) return;
       setState(() => _customGarments = custom);
     } catch (_) {}
@@ -102,15 +104,20 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
     try {
       final List<StaffContact> all = await _staffRepo.listContacts();
       if (!mounted) return;
-      setState(() => _tailors =
-          all.where((StaffContact s) => s.type == 'couturier' && s.active).toList());
+      setState(() => _tailors = all
+          .where((StaffContact s) => s.type == 'couturier' && s.active)
+          .toList());
     } catch (_) {/* tailor optional — ignore load errors */}
   }
 
   @override
   void dispose() {
     for (final c in <TextEditingController>[
-      _newName, _newPhone, _fabric, _advance, _notes,
+      _newName,
+      _newPhone,
+      _fabric,
+      _advance,
+      _notes,
     ]) {
       c.dispose();
     }
@@ -126,7 +133,9 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: error ? AppColors.error : AppColors.success,
+        backgroundColor: error
+            ? CouturePalette.terracottaDeep
+            : CoutureScheme.of(context).goodInk,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -190,14 +199,14 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
       padding: const EdgeInsets.only(top: 6),
       child: Row(
         children: <Widget>[
-          const Icon(Icons.straighten_rounded,
-              size: 16, color: AppColors.warning),
+          Icon(CoutureIcons.warningCircle,
+              size: 16, color: CoutureScheme.of(context).urgentText),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               'Ce client n\'a pas de mesure pour « $garment ».',
-              style: const TextStyle(
-                  color: AppColors.warning,
+              style: TextStyle(
+                  color: CoutureScheme.of(context).urgentText,
                   fontSize: 12,
                   fontWeight: FontWeight.w600),
             ),
@@ -285,11 +294,14 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
     final List<NewOrderItem> items = <NewOrderItem>[];
     for (final l in _lines) {
       if (l.quantity < 1 || l.unitPrice < 0 || l.price.text.trim().isEmpty) {
-        _toast('Chaque article doit avoir une quantité et un prix.', error: true);
+        _toast('Chaque article doit avoir une quantité et un prix.',
+            error: true);
         return;
       }
       items.add(NewOrderItem(
-        garmentType: l.garment, quantity: l.quantity, unitPrice: l.unitPrice));
+          garmentType: l.garment,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice));
     }
 
     // Safety net: warn (but don't block) if some ordered types have no
@@ -353,11 +365,13 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Nouvelle commande')),
-      body: SafeArea(
+    return CoutureScaffold(
+      title: 'Nouvelle commande',
+      subtitle: 'Ce que le client vient commander',
+      child: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+          padding: const EdgeInsets.fromLTRB(CouturePalette.s4,
+              CouturePalette.s4, CouturePalette.s4, CouturePalette.s8),
           child: Form(
             key: _formKey,
             child: Column(
@@ -368,12 +382,12 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                     ButtonSegment<bool>(
                       value: true,
                       label: Text('Client existant'),
-                      icon: Icon(Icons.people_outline),
+                      icon: Icon(CoutureIcons.user),
                     ),
                     ButtonSegment<bool>(
                       value: false,
                       label: Text('Nouveau client'),
-                      icon: Icon(Icons.person_add_outlined),
+                      icon: Icon(CoutureIcons.plus),
                     ),
                   ],
                   selected: <bool>{_useExisting},
@@ -418,7 +432,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                   AppTextField(
                     controller: _newName,
                     label: 'Nom complet',
-                    prefixIcon: Icons.person_outline_rounded,
+                    prefixIcon: CoutureIcons.user,
                     validator: (v) =>
                         Validators.required(v, context, label: 'Nom complet'),
                   ),
@@ -426,7 +440,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                   AppTextField(
                     controller: _newPhone,
                     label: 'Téléphone',
-                    prefixIcon: Icons.phone_outlined,
+                    prefixIcon: CoutureIcons.phone,
                     keyboardType: TextInputType.phone,
                   ),
                 ],
@@ -441,7 +455,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                     Text(
                       'Total: ${formatFcfa(_total)}',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppColors.primary,
+                            color: CoutureScheme.of(context).iconInk,
                             fontWeight: FontWeight.w700,
                           ),
                     ),
@@ -454,7 +468,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
                     onPressed: () => setState(() => _lines.add(_LineDraft())),
-                    icon: const Icon(Icons.add_rounded, size: 18),
+                    icon: const Icon(CoutureIcons.plus, size: 18),
                     label: const Text('Ajouter un type'),
                   ),
                 ),
@@ -466,7 +480,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                 DropdownButtonFormField<String?>(
                   initialValue: _tailorId,
                   decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.badge_outlined, size: 20),
+                    prefixIcon: Icon(CoutureIcons.scissors, size: 20),
                   ),
                   hint: const Text('Aucun / à assigner'),
                   items: <DropdownMenuItem<String?>>[
@@ -486,14 +500,14 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                       .map((s) => DropdownMenuItem<String>(
                           value: s, child: Text(AppConstants.statusLabel(s))))
                       .toList(growable: false),
-                  onChanged: (v) =>
-                      setState(() => _status = v ?? AppConstants.statusEnAttente),
+                  onChanged: (v) => setState(
+                      () => _status = v ?? AppConstants.statusEnAttente),
                 ),
                 const SizedBox(height: 16),
                 AppTextField(
                   controller: _fabric,
                   label: 'Tissu (description)',
-                  prefixIcon: Icons.texture_rounded,
+                  prefixIcon: CoutureIcons.stack,
                   maxLines: 2,
                   minLines: 1,
                 ),
@@ -513,7 +527,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                   onTap: _pickDate,
                   child: InputDecorator(
                     decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.event_outlined, size: 20),
+                      prefixIcon: Icon(CoutureIcons.calendarBlank, size: 20),
                     ),
                     child: Text(
                       _expected != null
@@ -521,8 +535,8 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                           : 'Choisir une date',
                       style: TextStyle(
                         color: _expected != null
-                            ? context.cTextPrimary
-                            : AppColors.textMuted,
+                            ? CoutureScheme.of(context).ink
+                            : CoutureScheme.of(context).inkFaint,
                       ),
                     ),
                   ),
@@ -548,13 +562,20 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.photo_library_rounded, size: 20, color: AppColors.primary),
+                          Icon(CoutureIcons.images,
+                              size: 20,
+                              color: CoutureScheme.of(context).iconInk),
                           const SizedBox(width: 8),
                           const Text('Modèle du client (Photos & Vidéos)',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14)),
                           if (_uploadingMedia) ...[
                             const SizedBox(width: 8),
-                            const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                            const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2)),
                           ],
                         ],
                       ),
@@ -579,7 +600,8 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                                     margin: const EdgeInsets.only(right: 8),
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.grey.shade300),
+                                      border: Border.all(
+                                          color: Colors.grey.shade300),
                                     ),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
@@ -587,14 +609,22 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                                           ? Container(
                                               color: Colors.black87,
                                               child: const Center(
-                                                child: Icon(Icons.videocam_rounded, color: Colors.white, size: 28),
+                                                child: Icon(
+                                                    CoutureIcons.videoCamera,
+                                                    color: Colors.white,
+                                                    size: 26),
                                               ),
                                             )
                                           : CachedNetworkImage(
                                               imageUrl: resolved,
                                               fit: BoxFit.cover,
-                                              placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                                              errorWidget: (_, __, ___) => const Icon(Icons.broken_image_rounded),
+                                              placeholder: (_, __) => const Center(
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                          strokeWidth: 2)),
+                                              errorWidget: (_, __, ___) =>
+                                                  const Icon(
+                                                      CoutureIcons.images),
                                             ),
                                     ),
                                   ),
@@ -602,11 +632,16 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                                     top: 0,
                                     right: 8,
                                     child: InkWell(
-                                      onTap: () => setState(() => _modelMedia.removeAt(idx)),
+                                      onTap: () => setState(
+                                          () => _modelMedia.removeAt(idx)),
                                       child: Container(
-                                        decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                                        decoration: const BoxDecoration(
+                                            color:
+                                                CouturePalette.terracottaDeep,
+                                            shape: BoxShape.circle),
                                         padding: const EdgeInsets.all(2),
-                                        child: const Icon(Icons.close, color: Colors.white, size: 14),
+                                        child: const Icon(CoutureIcons.close,
+                                            color: Colors.white, size: 13),
                                       ),
                                     ),
                                   ),
@@ -621,25 +656,34 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: _uploadingMedia ? null : () => _pickModelPhoto(ImageSource.gallery),
-                              icon: const Icon(Icons.photo_outlined, size: 16),
-                              label: const Text('Galerie', style: TextStyle(fontSize: 12)),
+                              onPressed: _uploadingMedia
+                                  ? null
+                                  : () => _pickModelPhoto(ImageSource.gallery),
+                              icon: const Icon(CoutureIcons.images, size: 16),
+                              label: const Text('Galerie',
+                                  style: TextStyle(fontSize: 12)),
                             ),
                           ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: _uploadingMedia ? null : () => _pickModelPhoto(ImageSource.camera),
-                              icon: const Icon(Icons.camera_alt_outlined, size: 16),
-                              label: const Text('Caméra', style: TextStyle(fontSize: 12)),
+                              onPressed: _uploadingMedia
+                                  ? null
+                                  : () => _pickModelPhoto(ImageSource.camera),
+                              icon: const Icon(CoutureIcons.camera, size: 16),
+                              label: const Text('Caméra',
+                                  style: TextStyle(fontSize: 12)),
                             ),
                           ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: _uploadingMedia ? null : _pickModelVideo,
-                              icon: const Icon(Icons.videocam_outlined, size: 16),
-                              label: const Text('Vidéo', style: TextStyle(fontSize: 12)),
+                              onPressed:
+                                  _uploadingMedia ? null : _pickModelVideo,
+                              icon: const Icon(CoutureIcons.videoCamera,
+                                  size: 16),
+                              label: const Text('Vidéo',
+                                  style: TextStyle(fontSize: 12)),
                             ),
                           ),
                         ],
@@ -656,7 +700,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                 const SizedBox(height: 20),
                 PrimaryButton(
                   label: 'Créer la commande',
-                  icon: Icons.check_rounded,
+                  icon: CoutureIcons.checkCircle,
                   loading: _submitting,
                   onPressed: _submit,
                 ),
@@ -688,15 +732,18 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Type'),
                   items: () {
-                    final String gender = (_useExisting && _selectedClient != null)
-                        ? _selectedClient!.gender
-                        : 'homme';
+                    final String gender =
+                        (_useExisting && _selectedClient != null)
+                            ? _selectedClient!.gender
+                            : 'homme';
                     final List<String> standardList = gender == 'femme'
                         ? GarmentTypes.femaleGarments
                         : GarmentTypes.maleGarments;
                     final Map<String, dynamic> customForGender =
-                        (_customGarments[gender] as Map<String, dynamic>?) ?? <String, dynamic>{};
-                    final List<String> customList = customForGender.keys.toList();
+                        (_customGarments[gender] as Map<String, dynamic>?) ??
+                            <String, dynamic>{};
+                    final List<String> customList =
+                        customForGender.keys.toList();
 
                     final List<String> choices = <String>[
                       ...standardList.where((String x) => x != 'Autres'),
@@ -716,7 +763,8 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
               ),
               if (_lines.length > 1)
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: AppColors.error),
+                  icon: const Icon(CoutureIcons.close,
+                      color: CouturePalette.terracottaDeep),
                   onPressed: () => setState(() {
                     _lines.removeAt(index).dispose();
                   }),
@@ -815,7 +863,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                 onChanged: (v) => setState(() => _q = v.trim().toLowerCase()),
                 decoration: const InputDecoration(
                   hintText: 'Rechercher par nom ou téléphone...',
-                  prefixIcon: Icon(Icons.search_rounded, size: 20),
+                  prefixIcon: Icon(CoutureIcons.magnifyingGlass, size: 20),
                 ),
               ),
               const SizedBox(height: 12),
@@ -830,13 +878,13 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundColor:
-                                  AppColors.primary.withValues(alpha: 0.12),
+                                  CoutureScheme.of(context).iconWash,
                               child: Text(
                                 u.fullName.isEmpty
                                     ? '?'
                                     : u.fullName[0].toUpperCase(),
-                                style: const TextStyle(
-                                    color: AppColors.primary,
+                                style: TextStyle(
+                                    color: CoutureScheme.of(context).iconInk,
                                     fontWeight: FontWeight.w700),
                               ),
                             ),

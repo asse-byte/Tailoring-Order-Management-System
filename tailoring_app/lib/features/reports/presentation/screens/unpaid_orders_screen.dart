@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/context_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/utils/whatsapp.dart';
-import '../../../../core/widgets/empty_state.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 import '../../data/reports_repository.dart';
 
@@ -67,7 +68,7 @@ class _UnpaidOrdersScreenState extends State<UnpaidOrdersScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Numéro WhatsApp manquant ou invalide pour ce client.'),
-          backgroundColor: AppColors.error,
+          backgroundColor: CouturePalette.terracottaDeep,
         ),
       );
     }
@@ -75,19 +76,17 @@ class _UnpaidOrdersScreenState extends State<UnpaidOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.cBackground,
-      appBar: AppBar(
-        title: const Text('Impayés & Rappels'),
-        actions: <Widget>[
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Actualiser',
-            onPressed: _loading ? null : _load,
-          ),
-        ],
-      ),
-      body: _buildBody(),
+    return CoutureScaffold(
+      title: 'Argent à rentrer',
+      subtitle: 'Commandes livrées, pas encore payées',
+      actions: <Widget>[
+        CoutureBandAction(
+          icon: CoutureIcons.refresh,
+          tooltip: 'Actualiser',
+          onPressed: _loading ? () {} : _load,
+        ),
+      ],
+      child: _buildBody(),
     );
   }
 
@@ -95,30 +94,21 @@ class _UnpaidOrdersScreenState extends State<UnpaidOrdersScreen> {
     if (_loading) return const Center(child: CircularProgressIndicator());
 
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const Icon(Icons.error_outline_rounded,
-                  size: 44, color: AppColors.error),
-              const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: context.cTextPrimary)),
-              const SizedBox(height: 16),
-              FilledButton(onPressed: _load, child: const Text('Réessayer')),
-            ],
-          ),
-        ),
+      return const CoutureEmpty(
+        icon: CoutureIcons.warningCircle,
+        tone: CoutureTone.urgent,
+        title: 'La liste ne s\'affiche pas',
+        message: 'Vérifiez la connexion, puis appuyez sur Actualiser.',
       );
     }
 
     final UnpaidOrdersPage page = _page!;
     if (page.items.isEmpty) {
-      return const EmptyState(
-        icon: Icons.verified_rounded,
-        title: 'Aucun impayé',
-        message: 'Toutes les commandes livrées ont été réglées.',
+      return const CoutureEmpty(
+        icon: CoutureIcons.checkCircle,
+        tone: CoutureTone.good,
+        title: 'Personne ne doit rien',
+        message: 'Toutes les commandes livrées ont été payées.',
       );
     }
 
@@ -129,7 +119,9 @@ class _UnpaidOrdersScreenState extends State<UnpaidOrdersScreen> {
           child: RefreshIndicator(
             onRefresh: _load,
             child: ListView.separated(
-              padding: const EdgeInsets.all(12),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(CouturePalette.s4,
+                  CouturePalette.s3, CouturePalette.s4, CouturePalette.s6),
               itemCount: page.items.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (BuildContext context, int index) {
@@ -156,35 +148,37 @@ class _TotalBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final CoutureScheme c = CoutureScheme.of(context);
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.fromLTRB(
+          CouturePalette.s4, CouturePalette.s4, CouturePalette.s4, 0),
+      padding: const EdgeInsets.all(CouturePalette.s4),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.08),
+        color: c.urgentWash,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: <Widget>[
-          const Icon(Icons.account_balance_wallet_rounded,
-              color: AppColors.error),
-          const SizedBox(width: 12),
+          Icon(CoutureIcons.wallet, color: c.urgentText, size: 22),
+          const SizedBox(width: CouturePalette.s3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
                   formatFcfa(totalDue),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.error,
+                  style: TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w700,
+                    color: c.urgentText,
                   ),
                 ),
                 Text(
-                  '$count commande${count > 1 ? 's' : ''} livrée${count > 1 ? 's' : ''} non réglée${count > 1 ? 's' : ''}',
-                  style: TextStyle(fontSize: 12, color: context.cTextSecondary),
+                  count > 1
+                      ? '$count clients doivent encore de l\'argent'
+                      : '1 client doit encore de l\'argent',
+                  style: TextStyle(fontSize: 12.5, color: c.urgentText),
                 ),
               ],
             ),
@@ -209,69 +203,62 @@ class _UnpaidCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool reachable = canWhatsApp(order.clientPhone);
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: context.cBorder),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final CoutureScheme c = CoutureScheme.of(context);
+    return CoutureCard(
+      onTap: onOpen,
+      padding: const EdgeInsets.all(CouturePalette.s3 + 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
             children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      order.clientName,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        color: context.cTextPrimary,
-                      ),
-                    ),
+              Expanded(
+                child: Text(
+                  order.clientName,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: c.ink,
                   ),
-                  Text(
-                    formatFcfa(order.reste),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.error,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
+                ),
               ),
-              const SizedBox(height: 4),
               Text(
-                'Total ${formatFcfa(order.total)} — réglé ${formatFcfa(order.paid)}'
-                '${order.deliveredDate != null ? ' — livrée le ${order.deliveredDate!.split('T').first}' : ''}',
-                style: TextStyle(fontSize: 12, color: context.cTextSecondary),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: reachable ? onRemind : null,
-                      icon: const Icon(Icons.chat_rounded, size: 18),
-                      label: Text(reachable
-                          ? 'Rappeler sur WhatsApp'
-                          : 'Numéro manquant'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.success,
-                        side: const BorderSide(color: AppColors.success, width: 1.2),
-                      ),
-                    ),
-                  ),
-                ],
+                formatFcfa(order.reste),
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: c.urgentText,
+                  fontSize: 16,
+                ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 4),
+          Text(
+            'Prix ${formatFcfa(order.total)} · déjà payé ${formatFcfa(order.paid)}'
+            '${order.deliveredDate != null ? ' · livrée le ${order.deliveredDate!.split('T').first}' : ''}',
+            style: TextStyle(fontSize: 12, color: c.inkSoft),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: reachable ? onRemind : null,
+                  icon: const Icon(CoutureIcons.whatsapp, size: 18),
+                  label: Text(
+                      reachable ? 'Rappeler sur WhatsApp' : 'Pas de numéro'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: c.goodInk,
+                    minimumSize: const Size.fromHeight(CouturePalette.minTouch),
+                    side: BorderSide(color: c.goodInk, width: 1.2),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(13)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

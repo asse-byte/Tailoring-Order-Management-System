@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../theme/couture_palette.dart';
 
 /// Irreversible-delete confirmation for Type-A master data (client, tailor,
 /// monthly staff, product, ready-to-wear model). Unlike a plain yes/no, the
@@ -25,10 +25,12 @@ Future<bool> confirmDeleteByTyping(
         builder: (BuildContext ctx, void Function(void Function()) setDlg) {
           final bool matches = controller.text.trim() == itemName.trim();
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Row(
               children: <Widget>[
-                const Icon(Icons.warning_amber_rounded, color: AppColors.error),
+                const Icon(Icons.warning_amber_rounded,
+                    color: CouturePalette.terracottaDeep),
                 const SizedBox(width: 8),
                 Expanded(child: Text('Supprimer $itemLabel')),
               ],
@@ -46,7 +48,8 @@ Future<bool> confirmDeleteByTyping(
                   historyNote ??
                       'Les données historiques déjà enregistrées restent '
                           'conservées dans les rapports.',
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                      fontSize: 12.5, color: CouturePalette.inkSoft),
                 ),
                 const SizedBox(height: 16),
                 const Text(
@@ -54,7 +57,7 @@ Future<bool> confirmDeleteByTyping(
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: CouturePalette.ink,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -67,7 +70,7 @@ Future<bool> confirmDeleteByTyping(
                     border: const OutlineInputBorder(),
                     suffixIcon: matches
                         ? const Icon(Icons.check_circle_rounded,
-                            color: AppColors.success)
+                            color: CouturePalette.sage)
                         : null,
                   ),
                 ),
@@ -79,7 +82,8 @@ Future<bool> confirmDeleteByTyping(
                 child: const Text('Annuler'),
               ),
               FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+                style: FilledButton.styleFrom(
+                    backgroundColor: CouturePalette.terracottaDeep),
                 // Disabled until the typed name matches exactly.
                 onPressed: matches ? () => Navigator.of(ctx).pop(true) : null,
                 child: const Text('Supprimer définitivement'),

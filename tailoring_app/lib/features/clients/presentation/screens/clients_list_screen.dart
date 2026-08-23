@@ -4,16 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/context_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
 import '../../../../core/utils/whatsapp.dart';
-import '../../../../core/widgets/empty_state.dart';
-import '../../../settings/presentation/providers/shop_settings_provider.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../domain/client.dart';
 import '../providers/clients_provider.dart';
 
 /// Clients list: instant (debounced) search by name or phone + infinite
 /// scroll pagination. Available to both roles.
+///
+/// Redesigned onto "Indigo & Terre". The debounce, the pagination and the
+/// routes are untouched — this only changes what is drawn.
 class ClientsListScreen extends StatefulWidget {
   const ClientsListScreen({super.key});
 
@@ -64,7 +67,9 @@ class _ClientsListScreenState extends State<ClientsListScreen> {
 
   Future<void> _openForm({Client? client}) async {
     final bool? changed = await context.push<bool>(
-      client == null ? '/admin/clients/new' : '/admin/clients/${client.id}/edit',
+      client == null
+          ? '/admin/clients/new'
+          : '/admin/clients/${client.id}/edit',
       extra: client,
     );
     if (changed == true && mounted) {
@@ -75,61 +80,58 @@ class _ClientsListScreenState extends State<ClientsListScreen> {
   @override
   Widget build(BuildContext context) {
     final ClientsProvider provider = context.watch<ClientsProvider>();
+    final CoutureScheme c = CoutureScheme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Clients')),
+    return CoutureScaffold(
+      title: 'Clients',
+      subtitle: 'Chercher un client, ou en ajouter un',
+      below: Padding(
+        padding: const EdgeInsets.fromLTRB(
+            CouturePalette.s4, CouturePalette.s3, CouturePalette.s4, 0),
+        child: CoutureSearchField(
+          controller: _searchCtrl,
+          hint: 'Nom ou téléphone',
+          onChanged: (String v) {
+            _onSearchChanged(v);
+            setState(() {}); // the clear button follows the first letter
+          },
+          onClear: () {
+            _searchCtrl.clear();
+            _onSearchChanged('');
+            setState(() {});
+          },
+        ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: c.urgentInk,
+        foregroundColor: Colors.white,
+        elevation: 2,
         onPressed: () => _openForm(),
-        icon: const Icon(Icons.person_add_alt_1_rounded),
-        label: const Text('Nouveau client'),
+        icon: const Icon(CoutureIcons.plus, size: 20),
+        label: const Text('Nouveau client',
+            style: TextStyle(fontWeight: FontWeight.w600)),
       ),
-      body: Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: 'Rechercher par nom ou téléphone…',
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: _searchCtrl.text.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.clear_rounded),
-                        onPressed: () {
-                          _searchCtrl.clear();
-                          _onSearchChanged('');
-                          setState(() {});
-                        },
-                      ),
-              ),
-            ),
-          ),
-          Expanded(child: _body(provider)),
-        ],
-      ),
+      child: _body(provider),
     );
   }
 
   Widget _body(ClientsProvider provider) {
     if (provider.error != null && provider.items.isEmpty) {
-      return EmptyState(
-        icon: Icons.cloud_off_rounded,
-        title: 'Erreur de connexion',
-        message: provider.error,
-        actionLabel: 'Réessayer',
-        onAction: () => provider.refresh(),
+      return const CoutureEmpty(
+        icon: CoutureIcons.warningCircle,
+        tone: CoutureTone.urgent,
+        title: 'Pas de connexion',
+        message: 'Tirez vers le bas pour réessayer.',
       );
     }
     if (provider.loading && provider.items.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
     if (provider.items.isEmpty) {
-      return const EmptyState(
-        icon: Icons.people_outline_rounded,
+      return const CoutureEmpty(
+        icon: CoutureIcons.user,
         title: 'Aucun client',
-        message: 'Ajoutez votre premier client avec le bouton ci-dessous.',
+        message: 'Appuyez sur « Nouveau client » pour enregistrer le premier.',
       );
     }
     return RefreshIndicator(
@@ -137,72 +139,119 @@ class _ClientsListScreenState extends State<ClientsListScreen> {
       child: ListView.separated(
         controller: _scrollCtrl,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+        padding: const EdgeInsets.fromLTRB(
+            CouturePalette.s4, CouturePalette.s3, CouturePalette.s4, 96),
         itemCount: provider.items.length + (provider.hasMore ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        separatorBuilder: (_, __) => const SizedBox(height: CouturePalette.s2),
         itemBuilder: (BuildContext context, int index) {
           if (index >= provider.items.length) {
             return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
+              padding: EdgeInsets.symmetric(vertical: CouturePalette.s4),
               child: Center(child: CircularProgressIndicator()),
             );
           }
-          final Client client = provider.items[index];
-          final shopSettings = context.watch<ShopSettingsProvider>();
-          return Card(
-            margin: EdgeInsets.zero,
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: shopSettings.themeColor.withValues(alpha: 0.15),
-                child: Text(
-                  client.fullName.isNotEmpty
-                      ? client.fullName[0].toUpperCase()
-                      : '?',
-                  style: TextStyle(
-                    color: shopSettings.themeColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              title: Text(client.fullName,
-                  style: TextStyle(fontWeight: FontWeight.w600, color: context.cTextPrimary)),
-              subtitle: Text(client.phone, style: TextStyle(color: context.cTextSecondary)),
-              // Direct WhatsApp chat. Shown only when the stored number can
-              // actually be dialled, so the button never opens on nothing.
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  if (canWhatsApp(client.phone))
-                    IconButton(
-                      icon: const Icon(Icons.chat_rounded,
-                          color: AppColors.success),
-                      tooltip: 'Contacter sur WhatsApp',
-                      onPressed: () async {
-                        final bool ok = await openWhatsApp(client.phone);
-                        if (!ok && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'Impossible d\'ouvrir WhatsApp pour ce numéro.'),
-                              backgroundColor: AppColors.error,
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  const Icon(Icons.chevron_right_rounded),
-                ],
-              ),
-              onTap: () async {
-                final ClientsProvider provider =
-                    context.read<ClientsProvider>();
-                final bool? changed =
-                    await context.push<bool>('/admin/clients/${client.id}');
-                if (changed == true && mounted) provider.refresh();
-              },
-            ),
+          return _ClientRow(
+            client: provider.items[index],
+            onOpen: () async {
+              final ClientsProvider p = context.read<ClientsProvider>();
+              final bool? changed = await context
+                  .push<bool>('/admin/clients/${provider.items[index].id}');
+              if (changed == true && mounted) p.refresh();
+            },
           );
         },
+      ),
+    );
+  }
+}
+
+class _ClientRow extends StatelessWidget {
+  const _ClientRow({required this.client, required this.onOpen});
+
+  final Client client;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final CoutureScheme c = CoutureScheme.of(context);
+    final bool whatsApp = canWhatsApp(client.phone);
+
+    return CoutureCard(
+      onTap: onOpen,
+      padding: const EdgeInsets.fromLTRB(CouturePalette.s3,
+          CouturePalette.s2 + 2, CouturePalette.s2, CouturePalette.s2 + 2),
+      child: Row(
+        children: <Widget>[
+          // The client's initial, not a generic silhouette: in a list of forty
+          // names the letter is what the eye actually finds.
+          Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: c.iconWash,
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              client.fullName.isNotEmpty
+                  ? client.fullName.characters.first.toUpperCase()
+                  : '?',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: c.iconInk,
+              ),
+            ),
+          ),
+          const SizedBox(width: CouturePalette.s3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  client.fullName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: c.ink,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  client.phone.isEmpty ? 'Pas de téléphone' : client.phone,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, color: c.inkSoft),
+                ),
+              ],
+            ),
+          ),
+          // Shown only when the stored number can actually be dialled, so the
+          // button never opens on nothing.
+          if (whatsApp)
+            IconButton(
+              tooltip: 'Écrire sur WhatsApp',
+              icon: Icon(CoutureIcons.whatsapp, size: 21, color: c.goodInk),
+              onPressed: () async {
+                final ScaffoldMessengerState messenger =
+                    ScaffoldMessenger.of(context);
+                final bool ok = await openWhatsApp(client.phone);
+                if (!ok) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: const Text(
+                          'WhatsApp ne s\'ouvre pas avec ce numéro.'),
+                      backgroundColor: c.urgentInk,
+                    ),
+                  );
+                }
+              },
+            ),
+          Icon(CoutureIcons.caretRight, size: 16, color: c.inkFaint),
+          const SizedBox(width: CouturePalette.s1),
+        ],
       ),
     );
   }

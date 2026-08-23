@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/utils/money.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 import '../../data/report_pdf_service.dart';
@@ -27,8 +30,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
   String? _error;
 
   static const List<String> _monthNames = <String>[
-    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet',
-    'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+    'Janvier',
+    'Février',
+    'Mars',
+    'Avril',
+    'Mai',
+    'Juin',
+    'Juillet',
+    'Août',
+    'Septembre',
+    'Octobre',
+    'Novembre',
+    'Décembre'
   ];
 
   @override
@@ -125,37 +138,43 @@ class _ReportsScreenState extends State<ReportsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Erreur rapport: $e'),
-            backgroundColor: AppColors.error));
+            backgroundColor: CouturePalette.terracottaDeep));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Rapport & Statistiques'),
-        actions: <Widget>[
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _load,
+    return CoutureScaffold(
+      title: 'Rapports',
+      subtitle: 'Ce que la boutique a fait',
+      actions: <Widget>[
+        if (_summary != null)
+          CoutureBandAction(
+            icon: CoutureIcons.printer,
+            tooltip: 'Imprimer',
+            onPressed: _printReport,
           ),
-          if (_summary != null)
-            IconButton(
-              icon: const Icon(Icons.print_rounded),
-              tooltip: 'Imprimer le rapport',
-              onPressed: _printReport,
-            ),
-        ],
-      ),
-      body: Column(
+        CoutureBandAction(
+          icon: CoutureIcons.refresh,
+          tooltip: 'Actualiser',
+          onPressed: _load,
+        ),
+      ],
+      child: Column(
         children: <Widget>[
           _periodBar(),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(child: Text('Erreur: $_error'))
+                    ? const CoutureEmpty(
+                        icon: CoutureIcons.warningCircle,
+                        tone: CoutureTone.urgent,
+                        title: 'Le rapport ne s\'affiche pas',
+                        message:
+                            'Vérifiez la connexion, puis appuyez sur Actualiser.',
+                      )
                     : _summary == null
                         ? const SizedBox.shrink()
                         : _body(_summary!),
@@ -201,25 +220,29 @@ class _ReportsScreenState extends State<ReportsScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: <Widget>[
-          Text(_periodLabel,
-              style: const TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primary)),
+          Text(_periodLabel.toUpperCase(),
+              style: CouturePalette.sectionLabel
+                  .copyWith(color: CoutureScheme.of(context).inkFaint)),
           const SizedBox(height: 12),
 
           // Headline KPIs.
           Row(children: <Widget>[
             Expanded(
                 child: _kpi('Argent reçu', formatFcfa(r.totalRevenue),
-                    AppColors.primary, Icons.trending_up_rounded)),
-            const SizedBox(width: 10),
+                    CoutureScheme.of(context).iconInk, CoutureIcons.wallet)),
+            const SizedBox(width: CouturePalette.s2 + 2),
             Expanded(
-                child: _kpi('Ce qui reste', formatFcfa(r.netProfit),
-                    r.netProfit >= 0 ? AppColors.success : AppColors.error,
-                    Icons.account_balance_wallet_rounded)),
+                child: _kpi(
+                    'Ce qui reste',
+                    formatFcfa(r.netProfit),
+                    r.netProfit >= 0
+                        ? CoutureScheme.of(context).goodInk
+                        : CoutureScheme.of(context).urgentText,
+                    CoutureIcons.chartBar)),
           ]),
-          const SizedBox(height: 10),
-          _kpi('Argent sorti', formatFcfa(r.totalCosts), AppColors.warning,
-              Icons.payments_rounded),
+          const SizedBox(height: CouturePalette.s2 + 2),
+          _kpi('Argent sorti', formatFcfa(r.totalCosts),
+              CoutureScheme.of(context).urgentText, CoutureIcons.receipt),
 
           const SizedBox(height: 20),
           const _SectionTitle('Le travail de la période'),
@@ -231,12 +254,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
             mainAxisSpacing: 10,
             crossAxisSpacing: 10,
             children: <Widget>[
-              _stat('Nouveaux clients', '${r.newClients}', Icons.person_add_rounded),
-              _stat('Clients servis', '${r.servedClients}', Icons.how_to_reg_rounded),
-              _stat('Commandes livrées', '${r.ordersDelivered}', Icons.check_circle_rounded),
-              _stat('Commandes créées', '${r.ordersCreated}', Icons.add_box_rounded),
-              _stat('Commandes en cours', '${r.ordersActive}', Icons.timelapse_rounded),
-              _stat('Produits vendus', '${r.productsSoldUnits}', Icons.shopping_bag_rounded),
+              _stat('Nouveaux clients', '${r.newClients}', CoutureIcons.user),
+              _stat('Clients servis', '${r.servedClients}',
+                  CoutureIcons.checkCircle),
+              _stat('Commandes livrées', '${r.ordersDelivered}',
+                  CoutureIcons.truck),
+              _stat('Commandes prises', '${r.ordersCreated}',
+                  CoutureIcons.clipboardText),
+              _stat('En couture', '${r.ordersActive}', CoutureIcons.needle),
+              _stat('Produits vendus', '${r.productsSoldUnits}',
+                  CoutureIcons.shoppingBag),
             ],
           ),
 
@@ -267,15 +294,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           : '${i + 1}';
               return Card(
                 margin: const EdgeInsets.only(bottom: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 child: ListTile(
                   leading: Text(medal, style: const TextStyle(fontSize: 18)),
                   title: Text(t.tailorName,
                       style: const TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: Text('${t.piecesTotal} pièces'),
                   trailing: Text(formatFcfa(t.amountTotal),
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w800, color: AppColors.primary)),
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: CoutureScheme.of(context).ink)),
                 ),
               );
             }),
@@ -302,7 +331,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
               style: TextStyle(
                   fontSize: 18, fontWeight: FontWeight.w800, color: color)),
           const SizedBox(height: 2),
-          Text(title, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          Text(title,
+              style: TextStyle(
+                  fontSize: 12, color: CoutureScheme.of(context).inkSoft)),
         ],
       ),
     );
@@ -318,7 +349,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ),
       child: Row(
         children: <Widget>[
-          Icon(icon, color: AppColors.primary, size: 22),
+          Icon(icon, color: CoutureScheme.of(context).iconInk, size: 21),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -326,13 +357,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 Text(value,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: CoutureScheme.of(context).ink)),
                 Text(title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 11, color: AppColors.textSecondary)),
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: CoutureScheme.of(context).inkSoft)),
               ],
             ),
           ),
@@ -361,10 +395,8 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
-        child: Text(title,
-            style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary)),
+        child: Text(title.toUpperCase(),
+            style: CouturePalette.sectionLabel
+                .copyWith(color: CoutureScheme.of(context).inkFaint)),
       );
 }

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../data/orders_repository.dart';
 import '../../domain/entities/order.dart';
 
@@ -30,7 +33,13 @@ class _ScheduleScreenState extends State<ScheduleScreen>
   String? _error;
 
   static const List<String> _dayNames = <String>[
-    'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'
+    'Lundi',
+    'Mardi',
+    'Mercredi',
+    'Jeudi',
+    'Vendredi',
+    'Samedi',
+    'Dimanche'
   ];
 
   static DateTime _mondayOf(DateTime d) =>
@@ -58,7 +67,8 @@ class _ScheduleScreenState extends State<ScheduleScreen>
     });
     try {
       final DateTime weekEnd = _weekStart.add(const Duration(days: 6));
-      final results = await Future.wait<List<TailoringOrder>>(<Future<List<TailoringOrder>>>[
+      final results = await Future.wait<
+          List<TailoringOrder>>(<Future<List<TailoringOrder>>>[
         _repo.list(plannedFrom: _weekStart, plannedTo: weekEnd, limit: 300),
         _repo.list(unplanned: true, limit: 300),
       ]);
@@ -86,13 +96,13 @@ class _ScheduleScreenState extends State<ScheduleScreen>
   Color _statusColor(String status) {
     switch (status) {
       case AppConstants.statusTermine:
-        return AppColors.warning;
+        return CoutureScheme.of(context).urgentInk;
       case AppConstants.statusLivre:
-        return AppColors.success;
+        return CoutureScheme.of(context).goodInk;
       case AppConstants.statusEnAttente:
-        return AppColors.textSecondary;
+        return CoutureScheme.of(context).inkSoft;
       default:
-        return AppColors.primary;
+        return CoutureScheme.of(context).iconInk;
     }
   }
 
@@ -109,14 +119,16 @@ class _ScheduleScreenState extends State<ScheduleScreen>
       await _load();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('« ${order.clientName} » planifié le ${picked.day}/${picked.month}.'),
-          backgroundColor: AppColors.success,
+          content: Text(
+              '« ${order.clientName} » planifié le ${picked.day}/${picked.month}.'),
+          backgroundColor: CoutureScheme.of(context).goodInk,
         ));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Erreur: $e'), backgroundColor: AppColors.error));
+            content: Text('Erreur: $e'),
+            backgroundColor: CoutureScheme.of(context).urgentText));
       }
     }
   }
@@ -126,13 +138,14 @@ class _ScheduleScreenState extends State<ScheduleScreen>
       await _repo.setPlan(order.id, null);
       await _load();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Remis dans la file d\'attente.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Remis dans la file d\'attente.')));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Erreur: $e'), backgroundColor: AppColors.error));
+            content: Text('Erreur: $e'),
+            backgroundColor: CoutureScheme.of(context).urgentText));
       }
     }
   }
@@ -142,7 +155,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: Icon(Icons.checkroom_rounded, color: _statusColor(o.status)),
+        leading: Icon(CoutureIcons.coatHanger, color: _statusColor(o.status)),
         title: Text(o.clientName,
             style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
@@ -160,13 +173,17 @@ class _ScheduleScreenState extends State<ScheduleScreen>
             }
           },
           itemBuilder: (_) => <PopupMenuEntry<String>>[
-            const PopupMenuItem<String>(value: 'open', child: Text('Ouvrir la commande')),
+            const PopupMenuItem<String>(
+                value: 'open', child: Text('Ouvrir la commande')),
             if (planned)
-              const PopupMenuItem<String>(value: 'replan', child: Text('Changer le jour'))
+              const PopupMenuItem<String>(
+                  value: 'replan', child: Text('Changer le jour'))
             else
-              const PopupMenuItem<String>(value: 'plan', child: Text('Planifier')),
+              const PopupMenuItem<String>(
+                  value: 'plan', child: Text('Planifier')),
             if (planned)
-              const PopupMenuItem<String>(value: 'unplan', child: Text('Retirer du programme')),
+              const PopupMenuItem<String>(
+                  value: 'unplan', child: Text('Retirer du programme')),
           ],
         ),
       ),
@@ -176,27 +193,47 @@ class _ScheduleScreenState extends State<ScheduleScreen>
   @override
   Widget build(BuildContext context) {
     final DateTime weekEnd = _weekStart.add(const Duration(days: 6));
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Programme'),
-        bottom: TabBar(
-          controller: _tabs,
-          tabs: <Widget>[
-            const Tab(text: 'Programme'),
-            Tab(text: 'File d\'attente (${_queue.length})'),
+    return CoutureScaffold(
+      title: 'Programme',
+      subtitle: 'Le travail de la semaine',
+      actions: <Widget>[
+        CoutureBandAction(
+          icon: CoutureIcons.refresh,
+          tooltip: 'Actualiser',
+          onPressed: _load,
+        ),
+      ],
+      below: Padding(
+        padding: const EdgeInsets.fromLTRB(CouturePalette.s4, CouturePalette.s3,
+            CouturePalette.s4, CouturePalette.s3),
+        child: Row(
+          children: <Widget>[
+            CoutureFilterChip(
+              icon: CoutureIcons.calendarBlank,
+              label: 'La semaine',
+              selected: _tabs.index == 0,
+              onTap: () => _tabs.animateTo(0),
+            ),
+            const SizedBox(width: CouturePalette.s2),
+            CoutureFilterChip(
+              icon: CoutureIcons.clock,
+              label: 'À placer (${_queue.length})',
+              selected: _tabs.index == 1,
+              onTap: () => _tabs.animateTo(1),
+            ),
           ],
         ),
-        actions: <Widget>[
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _load,
-          ),
-        ],
       ),
-      body: _loading
+      child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text('Erreur: $_error'))
+              ? const CoutureEmpty(
+                  icon: CoutureIcons.warningCircle,
+                  tone: CoutureTone.urgent,
+                  title: 'Le programme ne s\'affiche pas',
+                  message:
+                      'Vérifiez la connexion, puis appuyez sur Actualiser.',
+                )
               : TabBarView(
                   controller: _tabs,
                   children: <Widget>[_buildWeek(weekEnd), _buildQueue()],
@@ -205,7 +242,8 @@ class _ScheduleScreenState extends State<ScheduleScreen>
   }
 
   Widget _buildWeek(DateTime weekEnd) {
-    final Map<String, List<TailoringOrder>> byDay = <String, List<TailoringOrder>>{};
+    final Map<String, List<TailoringOrder>> byDay =
+        <String, List<TailoringOrder>>{};
     for (final TailoringOrder o in _planned) {
       if (o.plannedDate == null) continue;
       byDay.putIfAbsent(_ymd(o.plannedDate!), () => <TailoringOrder>[]).add(o);
@@ -226,7 +264,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.chevron_right_rounded),
+              icon: const Icon(CoutureIcons.caretRight),
               onPressed: () => _shiftWeek(7),
             ),
           ],
@@ -249,31 +287,34 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                       child: Row(
                         children: <Widget>[
                           Text('${_dayNames[i]} ${day.day}/${day.month}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: AppColors.primary)),
+                                  color: CoutureScheme.of(context).iconInk)),
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
+                              color: CoutureScheme.of(context)
+                                  .iconInk
+                                  .withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text('${orders.length}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: AppColors.primary)),
+                                    color: CoutureScheme.of(context).iconInk)),
                           ),
                         ],
                       ),
                     ),
                     if (orders.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(left: 4, bottom: 4),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, bottom: 4),
                         child: Text('—',
-                            style: TextStyle(color: AppColors.textSecondary)),
+                            style: TextStyle(
+                                color: CoutureScheme.of(context).inkSoft)),
                       )
                     else
                       ...orders.map((o) => _orderTile(o, planned: true)),
