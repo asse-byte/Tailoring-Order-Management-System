@@ -333,7 +333,7 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                                     description: descCtrl.text.trim(),
                                     media: uploadedMedia,
                                   );
-                                  if (mounted) {
+                                  if (mounted && ctx.mounted) {
                                     Navigator.pop(ctx);
                                     _toast('Modèle ajouté à Mon Album !');
                                     _loadModels();
@@ -542,7 +542,7 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                   if (confirm == true) {
                     try {
                       await _repo.delete(m.id);
-                      if (mounted) {
+                      if (mounted && ctx.mounted) {
                         Navigator.pop(ctx);
                         _toast('Modèle supprimé.');
                         _loadModels();

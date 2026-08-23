@@ -1340,6 +1340,7 @@ class _StaffScreenState extends State<StaffScreen> {
           .where((o) => !o.isLivre || o.id == e.orderId)
           .toList();
     } catch (_) {}
+    if (!mounted) return;
 
     // Ensure the current garment type is selectable even if not in the constant.
     final List<String> garmentChoices = <String>[

@@ -30,8 +30,6 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
   List<WholesaleOrder> _wholesaleOrders = <WholesaleOrder>[];
   bool _loadingWholesale = true;
 
-  String? _error;
-
   @override
   void initState() {
     super.initState();
@@ -49,7 +47,6 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
     setState(() {
       _loadingSuppliers = true;
       _loadingWholesale = true;
-      _error = null;
     });
     try {
       final sups = await _repo.listSuppliers();
@@ -67,10 +64,10 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
           _loadingSuppliers = false;
           _loadingWholesale = false;
         });
+        _toast('Erreur: $e', error: true);
       }
     }
   }
