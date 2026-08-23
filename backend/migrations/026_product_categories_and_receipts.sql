@@ -89,6 +89,11 @@ CREATE INDEX IF NOT EXISTS sales_receipt_idx ON sales (receipt_id);
 
 -- sales_effective (migration 024) has to carry the new column so the receipt
 -- view can group corrected, non-voided lines by receipt.
+--
+-- CASCADE is safe here and only here: sale_receipts_effective is the only view
+-- built on sales_effective and it is (re)created a few lines below. If you ever
+-- redefine sales_effective again, recreate sale_receipts_effective in the SAME
+-- migration — CASCADE drops it without a word.
 DROP VIEW IF EXISTS sales_effective CASCADE;
 CREATE VIEW sales_effective AS
 SELECT s.id, s.kind, s.item_id, s.item_name, s.receipt_id,
