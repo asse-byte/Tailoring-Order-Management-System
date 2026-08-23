@@ -4,12 +4,26 @@ const { managerOnly } = require('../middleware/auth');
 const { asyncH, pagination, intOrNull, str } = require('../util');
 
 const router = express.Router();
-const CATEGORIES = ['parfum', 'chaussure', 'tissu'];
+
+/**
+ * The categories a shop actually has, read from `product_categories`
+ * (migration 026). It used to be the hardcoded triple
+ * ['parfum', 'chaussure', 'tissu'] plus a matching CHECK on the column, so
+ * adding a type — the owner asked for watches and caps — meant a code change
+ * and a migration every time. It is data now, and this must stay a lookup:
+ * never reintroduce a literal list here.
+ */
+async function categoryExists(slug) {
+  if (!slug || typeof slug !== 'string') return false;
+  const { rows } = await db.query(
+    'SELECT 1 FROM product_categories WHERE slug = $1', [slug]);
+  return rows.length > 0;
+}
 
 // Both roles read the catalog (the secretary sells at the counter).
 router.get('/', asyncH(async (req, res) => {
   const { limit, offset } = pagination(req);
-  const category = CATEGORIES.includes(req.query.category) ? req.query.category : null;
+  const category = (await categoryExists(req.query.category)) ? req.query.category : null;
   
   // Aggregate images from product_images table into a JSON array 'images'
   const { rows } = await db.query(
@@ -42,7 +56,7 @@ router.post('/', asyncH(async (req, res) => {
   const price = intOrNull(req.body.price);
   const costPrice = isManager ? (intOrNull(req.body.cost_price) ?? 0) : 0;
   const quantity = intOrNull(req.body.quantity) ?? 0;
-  if (!name || !CATEGORIES.includes(req.body.category) || price == null || quantity === undefined) {
+  if (!name || !(await categoryExists(req.body.category)) || price == null || quantity === undefined) {
     return res.status(400).json({ error: 'Nom, catégorie et prix valides requis.' });
   }
 
@@ -84,7 +98,7 @@ router.put('/:id', asyncH(async (req, res) => {
   const costPrice = isManager && req.body.cost_price !== undefined
     ? intOrNull(req.body.cost_price) : null;
   const quantity = intOrNull(req.body.quantity);
-  if (!name || !CATEGORIES.includes(req.body.category) || price == null || quantity == null) {
+  if (!name || !(await categoryExists(req.body.category)) || price == null || quantity == null) {
     return res.status(400).json({ error: 'Champs invalides.' });
   }
 

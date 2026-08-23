@@ -83,8 +83,15 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
 1. Clients — CRUD, instant debounced search (name/phone), flexible
    measurements per garment type (key-value/JSON, not fixed columns),
    per-client order history.
-2. Produits — categories: Parfums / Chaussures / Tissus; price, stock,
-   images; sale decrements stock and records revenue in Finances.
+2. Produits — the shop's OWN list of types (`product_categories`, migration
+   026): Parfums / Chaussures / Tissus / Montres / Bonnets are only the seed,
+   and the manager adds, renames and reorders types from inside the app.
+   **Never reintroduce a hardcoded category list or a CHECK on
+   `products.category`** — it is a FK to `product_categories.slug` now, and the
+   whole point is that adding a type needs no code change. A type still holding
+   products refuses deletion (409) rather than orphaning them.
+   Price, stock, images; a sale decrements stock and records revenue in
+   Finances.
 3. Staff / Personnel — two distinct types:
    - **Couturiers principaux**: per-piece pay. Manager **or secretary** sets
      `piece_rate` (per tailor, per entry, or default) and enters the daily
@@ -367,6 +374,24 @@ clients. Fixed + regression test ("secretary DELETE /clients → 403").
   history (who, when, from→to, why). When adding a new financial
   table, add its triggers, correction table, effective view and
   append-only tests in the same commit.
+- **One trip to the till is ONE receipt** (`sale_receipts`, migration 026).
+  A customer buying two ready-to-wear pieces, a cap, shoes, a perfume and a
+  watch used to produce six unrelated `sales` rows attached to nobody, with no
+  way to print a single invoice. `POST /api/sales/receipts` takes the optional
+  client + every line and sells them in ONE transaction: one bad line (bad
+  stock, unknown item) aborts the whole basket, because the earlier lines have
+  already taken stock off the shelf.
+  **`db.withTransaction` only rolls back on a THROWN error** — returning an
+  error object commits whatever was written first. Any handler that writes
+  before it can fail must throw, not return. This bit the receipt route and is
+  a trap for every future multi-write route.
+  Creating a receipt is both-roles (the secretary is at the counter, and she
+  gets the lines + total back so she can hand over the invoice, minus
+  `unit_cost`). **Reading receipts back is manager-only**, exactly like
+  `GET /api/sales`: a list of receipts is a list of takings.
+  The header is append-only like every financial row; a receipt changes by
+  correcting its lines through the existing `sale_corrections` path, which
+  already puts stock back.
 - **Sales are atomic and server-priced**: `POST /api/sales` reads the
   price from the DB, computes the total server-side, and decrements
   stock in the same transaction (`quantity >= qty` guard). The client
