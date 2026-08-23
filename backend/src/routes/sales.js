@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { managerOnly } = require('../middleware/auth');
-const { asyncH, pagination, intOrNull, str, dateStr } = require('../util');
+const { asyncH, pagination, intOrNull, str, dateStr, likeEscape } = require('../util');
 
 const router = express.Router();
 
@@ -133,12 +133,16 @@ router.post('/receipts', asyncH(async (req, res) => {
         snapPhone = rows[0].phone;
       }
 
+      // `sold_at` is the server's clock, never the caller's. Letting the
+      // client name the date would let anyone at the counter move takings into
+      // another period — the exact class of problem the 2026-08-23 audit was
+      // about — and `sales.sold_at` already defaults to now() for the same
+      // reason. A sale recorded late is corrected, not backdated.
       const { rows: head } = await tx.query(
         `INSERT INTO sale_receipts
-           (client_id, client_name_snapshot, client_phone_snapshot, note, sold_at, created_by)
-         VALUES ($1, $2, $3, $4, COALESCE($5::date, now()), $6) RETURNING *`,
-        [clientId, snapName, snapPhone, str(req.body.note) || null,
-          dateStr(req.body.sold_at), req.user.id]);
+           (client_id, client_name_snapshot, client_phone_snapshot, note, created_by)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [clientId, snapName, snapPhone, str(req.body.note) || null, req.user.id]);
       const receipt = head[0];
 
       const lines = [];
@@ -196,7 +200,7 @@ router.get('/receipts', managerOnly, asyncH(async (req, res) => {
         AND ($4::text IS NULL OR lower(COALESCE(client_name, '')) LIKE lower($4) || '%')
       ORDER BY sold_at DESC, created_at DESC
       LIMIT $5 OFFSET $6`,
-    [from, to, clientId, search, limit, offset]);
+    [from, to, clientId, likeEscape(search), limit, offset]);
 
   const { rows: sum } = await db.query(
     `SELECT COALESCE(SUM(total), 0)::bigint AS v, COUNT(*)::int AS n
@@ -205,7 +209,7 @@ router.get('/receipts', managerOnly, asyncH(async (req, res) => {
         AND ($2::date IS NULL OR sold_at < $2::date + 1)
         AND ($3::uuid IS NULL OR client_id = $3)
         AND ($4::text IS NULL OR lower(COALESCE(client_name, '')) LIKE lower($4) || '%')`,
-    [from, to, clientId, search]);
+    [from, to, clientId, likeEscape(search)]);
 
   res.json({
     items: rows,

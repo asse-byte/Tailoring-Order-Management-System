@@ -283,6 +283,30 @@ describe('financial isolation still holds for receipts', () => {
       .toBe(403);
   });
 
+  test('the caller cannot choose the sale date', async () => {
+    // Backdating a receipt would move takings into another period — the exact
+    // class of problem the 2026-08-23 audit was about. The server clock wins.
+    const productId = await newProduct('parfum', 'Jasmin', 11000, 6000, 5);
+    const res = await asSec(request(app).post('/api/sales/receipts')).send({
+      sold_at: '2020-01-01',
+      lines: [{ kind: 'produit', item_id: productId, qty: 1 }],
+    });
+    expect(res.status).toBe(201);
+
+    const { rows } = await db.query(
+      'SELECT sold_at::date AS d FROM sale_receipts WHERE id = $1', [res.body.id]);
+    expect(rows[0].d.toISOString().slice(0, 10))
+      .toBe(new Date().toISOString().slice(0, 10));
+  });
+
+  test('a "%" in the search is a literal, not a wildcard', async () => {
+    // Regression for the repo's own hardening rule: search terms are never
+    // handed to LIKE as patterns (commit 2e38eb7).
+    const res = await asM(request(app).get('/api/sales/receipts?search=%25'));
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(0);
+  });
+
   test('the receipt she gets back carries no purchase cost', async () => {
     const productId = await newProduct('chaussure', 'Babouche', 15000, 9000, 5);
     const res = await asSec(request(app).post('/api/sales/receipts'))
