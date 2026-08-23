@@ -39,6 +39,7 @@ class CoutureIcons {
   static const IconData coatHanger = IconData(0xe7fe, fontFamily: _family);
   static const IconData images = IconData(0xe836, fontFamily: _family);
   static const IconData play = IconData(0xe3c8, fontFamily: _family);
+  static const IconData pause = IconData(0xe39e, fontFamily: _family);
   static const IconData camera = IconData(0xe10e, fontFamily: _family);
   static const IconData videoCamera = IconData(0xe4d0, fontFamily: _family);
 
