@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/garment_types.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/utils/whatsapp.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
-import '../../../../core/widgets/section_header.dart';
 import '../../data/clients_repository.dart';
 import '../../domain/client.dart';
 
@@ -80,16 +81,15 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Impossible d\'ouvrir WhatsApp pour ce numéro.'),
-          backgroundColor: AppColors.error,
+          backgroundColor: CouturePalette.terracottaDeep,
         ),
       );
     }
   }
 
   Future<void> _editClient() async {
-    final bool? changed = await context.push<bool>(
-        '/admin/clients/${widget.clientId}/edit',
-        extra: _client);
+    final bool? changed = await context
+        .push<bool>('/admin/clients/${widget.clientId}/edit', extra: _client);
     if (changed == true) {
       _changed = true;
       _load();
@@ -119,12 +119,15 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       // A client with linked orders cannot be deleted (history is preserved):
       // the API returns a clear French 409 message — surface it as-is.
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+        SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: CouturePalette.terracottaDeep),
       );
     }
   }
 
-  Future<void> _openMeasurements(String garmentType, {List<String>? suggestedFields}) async {
+  Future<void> _openMeasurements(String garmentType,
+      {List<String>? suggestedFields}) async {
     final bool? changed = await context.push<bool>(
       '/admin/clients/${widget.clientId}/measurements/'
       '${Uri.encodeComponent(garmentType)}',
@@ -146,7 +149,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
         : GarmentTypes.maleGarments;
 
     final Map<String, dynamic> customForGender =
-        (_customGarments[gender] as Map<String, dynamic>?) ?? <String, dynamic>{};
+        (_customGarments[gender] as Map<String, dynamic>?) ??
+            <String, dynamic>{};
     final List<String> customList = customForGender.keys.toList();
 
     // Union: standard models + custom models
@@ -163,11 +167,12 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           shrinkWrap: true,
           children: choices
               .map((String t) => ListTile(
-                    leading: const Icon(Icons.straighten_rounded),
+                    leading: Icon(CoutureIcons.coatHanger,
+                        color: CoutureScheme.of(context).inkSoft),
                     title: Text(t),
                     trailing: _measurements.containsKey(t)
-                        ? const Icon(Icons.check_circle_rounded,
-                            color: AppColors.primary, size: 20)
+                        ? Icon(CoutureIcons.checkCircle,
+                            color: CoutureScheme.of(context).goodInk, size: 20)
                         : null,
                     onTap: () => Navigator.pop(ctx, t),
                   ))
@@ -257,7 +262,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
             });
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(e.toString()),
-              backgroundColor: AppColors.error,
+              backgroundColor: CouturePalette.terracottaDeep,
             ));
           }
         }
@@ -270,21 +275,6 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     }
   }
 
-  String _statusLabel(String status) => AppConstants.statusLabel(status);
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case AppConstants.statusTermine:
-        return AppColors.warning;
-      case AppConstants.statusLivre:
-        return AppColors.success;
-      case AppConstants.statusEnAttente:
-        return AppColors.textSecondary;
-      default:
-        return AppColors.primary;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -292,32 +282,32 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       onPopInvokedWithResult: (bool didPop, Object? result) {
         if (!didPop) context.pop(_changed);
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(_client?.fullName ?? 'Client'),
-          actions: <Widget>[
-            // Direct WhatsApp chat, only when the number is usable.
-            if (_client != null && canWhatsApp(_client!.phone))
-              IconButton(
-                icon: const Icon(Icons.chat_rounded, color: AppColors.success),
-                tooltip: 'Contacter sur WhatsApp',
-                onPressed: _openWhatsApp,
-              ),
-            if (_client != null)
-              IconButton(
-                icon: const Icon(Icons.edit_rounded),
-                tooltip: 'Modifier',
-                onPressed: _editClient,
-              ),
-            if (_client != null)
-              IconButton(
-                icon: const Icon(Icons.delete_outline_rounded),
-                tooltip: 'Supprimer',
-                onPressed: _deleteClient,
-              ),
-          ],
-        ),
-        body: _buildBody(),
+      child: CoutureScaffold(
+        title: _client?.fullName ?? 'Client',
+        subtitle: _client?.phone,
+        onBack: () => context.pop(_changed),
+        actions: <Widget>[
+          // Direct WhatsApp chat, only when the number is usable.
+          if (_client != null && canWhatsApp(_client!.phone))
+            CoutureBandAction(
+              icon: CoutureIcons.whatsapp,
+              tooltip: 'Écrire sur WhatsApp',
+              onPressed: _openWhatsApp,
+            ),
+          if (_client != null)
+            CoutureBandAction(
+              icon: CoutureIcons.pencil,
+              tooltip: 'Modifier',
+              onPressed: _editClient,
+            ),
+          if (_client != null)
+            CoutureBandAction(
+              icon: CoutureIcons.trash,
+              tooltip: 'Supprimer',
+              onPressed: _deleteClient,
+            ),
+        ],
+        child: _buildBody(),
       ),
     );
   }
@@ -325,93 +315,98 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   Widget _buildBody() {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text(_error!, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              OutlinedButton(onPressed: _load, child: const Text('Réessayer')),
-            ],
-          ),
-        ),
+      return const CoutureEmpty(
+        icon: CoutureIcons.warningCircle,
+        tone: CoutureTone.urgent,
+        title: 'La fiche ne s\'affiche pas',
+        message: 'Vérifiez la connexion, puis tirez vers le bas.',
       );
     }
     final Client client = _client!;
     final DateFormat dateFmt = DateFormat('dd/MM/yyyy');
+    final CoutureScheme c = CoutureScheme.of(context);
 
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+        padding: const EdgeInsets.fromLTRB(CouturePalette.s4, CouturePalette.s4,
+            CouturePalette.s4, CouturePalette.s8),
         children: <Widget>[
           // ---- contact card ----
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(children: <Widget>[
-                    const Icon(Icons.phone_rounded,
-                        size: 18, color: AppColors.textSecondary),
-                    const SizedBox(width: 8),
-                    Text(client.phone,
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                  ]),
-                  if (client.address != null && client.address!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Row(children: <Widget>[
-                        const Icon(Icons.location_on_rounded,
-                            size: 18, color: AppColors.textSecondary),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(client.address!)),
-                      ]),
+          CoutureCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(children: <Widget>[
+                  Icon(CoutureIcons.phone, size: 17, color: c.iconInk),
+                  const SizedBox(width: CouturePalette.s2),
+                  Text(client.phone,
+                      style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                          color: c.ink)),
+                ]),
+                if (client.address != null && client.address!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: CouturePalette.s2),
+                    child: Row(children: <Widget>[
+                      Icon(CoutureIcons.storefront, size: 17, color: c.iconInk),
+                      const SizedBox(width: CouturePalette.s2),
+                      Expanded(
+                          child: Text(client.address!,
+                              style:
+                                  TextStyle(fontSize: 13.5, color: c.inkList))),
+                    ]),
+                  ),
+                if (client.createdAt != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: CouturePalette.s2),
+                    child: Text(
+                      'Client depuis le ${dateFmt.format(client.createdAt!)}',
+                      style: TextStyle(fontSize: 12, color: c.inkFaint),
                     ),
-                  if (client.createdAt != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        'Client depuis le ${dateFmt.format(client.createdAt!)}',
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.textSecondary),
-                      ),
-                    ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: CouturePalette.s6),
 
           // ---- measurements ----
-          SectionHeader(
-            title: 'Mensurations',
-            action: TextButton.icon(
-              onPressed: _pickGarmentType,
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Ajouter'),
-            ),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text('LES MESURES',
+                    style: CouturePalette.sectionLabel
+                        .copyWith(color: c.inkFaint)),
+              ),
+              TextButton.icon(
+                onPressed: _pickGarmentType,
+                icon: const Icon(CoutureIcons.plus, size: 16),
+                label: const Text('Ajouter'),
+                style: TextButton.styleFrom(foregroundColor: c.iconInk),
+              ),
+            ],
           ),
           if (_measurements.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: CouturePalette.s3),
               child: Text(
-                'Aucune mensuration enregistrée.',
-                style: TextStyle(color: AppColors.textSecondary),
+                'Aucune mesure notée. Appuyez sur « Ajouter ».',
+                style: TextStyle(fontSize: 13, color: c.inkFaint),
               ),
             )
           else
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: CouturePalette.s2,
+              runSpacing: CouturePalette.s2,
               children: _measurements.entries
                   .map((MapEntry<String, Map<String, num>> e) => ActionChip(
-                        avatar: const Icon(Icons.straighten_rounded, size: 18),
+                        backgroundColor: c.quiet,
+                        side: BorderSide(color: c.line),
+                        labelStyle: TextStyle(fontSize: 12.5, color: c.inkList),
+                        avatar: Icon(CoutureIcons.coatHanger,
+                            size: 16, color: c.inkSoft),
                         label: Text('${e.key} (${e.value.length})'),
                         onPressed: () {
                           final String gender = _client?.gender ?? 'homme';
@@ -419,9 +414,11 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                               _customGarments[gender] as Map<String, dynamic>?;
                           final List<String>? customFields =
                               customForGender?[e.key] != null
-                                  ? List<String>.from(customForGender![e.key] as Iterable<dynamic>)
+                                  ? List<String>.from(customForGender![e.key]
+                                      as Iterable<dynamic>)
                                   : null;
-                          _openMeasurements(e.key, suggestedFields: customFields);
+                          _openMeasurements(e.key,
+                              suggestedFields: customFields);
                         },
                       ))
                   .toList(),
@@ -429,40 +426,63 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           const SizedBox(height: 20),
 
           // ---- order history ----
-          const SectionHeader(title: 'Commandes'),
+          Text('SES COMMANDES',
+              style: CouturePalette.sectionLabel.copyWith(color: c.inkFaint)),
+          const SizedBox(height: CouturePalette.s2),
           if (_orders.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: CouturePalette.s3),
               child: Text(
-                'Aucune commande pour ce client.',
-                style: TextStyle(color: AppColors.textSecondary),
+                'Ce client n\'a encore rien commandé.',
+                style: TextStyle(fontSize: 13, color: c.inkFaint),
               ),
             )
           else
-            ..._orders.map((ClientOrderSummary order) => Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: Icon(Icons.checkroom_rounded,
-                        color: _statusColor(order.status)),
-                    title: Text(order.garmentType),
-                    subtitle: Text(order.createdAt != null
-                        ? dateFmt.format(order.createdAt!)
-                        : ''),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
+            ..._orders.map((ClientOrderSummary order) => Padding(
+                  padding: const EdgeInsets.only(bottom: CouturePalette.s2),
+                  child: CoutureCard(
+                    padding: const EdgeInsets.all(CouturePalette.s3),
+                    child: Row(
                       children: <Widget>[
-                        Text(
-                          formatFcfa(order.total),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          _statusLabel(order.status),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _statusColor(order.status),
-                            fontWeight: FontWeight.w600,
+                        const CoutureWash(
+                            icon: CoutureIcons.coatHanger,
+                            size: 38,
+                            iconSize: 19),
+                        const SizedBox(width: CouturePalette.s3),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(order.garmentType,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: c.ink)),
+                              Text(
+                                  order.createdAt != null
+                                      ? dateFmt.format(order.createdAt!)
+                                      : '',
+                                  style: TextStyle(
+                                      fontSize: 12.5, color: c.inkSoft)),
+                            ],
                           ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: <Widget>[
+                            Text(
+                              formatFcfa(order.total),
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: c.ink),
+                            ),
+                            const SizedBox(height: 3),
+                            CoutureStatusPill(
+                                status: order.status, compact: true),
+                          ],
                         ),
                       ],
                     ),

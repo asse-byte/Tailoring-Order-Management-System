@@ -22,8 +22,8 @@ class ClientsRepository {
         .toList();
   }
 
-  Future<Client> getById(String id) async =>
-      Client.fromJson(await _api.get('/api/clients/$id') as Map<String, dynamic>);
+  Future<Client> getById(String id) async => Client.fromJson(
+      await _api.get('/api/clients/$id') as Map<String, dynamic>);
 
   Future<Client> create({
     required String fullName,
@@ -74,8 +74,8 @@ class ClientsRepository {
     for (final dynamic item in res['items'] as List) {
       final Map<String, dynamic> measures =
           (item['measures'] as Map<String, dynamic>?) ?? <String, dynamic>{};
-      out[item['garment_type'] as String] = measures.map(
-          (k, v) => MapEntry(k, (v as num?) ?? 0));
+      out[item['garment_type'] as String] =
+          measures.map((k, v) => MapEntry(k, (v as num?) ?? 0));
     }
     return out;
   }

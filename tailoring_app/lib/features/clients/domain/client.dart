@@ -53,7 +53,8 @@ class ClientOrderSummary {
         status: (json['status'] as String?) ?? 'en_attente',
         // New orders carry a derived `total`; fall back to legacy `price`.
         total: (json['total'] as num?)?.toInt() ??
-            (json['price'] as num?)?.toInt() ?? 0,
+            (json['price'] as num?)?.toInt() ??
+            0,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'] as String)
             : null,

@@ -76,6 +76,9 @@ class CoutureIcons {
   static const IconData user = IconData(0xe4c2, fontFamily: _family);
   static const IconData phone = IconData(0xe3b8, fontFamily: _family);
   static const IconData package = IconData(0xe390, fontFamily: _family);
+  static const IconData mapPin = IconData(0xe316, fontFamily: _family);
+  static const IconData genderMale = IconData(0xe6e2, fontFamily: _family);
+  static const IconData genderFemale = IconData(0xe6e0, fontFamily: _family);
 
   // ---- order states ---------------------------------------------------------
   // One glyph per state of an order, so the pill is readable without its label

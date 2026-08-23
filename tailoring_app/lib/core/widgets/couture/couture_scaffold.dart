@@ -25,6 +25,7 @@ class CoutureScaffold extends StatelessWidget {
     this.actions = const <Widget>[],
     this.below,
     this.floatingActionButton,
+    this.bottomBar,
     this.onBack,
   });
 
@@ -44,6 +45,10 @@ class CoutureScaffold extends StatelessWidget {
 
   final Widget child;
   final Widget? floatingActionButton;
+
+  /// A bar pinned to the bottom — the save button on a form, so it stays in
+  /// reach without scrolling to the end of a long list of fields.
+  final Widget? bottomBar;
   final VoidCallback? onBack;
 
   @override
@@ -59,6 +64,7 @@ class CoutureScaffold extends StatelessWidget {
     return Scaffold(
       backgroundColor: c.paper,
       floatingActionButton: floatingActionButton,
+      bottomNavigationBar: bottomBar,
       body: Column(
         children: <Widget>[
           Container(

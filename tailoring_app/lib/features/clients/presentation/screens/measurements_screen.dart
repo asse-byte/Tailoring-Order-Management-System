@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/garment_types.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../data/clients_repository.dart';
 
@@ -37,10 +39,11 @@ class _MeasurementsScreenState extends State<MeasurementsScreen> {
     super.initState();
     // Union: suggested fields for this garment type + already-saved keys.
     final List<String> suggested = widget.suggestedFields ??
-        GarmentTypes.defaultFields[widget.garmentType] ?? <String>[];
+        GarmentTypes.defaultFields[widget.garmentType] ??
+        <String>[];
     for (final String field in suggested) {
-      _fields[field] = TextEditingController(
-          text: widget.initial?[field]?.toString() ?? '');
+      _fields[field] =
+          TextEditingController(text: widget.initial?[field]?.toString() ?? '');
     }
     widget.initial?.forEach((String key, num value) {
       _fields.putIfAbsent(
@@ -69,7 +72,8 @@ class _MeasurementsScreenState extends State<MeasurementsScreen> {
         ),
         actions: <Widget>[
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           TextButton(
               onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
               child: const Text('Ajouter')),
@@ -97,7 +101,7 @@ class _MeasurementsScreenState extends State<MeasurementsScreen> {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(e.toString()),
-          backgroundColor: AppColors.error,
+          backgroundColor: CouturePalette.terracottaDeep,
         ));
       }
     }
@@ -106,41 +110,50 @@ class _MeasurementsScreenState extends State<MeasurementsScreen> {
   @override
   Widget build(BuildContext context) {
     final List<String> keys = _fields.keys.toList();
-    return Scaffold(
-      appBar: AppBar(title: Text('Mensurations — ${widget.garmentType}')),
-      body: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+    final CoutureScheme c = CoutureScheme.of(context);
+    return CoutureScaffold(
+      title: 'Les mesures',
+      subtitle: widget.garmentType,
+      bottomBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+          child: PrimaryButton(
+            label: 'Enregistrer les mesures',
+            loading: _saving,
+            onPressed: _save,
+          ),
+        ),
+      ),
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(
+            CouturePalette.s4, CouturePalette.s4, CouturePalette.s4, 120),
         itemCount: keys.length + 1,
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (BuildContext context, int index) {
           if (index == keys.length) {
             return OutlinedButton.icon(
               onPressed: _addCustomField,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Ajouter un champ'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: c.inkList,
+                side: BorderSide(color: c.line),
+                minimumSize: const Size.fromHeight(CouturePalette.minTouch),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              icon: const Icon(CoutureIcons.plus, size: 18),
+              label: const Text('Ajouter une mesure'),
             );
           }
           final String field = keys[index];
           return TextField(
             controller: _fields[field],
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
               labelText: field,
               suffixText: 'cm',
             ),
           );
         },
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-          child: PrimaryButton(
-            label: 'Enregistrer les mensurations',
-            loading: _saving,
-            onPressed: _save,
-          ),
-        ),
       ),
     );
   }
