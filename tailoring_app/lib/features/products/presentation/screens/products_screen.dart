@@ -107,9 +107,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 initialValue: '1',
                 validator: (v) {
                   final val = int.tryParse(v ?? '');
-                  if (val == null || val < 1) return 'Quantité invalide';
-                  if (val > product.quantity)
-                    return 'Stock insuffisant (${product.quantity} dispo)';
+                  if (val == null || val < 1) return 'Mettez au moins 1.';
+                  if (val > product.quantity) {
+                    return 'Il n\'en reste que ${product.quantity}.';
+                  }
                   return null;
                 },
                 onSaved: (v) => qty = int.tryParse(v ?? '') ?? 1,
