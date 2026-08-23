@@ -177,10 +177,50 @@ describe('Cancelling an order (archive, never a hard delete)', () => {
     expect(rows[0].n).toBe(1);
   });
 
-  test('the secretary cannot cancel an order', async () => {
-    const clientId = await newClient('Client secrétaire');
-    const orderId = await newOrder(clientId, 10000, 0);
-    expect((await asSec(request(app).delete(`/api/orders/${orderId}`))).status).toBe(403);
+  // The owner opened cancellation to the secretary on 2026-08-23. That
+  // exception to rule 1 rests entirely on being able to audit it afterwards,
+  // so the row must always name who did it — this test is the guarantee.
+  test('the secretary can cancel an order, and the row records that it was her',
+    async () => {
+      const clientId = await newClient('Client secrétaire');
+      const orderId = await newOrder(clientId, 10000, 0);
+
+      expect((await asSec(request(app).delete(`/api/orders/${orderId}`))
+        .send({ reason: 'Client a changé d’avis' })).status).toBe(204);
+
+      const { rows } = await db.query(
+        `SELECT o.status, o.cancel_reason, o.cancelled_at, u.username, u.role
+           FROM orders o JOIN users u ON u.id = o.cancelled_by
+          WHERE o.id = $1`, [orderId]);
+      expect(rows[0].status).toBe('annule');
+      expect(rows[0].role).toBe('SECRETARY');
+      expect(rows[0].username).toBe(SECRETARY.username);
+      expect(rows[0].cancel_reason).toBe('Client a changé d’avis');
+      expect(rows[0].cancelled_at).toBeTruthy();
+    });
+
+  test('a manager cancellation is attributed to the manager', async () => {
+    const clientId = await newClient('Client gérant');
+    const orderId = await newOrder(clientId, 9000, 0);
+    await asM(request(app).delete(`/api/orders/${orderId}`)).send({ reason: 'Doublon' });
+
+    const { rows } = await db.query(
+      `SELECT u.role FROM orders o JOIN users u ON u.id = o.cancelled_by
+        WHERE o.id = $1`, [orderId]);
+    expect(rows[0].role).toBe('MANAGER');
+  });
+
+  test('cancelling keeps the cash already collected in revenue', async () => {
+    // The shop really did receive the advance. Reimbursing is a separate,
+    // explicit act: voiding the payment through its correction endpoint.
+    const clientId = await newClient('Client acompte gardé');
+    const orderId = await newOrder(clientId, 50000, 20000);
+    await asSec(request(app).delete(`/api/orders/${orderId}`)).send({ reason: 'Annulé' });
+
+    const { rows } = await db.query(
+      `SELECT COALESCE(SUM(amount), 0)::int AS paid FROM order_payments_effective
+        WHERE order_id = $1 AND NOT voided`, [orderId]);
+    expect(rows[0].paid).toBe(20000);
   });
 
   test('append-only protection is still active after a cancel', async () => {

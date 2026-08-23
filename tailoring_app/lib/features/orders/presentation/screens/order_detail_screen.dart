@@ -12,7 +12,6 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/utils/whatsapp.dart';
 import '../../../../core/widgets/app_text_field.dart';
-import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/primary_button.dart';
@@ -727,23 +726,59 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
+  /// Cancel = archive. The old dialog promised the order would be "définitive-
+  /// ment supprimée", which was never true: the line items, the money already
+  /// received and the tailor's work all stay in the books. It now says what
+  /// really happens, and asks why — the reason is stored with the order along
+  /// with the name of whoever cancelled it, so the owner can check later.
   Future<void> _confirmDelete() async {
-    final bool yes = await showConfirmDialog(
-      context,
-      title: 'Supprimer cette commande ?',
-      message:
-          'Cette action est irréversible. La commande sera définitivement supprimée.',
-      confirmLabel: 'Supprimer la commande',
-      destructive: true,
-    );
+    final controller = TextEditingController();
+    final bool yes = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Annuler cette commande ?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  'La commande part dans les commandes annulées. '
+                  'Rien n’est effacé : les articles et l’argent déjà reçu restent.',
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(
+                    labelText: 'Pourquoi ?',
+                    hintText: 'Exemple : le client ne veut plus',
+                  ),
+                ),
+              ],
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Retour'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Oui, annuler'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
     if (!yes || !mounted) return;
     try {
-      await _repo.delete(_order!.id);
+      await _repo.cancel(_order!.id, reason: controller.text.trim());
       if (!mounted) return;
       Navigator.of(context).pop();
-      _toast('Commande supprimée.');
+      _toast('Commande annulée.');
     } catch (e) {
-      if (mounted) _toast('Impossible de supprimer : $e', error: true);
+      if (mounted) _toast('Impossible d’annuler : $e', error: true);
     }
   }
 
@@ -1184,15 +1219,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ),
             ],
           ),
-          if (auth.isAdmin) ...<Widget>[
-            const SizedBox(height: 10),
-            TextButton.icon(
-              icon: const Icon(Icons.delete_outline_rounded),
-              label: const Text('Supprimer cette commande'),
-              style: TextButton.styleFrom(foregroundColor: AppColors.error),
-              onPressed: _confirmDelete,
-            ),
-          ],
+          // Cancelling is open to both roles since the owner's decision of
+          // 2026-08-23. The order is archived, never erased, and the row
+          // records who cancelled it (migration 025).
+          const SizedBox(height: 10),
+          TextButton.icon(
+            icon: const Icon(Icons.block_rounded),
+            label: const Text('Annuler cette commande'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            onPressed: _confirmDelete,
+          ),
         ],
       ),
     );

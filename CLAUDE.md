@@ -45,6 +45,24 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
        they carry the day's cash and the outstanding client debt. The Flutter
        dashboard therefore renders its KPI strip for the manager only, and
        `/admin/unpaid-orders` is in the router's manager-only list.
+   - **ORDERS are fully the secretary's, cancellation included (owner decision
+     2026-08-23):** she already created and edited orders (`POST`/`PUT
+     /api/orders` have always been both-roles, `advance` included). Cancelling
+     was the one manager-only verb left, and since she is the one who takes the
+     orders at the counter, routing every cancellation through the manager was
+     the same unworkable detour as the tailor schedule. `DELETE /api/orders/:id`
+     is therefore both-roles.
+     **This is a conscious exception to rule 1** — an order carries prices and
+     collected cash — and it stands ONLY because it is auditable:
+     `orders.cancelled_by` (migration 025) records the exact user next to
+     `cancelled_at` and `cancel_reason`, exactly like `entry_corrections.
+     corrected_by` on the tailor schedule. Cancelling stays a status change to
+     `annule`, never a hard delete: line items, their corrections, the cash
+     collected and the tailor's entries all survive untouched, and the money
+     already received stays counted as revenue on the day it came in
+     (reimbursing is a separate, explicit payment void with a reason).
+     Do NOT "fix" this back to manager-only — it is the owner's decision, proven
+     by the audit-trail tests in `backend/tests/order_payments.test.js`.
    - **Secretary CRUD on master data (owner decision 2026-07-19, "interpretation
      A"):** the secretary MAY fully manage the roster/catalog on four pages —
      Tailleurs, Staff mensuel, Prêt-à-porter, Produits (create/edit/delete the

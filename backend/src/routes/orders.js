@@ -1,6 +1,5 @@
 const express = require('express');
 const db = require('../db');
-const { managerOnly } = require('../middleware/auth');
 const { asyncH, pagination, intOrNull, dateStr, str } = require('../util');
 const whatsappService = require('../services/whatsapp');
 
@@ -19,12 +18,14 @@ const ORDER_SELECT = `
          COALESCE(c.full_name, o.client_name_snapshot) AS client_name,
          c.phone AS client_phone, (c.id IS NULL) AS client_deleted,
          COALESCE(s.full_name, o.tailor_name_snapshot) AS tailor_name,
+         cu.name AS cancelled_by_name,
          COALESCE(o.model_media, '[]'::jsonb) AS model_media,
          COALESCE(it.total, 0) AS total,
          COALESCE(it.items, '[]') AS items
   FROM orders o
   LEFT JOIN clients c ON c.id = o.client_id
   LEFT JOIN staff s ON s.id = o.tailor_id
+  LEFT JOIN users cu ON cu.id = o.cancelled_by
   LEFT JOIN LATERAL (
     SELECT SUM(line_total)::int AS total,
            json_agg(json_build_object(
@@ -373,25 +374,34 @@ router.get('/:id/items/:itemId/corrections', asyncH(async (req, res) => {
   res.json({ items: rows });
 }));
 
-// Cancel (archive) an order — manager only. An order always carries
-// append-only order_items, so it is NEVER hard-deleted: cancelling is a status
-// change (migration 019), exactly like delivering moves it to Historique. The
-// line items, their corrections, the cash already collected and the tailor's
-// daily entries are all preserved untouched.
+// Cancel (archive) an order — open to BOTH roles since the owner's decision of
+// 2026-08-23 (see CLAUDE.md: a deliberate exception to rule 1, granted for the
+// same reason as the tailor schedule — the secretary takes the orders, so
+// routing every cancellation through the manager was unworkable).
+//
+// An order always carries append-only order_items, so it is NEVER hard-deleted:
+// cancelling is a status change (migration 019), exactly like delivering moves
+// it to Historique. The line items, their corrections, the cash already
+// collected and the tailor's daily entries are all preserved untouched.
+//
+// The exception rests on accountability: `cancelled_by` records the exact user
+// (migration 025) alongside `cancelled_at` and the reason, so the owner can
+// always see who archived an order and why.
 //
 // Cash already collected stays counted as revenue on the day it came in — the
-// shop really did receive it. If the client is reimbursed, the manager voids
-// the payment through its correction endpoint, with a reason, like every other
+// shop really did receive it. If the client is reimbursed, the payment is
+// voided through its correction endpoint, with a reason, like every other
 // financial change in this project.
-router.delete('/:id', managerOnly, asyncH(async (req, res) => {
+router.delete('/:id', asyncH(async (req, res) => {
   const orderId = req.params.id;
   const reason = str(req.body && req.body.reason) || null;
 
   const { rows } = await db.query(
     `UPDATE orders
-        SET status = 'annule', cancelled_at = now(), cancel_reason = $2
+        SET status = 'annule', cancelled_at = now(), cancel_reason = $2,
+            cancelled_by = $3
       WHERE id = $1 AND status <> 'annule'
-      RETURNING id`, [orderId, reason]);
+      RETURNING id`, [orderId, reason, req.user.id]);
 
   if (!rows[0]) {
     const { rows: exists } = await db.query('SELECT status FROM orders WHERE id = $1', [orderId]);

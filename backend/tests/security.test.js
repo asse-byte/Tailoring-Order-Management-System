@@ -310,7 +310,7 @@ describe('SECRETARY — allowed daily operations', () => {
     expect((await asSec(request(app).get('/api/salary-payments'))).status).toBe(403);
   });
 
-  it('can create and update orders; invalid status rejected; delete denied', async () => {
+  it('can create, update and cancel orders; invalid status rejected', async () => {
     const created = await asSec(request(app).post('/api/orders'))
       .send({ client_id: clientId,
         items: [{ garment_type: 'chemise', quantity: 1, unit_price: 20000 }] });
@@ -319,8 +319,10 @@ describe('SECRETARY — allowed daily operations', () => {
       .send({ status: 'livre' })).status).toBe(200);
     expect((await asSec(request(app).put(`/api/orders/${created.body.id}`))
       .send({ status: 'invalide' })).status).toBe(400);
-    expect((await asSec(request(app).delete(`/api/orders/${created.body.id}`))).status)
-      .toBe(403);
+    // Cancelling is hers since the owner's decision of 2026-08-23 — but only
+    // because it is traceable; see the audit-trail test in order_payments.
+    expect((await asSec(request(app).delete(`/api/orders/${created.body.id}`))
+      .send({ reason: 'Client a renoncé' })).status).toBe(204);
   });
 
   it('Historique: delivered orders filter by client and by date', async () => {
