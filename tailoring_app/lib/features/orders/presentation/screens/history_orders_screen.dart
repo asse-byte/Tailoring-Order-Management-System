@@ -2,16 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
 import '../../../../core/utils/date_formatter.dart';
-import '../../../../core/widgets/empty_state.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/widgets/loading_shimmer.dart';
 import '../../data/orders_repository.dart';
 import '../../domain/entities/order.dart';
 import '../widgets/order_card.dart';
 
-/// Historique : commandes livrées (status = livre), recherche par client
-/// et filtre par date de livraison (côté serveur).
+/// Historique : commandes livrées (status = livre), recherche par client et
+/// filtre par date de livraison (côté serveur).
+///
+/// Redesigned onto "Indigo & Terre" in the same commit as the orders list,
+/// because both draw the same [OrderCard] — leaving one behind would have put
+/// a new card inside an old screen.
 class HistoryOrdersScreen extends StatefulWidget {
   const HistoryOrdersScreen({super.key});
 
@@ -82,116 +88,107 @@ class _HistoryOrdersScreenState extends State<HistoryOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final String q = _query.toLowerCase();
-    final filtered = q.isEmpty
+    final List<TailoringOrder> filtered = q.isEmpty
         ? _orders
         : _orders
-            .where((o) =>
+            .where((TailoringOrder o) =>
                 o.clientName.toLowerCase().contains(q) ||
                 o.clientPhone.contains(q) ||
                 o.garmentType.toLowerCase().contains(q))
             .toList(growable: false);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Historique'),
-        actions: <Widget>[
-          IconButton(
-            icon: Icon(
-              Icons.event_outlined,
-              color: (_from != null) ? AppColors.primary : null,
-            ),
-            tooltip: 'Filtrer par date de livraison',
-            onPressed: _pickDateRange,
+    final bool dated = _from != null && _to != null;
+
+    return CoutureScaffold(
+      title: 'Historique',
+      subtitle: 'Les commandes déjà livrées',
+      actions: <Widget>[
+        if (dated)
+          CoutureBandAction(
+            icon: CoutureIcons.filterOff,
+            tooltip: 'Toutes les dates',
+            onPressed: () {
+              setState(() {
+                _from = null;
+                _to = null;
+              });
+              _load();
+            },
           ),
-          if (_from != null)
-            IconButton(
-              icon: const Icon(Icons.filter_alt_off_outlined),
-              tooltip: 'Effacer le filtre de dates',
-              onPressed: () {
-                setState(() {
-                  _from = null;
-                  _to = null;
-                });
-                _load();
+      ],
+      below: Padding(
+        padding: const EdgeInsets.fromLTRB(
+            CouturePalette.s4, CouturePalette.s3, CouturePalette.s4, 0),
+        child: Column(
+          children: <Widget>[
+            CoutureSearchField(
+              controller: _searchCtrl,
+              hint: 'Nom du client, téléphone, vêtement',
+              onChanged: (String v) => setState(() => _query = v),
+              onClear: () {
+                _searchCtrl.clear();
+                setState(() => _query = '');
               },
             ),
-        ],
+            const SizedBox(height: CouturePalette.s3),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: CoutureFilterChip(
+                icon: CoutureIcons.calendarBlank,
+                label: dated
+                    ? '${DateFormatter.shortDate(_from!, locale: 'fr')} – ${DateFormatter.shortDate(_to!, locale: 'fr')}'
+                    : 'Choisir des dates',
+                selected: dated,
+                onTap: _pickDateRange,
+              ),
+            ),
+            const SizedBox(height: CouturePalette.s3),
+          ],
+        ),
       ),
-      body: Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: (v) => setState(() => _query = v),
-              decoration: InputDecoration(
-                hintText: 'Rechercher par client, téléphone, vêtement...',
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: _query.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.close_rounded),
-                        onPressed: () {
-                          _searchCtrl.clear();
-                          setState(() => _query = '');
-                        },
-                      ),
-              ),
-            ),
-          ),
-          if (_from != null && _to != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Chip(
-                  avatar: const Icon(Icons.event_outlined, size: 16),
-                  label: Text(
-                    '${DateFormatter.shortDate(_from!, locale: 'fr')} – ${DateFormatter.shortDate(_to!, locale: 'fr')}',
-                  ),
-                ),
-              ),
-            ),
-          Expanded(
-            child: _loading
-                ? LoadingShimmer.list()
-                : _error != null
-                    ? EmptyState(
-                        title: 'Impossible de charger l\'historique',
-                        message: _error,
-                        icon: Icons.error_outline,
-                      )
-                    : filtered.isEmpty
-                        ? const EmptyState(
-                            title: 'Aucune commande livrée',
-                            message:
-                                'Les commandes livrées apparaîtront ici, avec tous leurs détails.',
-                            icon: Icons.history_rounded,
-                          )
-                        : RefreshIndicator(
-                            onRefresh: _load,
-                            child: ListView.separated(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 8),
-                              itemCount: filtered.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 12),
-                              itemBuilder: (_, i) {
-                                final order = filtered[i];
-                                return OrderCard(
-                                  order: order,
-                                  onTap: () async {
-                                    await context
-                                        .push('/admin/order/${order.id}');
-                                    if (mounted) _load();
-                                  },
-                                );
-                              },
-                            ),
-                          ),
-          ),
-        ],
+      child: _body(filtered),
+    );
+  }
+
+  Widget _body(List<TailoringOrder> filtered) {
+    if (_loading) return LoadingShimmer.list();
+    if (_error != null) {
+      return const CoutureEmpty(
+        icon: CoutureIcons.warningCircle,
+        tone: CoutureTone.urgent,
+        title: 'L\'historique ne s\'affiche pas',
+        message:
+            'Vérifiez la connexion, puis tirez vers le bas pour réessayer.',
+      );
+    }
+    if (filtered.isEmpty) {
+      return CoutureEmpty(
+        icon: CoutureIcons.clockCounterClockwise,
+        title:
+            _orders.isEmpty ? 'Rien de livré pour l\'instant' : 'Rien trouvé',
+        message: _orders.isEmpty
+            ? 'Une commande arrive ici le jour où vous la remettez au client.'
+            : 'Essayez un autre nom, ou d\'autres dates.',
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(CouturePalette.s4, CouturePalette.s1,
+            CouturePalette.s4, CouturePalette.s6),
+        itemCount: filtered.length,
+        separatorBuilder: (_, __) => const SizedBox(height: CouturePalette.s3),
+        itemBuilder: (_, int i) {
+          final TailoringOrder order = filtered[i];
+          return OrderCard(
+            order: order,
+            onTap: () async {
+              await context.push('/admin/order/${order.id}');
+              if (mounted) _load();
+            },
+          );
+        },
       ),
     );
   }

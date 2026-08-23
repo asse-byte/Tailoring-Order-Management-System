@@ -3,16 +3,21 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/context_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
 import '../../../../core/utils/date_formatter.dart';
-import '../../../../core/widgets/empty_state.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/widgets/loading_shimmer.dart';
 import '../providers/admin_orders_provider.dart';
 import '../widgets/order_card.dart';
 
-/// Commandes actives (en cours / prêt). Les commandes livrées vivent dans
-/// l'Historique — même ligne, statut différent.
+/// Commandes actives (en attente / en couture / prêtes). Les commandes livrées
+/// vivent dans l'Historique — même ligne, statut différent.
+///
+/// Redesigned onto "Indigo & Terre". Every filter, query and route is the one
+/// it was; what changed is the wording (the filters now say what the shop says
+/// out loud — "Prêtes" rather than "Terminé") and the weight of each part.
 class AdminOrdersListScreen extends StatefulWidget {
   const AdminOrdersListScreen({super.key});
 
@@ -25,10 +30,10 @@ class _AdminOrdersListScreenState extends State<AdminOrdersListScreen> {
 
   static const List<({String? value, String label})> _statusFilters =
       <({String? value, String label})>[
-    (value: null, label: 'Tous actifs'),
+    (value: null, label: 'Tout'),
     (value: AppConstants.statusEnAttente, label: 'En attente'),
-    (value: AppConstants.statusEnCours, label: 'En cours'),
-    (value: AppConstants.statusTermine, label: 'Terminé'),
+    (value: AppConstants.statusEnCours, label: 'En couture'),
+    (value: AppConstants.statusTermine, label: 'Prêtes'),
   ];
 
   @override
@@ -57,136 +62,128 @@ class _AdminOrdersListScreenState extends State<AdminOrdersListScreen> {
     final p = context.watch<AdminOrdersProvider>();
     final filtered =
         p.filtered.where((o) => !o.isLivre).toList(growable: false);
+    final bool anyFilter = p.from != null ||
+        p.to != null ||
+        p.statusFilter != null ||
+        p.query.isNotEmpty;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Commandes'),
-        actions: <Widget>[
-          IconButton(
-            icon: const Icon(Icons.calendar_view_week_rounded),
-            tooltip: 'Programme (journalier / hebdo)',
-            onPressed: () => context.push('/admin/schedule'),
+    return CoutureScaffold(
+      title: 'Commandes',
+      subtitle: 'Le travail en cours dans l\'atelier',
+      actions: <Widget>[
+        CoutureBandAction(
+          icon: CoutureIcons.calendarCheck,
+          tooltip: 'Programme de la semaine',
+          onPressed: () => context.push('/admin/schedule'),
+        ),
+        if (anyFilter)
+          CoutureBandAction(
+            icon: CoutureIcons.filterOff,
+            tooltip: 'Tout afficher',
+            onPressed: () {
+              _searchCtrl.clear();
+              p.clearFilters();
+            },
           ),
-          if (p.from != null ||
-              p.to != null ||
-              p.statusFilter != null ||
-              p.query.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.filter_alt_off_outlined),
-              tooltip: 'Effacer les filtres',
-              onPressed: () {
-                _searchCtrl.clear();
-                p.clearFilters();
-              },
-            ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: p.refresh,
-          ),
-        ],
-      ),
-      body: Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: p.setQuery,
-              decoration: InputDecoration(
-                hintText: 'Rechercher par client, téléphone, vêtement...',
-                prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                suffixIcon: p.query.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 18),
-                        onPressed: () {
-                          _searchCtrl.clear();
-                          p.setQuery('');
-                        },
-                      ),
-              ),
-            ),
-          ),
-          SizedBox(
-            height: 44,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              scrollDirection: Axis.horizontal,
-              itemCount: _statusFilters.length + 1,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) {
-                if (i == _statusFilters.length) {
-                  final bool active = p.from != null && p.to != null;
-                  return ActionChip(
-                    avatar: const Icon(Icons.event_outlined, size: 16),
-                    label: Text(active
-                        ? '${DateFormatter.shortDate(p.from!, locale: 'fr')} – ${DateFormatter.shortDate(p.to!, locale: 'fr')}'
-                        : 'Période'),
-                    backgroundColor: active
-                        ? AppColors.primary.withValues(alpha: 0.12)
-                        : null,
-                    onPressed: _pickDateRange,
-                  );
-                }
-                final f = _statusFilters[i];
-                final bool selected = p.statusFilter == f.value;
-                return ChoiceChip(
-                  label: Text(f.label),
-                  selected: selected,
-                  onSelected: (_) => p.setStatusFilter(f.value),
-                  selectedColor: AppColors.primary,
-                  labelStyle: TextStyle(
-                    color: selected ? Colors.white : context.cTextPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12.5,
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(child: _body(p, filtered)),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await context.push('/admin/walk-in');
-          if (mounted) p.refresh();
+        CoutureBandAction(
+          icon: CoutureIcons.refresh,
+          tooltip: 'Actualiser',
+          onPressed: p.refresh,
+        ),
+      ],
+      below: _header(p),
+      floatingActionButton: _NewOrderButton(
+        onDone: () async {
+          if (mounted) await p.refresh();
         },
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Nouvelle commande'),
       ),
+      child: _body(p, filtered),
     );
   }
+
+  Widget _header(AdminOrdersProvider p) => Padding(
+        padding: const EdgeInsets.fromLTRB(
+            CouturePalette.s4, CouturePalette.s3, CouturePalette.s4, 0),
+        child: Column(
+          children: <Widget>[
+            CoutureSearchField(
+              controller: _searchCtrl,
+              hint: 'Nom du client, téléphone, vêtement',
+              onChanged: (String v) {
+                p.setQuery(v);
+                setState(
+                    () {}); // the clear button appears with the first letter
+              },
+              onClear: () {
+                _searchCtrl.clear();
+                p.setQuery('');
+                setState(() {});
+              },
+            ),
+            const SizedBox(height: CouturePalette.s3),
+            SizedBox(
+              height: 38,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _statusFilters.length + 1,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: CouturePalette.s2),
+                itemBuilder: (_, int i) {
+                  if (i == _statusFilters.length) {
+                    final bool active = p.from != null && p.to != null;
+                    return CoutureFilterChip(
+                      icon: CoutureIcons.calendarBlank,
+                      label: active
+                          ? '${DateFormatter.shortDate(p.from!, locale: 'fr')} – ${DateFormatter.shortDate(p.to!, locale: 'fr')}'
+                          : 'Dates',
+                      selected: active,
+                      onTap: _pickDateRange,
+                    );
+                  }
+                  final f = _statusFilters[i];
+                  return CoutureFilterChip(
+                    label: f.label,
+                    selected: p.statusFilter == f.value,
+                    onTap: () => p.setStatusFilter(f.value),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: CouturePalette.s3),
+          ],
+        ),
+      );
 
   Widget _body(AdminOrdersProvider p, List filtered) {
     if (p.loading) return LoadingShimmer.list();
     if (p.error != null) {
-      return EmptyState(
-        title: 'Impossible de charger les commandes',
-        message: p.error,
-        icon: Icons.error_outline,
+      return const CoutureEmpty(
+        icon: CoutureIcons.warningCircle,
+        tone: CoutureTone.urgent,
+        title: 'Les commandes ne s\'affichent pas',
+        message: 'Vérifiez la connexion, puis appuyez sur Actualiser.',
       );
     }
     if (filtered.isEmpty) {
-      return EmptyState(
-        title: p.orders.isEmpty
-            ? 'Aucune commande pour le moment'
-            : 'Aucun résultat pour ce filtre',
+      return CoutureEmpty(
+        icon: p.orders.isEmpty
+            ? CoutureIcons.clipboardText
+            : CoutureIcons.magnifyingGlass,
+        title: p.orders.isEmpty ? 'Aucune commande' : 'Rien avec ce filtre',
         message: p.orders.isEmpty
-            ? 'Les commandes des clients apparaîtront ici.'
-            : 'Essayez un autre filtre pour voir plus de commandes.',
-        icon: Icons.inbox_outlined,
+            ? 'Appuyez sur « Nouvelle commande » pour en enregistrer une.'
+            : 'Essayez un autre filtre, ou appuyez sur « Tout ».',
       );
     }
     return RefreshIndicator(
       onRefresh: p.refresh,
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+        padding: const EdgeInsets.fromLTRB(
+            CouturePalette.s4, CouturePalette.s1, CouturePalette.s4, 96),
         itemCount: filtered.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (_, i) {
+        separatorBuilder: (_, __) => const SizedBox(height: CouturePalette.s3),
+        itemBuilder: (_, int i) {
           final order = filtered[i];
           return OrderCard(
             order: order,
@@ -197,6 +194,31 @@ class _AdminOrdersListScreenState extends State<AdminOrdersListScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+/// The one action of this screen, in the warm colour — the same treatment the
+/// till gets on the home screen, for the same reason.
+class _NewOrderButton extends StatelessWidget {
+  const _NewOrderButton({required this.onDone});
+
+  final Future<void> Function() onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    final CoutureScheme c = CoutureScheme.of(context);
+    return FloatingActionButton.extended(
+      backgroundColor: c.urgentInk,
+      foregroundColor: Colors.white,
+      elevation: 2,
+      onPressed: () async {
+        await context.push('/admin/walk-in');
+        await onDone();
+      },
+      icon: const Icon(CoutureIcons.plus, size: 20),
+      label: const Text('Nouvelle commande',
+          style: TextStyle(fontWeight: FontWeight.w600)),
     );
   }
 }
