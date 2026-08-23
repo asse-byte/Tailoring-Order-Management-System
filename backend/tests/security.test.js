@@ -232,19 +232,23 @@ describe('SECRETARY — allowed daily operations', () => {
     expect(model.status).toBe(201);
 
     // The manager sees cost_price — it is what lets the app compute profit.
-    const mgrProd = (await asManager(request(app).get('/api/products')))
+    const mgrProd = (await asManager(
+      request(app).get('/api/products?search=Parfum%20Oud')))
       .body.items.find((p) => p.id === prod.body.id);
     expect(mgrProd.cost_price).toBe(12000);
-    const mgrModel = (await asManager(request(app).get('/api/pret-a-porter')))
+    const mgrModel = (await asManager(
+      request(app).get('/api/pret-a-porter?search=Kaftan%20luxe')))
       .body.items.find((m) => m.id === model.body.id);
     expect(mgrModel.cost_price).toBe(35000);
 
     // The secretary must NEVER receive cost_price on either read endpoint.
-    const secProducts = await asSec(request(app).get('/api/products'));
+    const secProducts = await asSec(request(app).get('/api/products?search=Parfum%20Oud'));
     expect(secProducts.status).toBe(200);
+    expect(secProducts.body.items.length).toBeGreaterThan(0);
     for (const p of secProducts.body.items) expect(p).not.toHaveProperty('cost_price');
-    const secModels = await asSec(request(app).get('/api/pret-a-porter'));
+    const secModels = await asSec(request(app).get('/api/pret-a-porter?search=Kaftan%20luxe'));
     expect(secModels.status).toBe(200);
+    expect(secModels.body.items.length).toBeGreaterThan(0);
     for (const m of secModels.body.items) expect(m).not.toHaveProperty('cost_price');
     // Belt and suspenders: no cost figure anywhere in the raw payloads.
     expect(JSON.stringify(secProducts.body)).not.toMatch(/cost_price/);
@@ -260,7 +264,7 @@ describe('SECRETARY — allowed daily operations', () => {
     const newId = created.body.id;
 
     // The cost_price she tried to set was ignored — the manager sees 0, not 5000.
-    const asMgr = (await asManager(request(app).get('/api/products')))
+    const asMgr = (await asManager(request(app).get('/api/products?search=Musc%20Sec')))
       .body.items.find((p) => p.id === newId);
     expect(asMgr.cost_price).toBe(0);
 
@@ -269,7 +273,7 @@ describe('SECRETARY — allowed daily operations', () => {
     expect(edited.status).toBe(200);
     expect(edited.body).not.toHaveProperty('cost_price');
     // Her cost_price write was ignored again (still 0).
-    expect((await asManager(request(app).get('/api/products')))
+    expect((await asManager(request(app).get('/api/products?search=Bazin')))
       .body.items.find((p) => p.id === newId).cost_price).toBe(0);
 
     expect((await asSec(request(app).delete(`/api/products/${newId}`))).status).toBe(204);

@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { managerOnly } = require('../middleware/auth');
-const { asyncH, pagination, intOrNull, str } = require('../util');
+const { asyncH, pagination, intOrNull, str, likeEscape } = require('../util');
 
 const router = express.Router();
 
@@ -24,8 +24,11 @@ async function categoryExists(slug) {
 router.get('/', asyncH(async (req, res) => {
   const { limit, offset } = pagination(req);
   const category = (await categoryExists(req.query.category)) ? req.query.category : null;
-  
-  // Aggregate images from product_images table into a JSON array 'images'
+  // Searching server-side matters for the till: that screen is paginated, so a
+  // filter applied only to the page in hand would silently hide every matching
+  // product further down the list. Escaped like every other search here.
+  const search = str(req.query.search);
+
   const { rows } = await db.query(
     `SELECT p.*, (p.quantity <= p.low_stock_threshold) AS low_stock,
             COALESCE(json_agg(json_build_object('id', pi.id, 'url', pi.url, 'thumb_url', pi.thumb_url))
@@ -33,9 +36,10 @@ router.get('/', asyncH(async (req, res) => {
      FROM products p
      LEFT JOIN product_images pi ON pi.product_id = p.id
      WHERE ($1::text IS NULL OR p.category = $1)
+       AND ($2::text IS NULL OR lower(p.name) LIKE '%' || lower($2) || '%')
      GROUP BY p.id
-     ORDER BY p.name LIMIT $2 OFFSET $3`,
-    [category, limit, offset]);
+     ORDER BY p.name LIMIT $3 OFFSET $4`,
+    [category, likeEscape(search), limit, offset]);
 
   // Financial isolation: cost_price (and the profit it reveals) is manager-only.
   // The secretary reads this catalog to sell — she must never receive it.

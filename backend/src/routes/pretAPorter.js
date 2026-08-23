@@ -1,12 +1,14 @@
 const express = require('express');
 const db = require('../db');
 const { managerOnly } = require('../middleware/auth');
-const { asyncH, pagination, intOrNull, str } = require('../util');
+const { asyncH, pagination, intOrNull, str, likeEscape } = require('../util');
 
 const router = express.Router();
 
 router.get('/', asyncH(async (req, res) => {
   const { limit, offset } = pagination(req);
+  // Same reason as products: the till paginates, so the filter has to run here.
+  const search = str(req.query.search);
   const { rows } = await db.query(
     `SELECT m.*,
        COALESCE(json_agg(json_build_object('id', md.id, 'url', md.url,
@@ -14,8 +16,9 @@ router.get('/', asyncH(async (req, res) => {
          FILTER (WHERE md.id IS NOT NULL), '[]') AS media
      FROM pret_a_porter_models m
      LEFT JOIN model_media md ON md.model_id = m.id
-     GROUP BY m.id ORDER BY m.created_at DESC LIMIT $1 OFFSET $2`,
-    [limit, offset]);
+     WHERE ($1::text IS NULL OR lower(m.name) LIKE '%' || lower($1) || '%')
+     GROUP BY m.id ORDER BY m.created_at DESC LIMIT $2 OFFSET $3`,
+    [likeEscape(search), limit, offset]);
 
   // Financial isolation: cost_price (and the profit it reveals) is manager-only.
   // The secretary reads these models to sell — she must never receive it.

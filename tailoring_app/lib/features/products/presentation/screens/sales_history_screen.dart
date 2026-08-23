@@ -10,9 +10,10 @@ import '../../data/sales_repository.dart';
 
 /// Every sale the shop has made, and what is in each one.
 ///
-/// Manager-only, like `GET /api/sales`: a list of sales is a list of takings,
-/// which rule 1 keeps away from the secretary. The router blocks the route and
-/// the API returns 403 as well.
+/// Both roles since the owner's decision of 2026-08-23: the secretary sells at
+/// the counter, so finding a sale she made and fixing it is hers. The purchase
+/// cost is stripped server-side, so she sees what the shop took and never what
+/// it paid.
 ///
 /// Editing works the way the seller expects — change a quantity, cancel a sale
 /// — while underneath it is always an append-only correction with a reason, and

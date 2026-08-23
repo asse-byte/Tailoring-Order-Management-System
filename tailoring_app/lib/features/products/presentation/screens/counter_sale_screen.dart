@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
@@ -37,25 +39,43 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
   final ProductsRepository _products = ProductsRepository();
   final PretAPorterRepository _models = PretAPorterRepository();
 
+  /// One page of the visible tab, not the whole shop.
+  ///
+  /// The first version pulled 200 products and 200 models in one request and
+  /// filtered them in memory. That is slow to open on a phone and, worse,
+  /// silently wrong: a shop with more than 200 products simply could not sell
+  /// the rest, and a search only ever looked at what happened to be loaded.
+  /// Each tab now pages in as the seller scrolls, and the search goes to the
+  /// server.
+  static const int _pageSize = 40;
+
+  final ScrollController _scroll = ScrollController();
+
   List<ProductCategory> _categories = <ProductCategory>[];
   List<Product> _catalogue = <Product>[];
   List<PretAPorterModel> _modelCatalogue = <PretAPorterModel>[];
 
-  /// null = the ready-to-wear tab, otherwise a category slug.
+  /// The category slug currently shown; ignored while [_readyToWearTab] is on.
   String? _tab;
   bool _readyToWearTab = false;
   bool _loading = true;
+  bool _loadingMore = false;
+  bool _endReached = false;
   String _search = '';
+  Timer? _searchDebounce;
 
   @override
   void initState() {
     super.initState();
     _cart.addListener(_onCartChanged);
-    _load();
+    _scroll.addListener(_onScroll);
+    _bootstrap();
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _scroll.dispose();
     _cart.removeListener(_onCartChanged);
     _cart.dispose();
     super.dispose();
@@ -63,26 +83,93 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
 
   void _onCartChanged() => setState(() {});
 
-  Future<void> _load() async {
+  void _onScroll() {
+    if (!_scroll.hasClients || _loading || _loadingMore || _endReached) return;
+    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 300) {
+      _loadMore();
+    }
+  }
+
+  /// Categories first, because the first tab decides what to fetch.
+  Future<void> _bootstrap() async {
     setState(() => _loading = true);
     try {
-      final results = await Future.wait(<Future<dynamic>>[
-        _sales.listCategories(),
-        _products.list(limit: 200),
-        _models.list(limit: 200),
-      ]);
+      final cats = await _sales.listCategories();
       if (!mounted) return;
       setState(() {
-        _categories = results[0] as List<ProductCategory>;
-        _catalogue = results[1] as List<Product>;
-        _modelCatalogue = results[2] as List<PretAPorterModel>;
-        _tab ??= _categories.isNotEmpty ? _categories.first.slug : null;
+        _categories = cats;
+        _tab ??= cats.isNotEmpty ? cats.first.slug : null;
       });
+      await _reload();
+    } catch (e) {
+      if (mounted) {
+        _toast('Chargement impossible : $e', error: true);
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  /// Throw away the current tab's page and fetch page 1 — on a tab switch, a
+  /// new search term, or a pull to refresh.
+  Future<void> _reload() async {
+    setState(() {
+      _loading = true;
+      _endReached = false;
+      _catalogue = <Product>[];
+      _modelCatalogue = <PretAPorterModel>[];
+    });
+    await _fetchPage(offset: 0);
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _loadMore() async {
+    setState(() => _loadingMore = true);
+    await _fetchPage(
+        offset: _readyToWearTab ? _modelCatalogue.length : _catalogue.length);
+    if (mounted) setState(() => _loadingMore = false);
+  }
+
+  Future<void> _fetchPage({required int offset}) async {
+    try {
+      if (_readyToWearTab) {
+        final page = await _models.list(
+            search: _search, limit: _pageSize, offset: offset);
+        if (!mounted) return;
+        setState(() {
+          _modelCatalogue.addAll(page);
+          _endReached = page.length < _pageSize;
+        });
+      } else {
+        final page = await _products.list(
+            category: _tab, search: _search, limit: _pageSize, offset: offset);
+        if (!mounted) return;
+        setState(() {
+          _catalogue.addAll(page);
+          _endReached = page.length < _pageSize;
+        });
+      }
     } catch (e) {
       if (mounted) _toast('Chargement impossible : $e', error: true);
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// Typing shouldn't fire a request per keystroke at the counter.
+  void _onSearchChanged(String value) {
+    _search = value;
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) _reload();
+    });
+  }
+
+  void _switchTab({String? slug, bool readyToWear = false}) {
+    if (readyToWear == _readyToWearTab && slug == _tab) return;
+    setState(() {
+      _readyToWearTab = readyToWear;
+      if (!readyToWear) _tab = slug;
+    });
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+    _reload();
   }
 
   void _toast(String msg, {bool error = false}) {
@@ -95,21 +182,10 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
   }
 
   // ---------------------------------------------------------------------------
+  // The server already filtered by tab and search, so these are just the page.
+  List<Product> get _visibleProducts => _catalogue;
 
-  List<Product> get _visibleProducts {
-    final q = _search.trim().toLowerCase();
-    return _catalogue
-        .where((p) => p.category == _tab)
-        .where((p) => q.isEmpty || p.name.toLowerCase().contains(q))
-        .toList();
-  }
-
-  List<PretAPorterModel> get _visibleModels {
-    final q = _search.trim().toLowerCase();
-    return _modelCatalogue
-        .where((m) => q.isEmpty || m.name.toLowerCase().contains(q))
-        .toList();
-  }
+  List<PretAPorterModel> get _visibleModels => _modelCatalogue;
 
   void _addProduct(Product p) {
     // The shelf count is what the seller has to respect; the basket knows how
@@ -160,7 +236,7 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
           IconButton(
             tooltip: 'Recharger',
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: _load,
+            onPressed: _reload,
           ),
         ],
       ),
@@ -171,6 +247,15 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
                 _searchBar(),
                 _tabStrip(),
                 Expanded(child: _grid()),
+                if (_loadingMore)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    child: SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
               ],
             ),
       bottomNavigationBar: _cart.isEmpty ? null : _basketBar(),
@@ -180,7 +265,7 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
   Widget _searchBar() => Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
         child: TextField(
-          onChanged: (v) => setState(() => _search = v),
+          onChanged: _onSearchChanged,
           decoration: InputDecoration(
             hintText: 'Chercher un article…',
             prefixIcon: const Icon(Icons.search_rounded),
@@ -201,16 +286,13 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
                 label: c.label,
                 icon: c.iconData,
                 selected: !_readyToWearTab && _tab == c.slug,
-                onTap: () => setState(() {
-                  _readyToWearTab = false;
-                  _tab = c.slug;
-                }),
+                onTap: () => _switchTab(slug: c.slug),
               ),
             _tabChip(
               label: 'Prêt-à-porter',
               icon: Icons.checkroom_rounded,
               selected: _readyToWearTab,
-              onTap: () => setState(() => _readyToWearTab = true),
+              onTap: () => _switchTab(readyToWear: true),
             ),
           ],
         ),
@@ -244,7 +326,10 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
         icon: Icons.inventory_2_outlined,
       );
     }
-    return GridView.builder(
+    return RefreshIndicator(
+      onRefresh: _reload,
+      child: GridView.builder(
+      controller: _scroll,
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 220,
@@ -273,6 +358,7 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
               stockLeft: _visibleProducts[i].quantity,
               onTap: () => _addProduct(_visibleProducts[i]),
             ),
+      ),
     );
   }
 
@@ -416,7 +502,7 @@ class _CounterSaleScreenState extends State<CounterSaleScreen> {
 
     _cart.clear();
     // Reload so the shelf counts on the cards match what just left the shop.
-    await _load();
+    await _reload();
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => SaleReceiptScreen(receipt: done),

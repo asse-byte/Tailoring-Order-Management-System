@@ -365,3 +365,64 @@ describe('financial isolation still holds for receipts', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// The till paginates, so the catalogue endpoints must filter server-side.
+// Before this, the screen pulled a flat 200 rows and searched them in memory:
+// a shop with more than 200 products simply could not sell the rest.
+// ---------------------------------------------------------------------------
+describe('the catalogue is searchable and pageable server-side', () => {
+  test('a product past the first page is still findable by name', async () => {
+    const cat = (await asM(request(app).post('/api/product-categories'))
+      .send({ label: 'Grand Rayon' })).body;
+    for (let i = 0; i < 12; i += 1) {
+      await newProduct(cat.slug, `Article rayon ${i}`, 1000 + i, 500, 5);
+    }
+    await newProduct(cat.slug, 'Zibeline rarissime', 9999, 100, 5);
+
+    // Page 1 of 5 cannot contain it...
+    const page1 = await asSec(
+      request(app).get(`/api/products?category=${cat.slug}&limit=5&offset=0`));
+    expect(page1.body.items).toHaveLength(5);
+    expect(page1.body.items.map((p) => p.name)).not.toContain('Zibeline rarissime');
+
+    // ...but the server-side search finds it wherever it sits.
+    const found = await asSec(
+      request(app).get(`/api/products?category=${cat.slug}&search=rarissime`));
+    expect(found.status).toBe(200);
+    expect(found.body.items).toHaveLength(1);
+    expect(found.body.items[0].name).toBe('Zibeline rarissime');
+  });
+
+  test('paging walks the whole category without gaps or repeats', async () => {
+    const cat = (await asM(request(app).post('/api/product-categories'))
+      .send({ label: 'Rayon Paginé' })).body;
+    for (let i = 0; i < 7; i += 1) {
+      await newProduct(cat.slug, `Pagine ${i}`, 1000, 500, 1);
+    }
+    const seen = [];
+    for (let offset = 0; ; offset += 3) {
+      const res = await asSec(request(app)
+        .get(`/api/products?category=${cat.slug}&limit=3&offset=${offset}`));
+      seen.push(...res.body.items.map((p) => p.id));
+      if (res.body.items.length < 3) break;
+    }
+    expect(seen).toHaveLength(7);
+    expect(new Set(seen).size).toBe(7); // no row served twice
+  });
+
+  test('a "%" in the catalogue search is a literal, not a wildcard', async () => {
+    const res = await asSec(request(app).get('/api/products?search=%25'));
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(0);
+  });
+
+  test('ready-to-wear models are searchable the same way', async () => {
+    await asM(request(app).post('/api/pret-a-porter'))
+      .send({ name: 'Kaftan introuvable', price: 50000, cost_price: 30000 });
+    const res = await asSec(
+      request(app).get('/api/pret-a-porter?search=introuvable'));
+    expect(res.status).toBe(200);
+    expect(res.body.items.map((m) => m.name)).toContain('Kaftan introuvable');
+  });
+});

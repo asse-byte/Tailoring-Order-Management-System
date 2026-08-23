@@ -244,7 +244,7 @@ class SalaryReceiptService {
                       pw.Text('Signature du Bénéficiaire :',
                           style: const pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: _teal)),
                       pw.Spacer(),
-                      pw.Text('Date & Émargement',
+                      pw.Text('Date et signature',
                           style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500)),
                     ],
                   ),

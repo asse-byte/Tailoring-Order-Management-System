@@ -85,12 +85,14 @@ class PretAPorterRepository {
   final ApiClient _api;
 
   Future<List<PretAPorterModel>> list({
+    String? search,
     int limit = 20,
     int offset = 0,
   }) async {
     final dynamic res = await _api.get('/api/pret-a-porter', query: {
       'limit': '$limit',
       'offset': '$offset',
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
     });
     return (res['items'] as List)
         .map((e) => PretAPorterModel.fromJson(e as Map<String, dynamic>))

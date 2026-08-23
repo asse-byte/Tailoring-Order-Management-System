@@ -11,6 +11,7 @@ class ProductsRepository {
 
   Future<List<Product>> list({
     String? category,
+    String? search,
     int limit = 20,
     int offset = 0,
   }) async {
@@ -18,6 +19,7 @@ class ProductsRepository {
       'limit': '$limit',
       'offset': '$offset',
       if (category != null && category != 'all') 'category': category,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
     };
     final dynamic res = await _api.get('/api/products', query: query);
     return (res['items'] as List)
