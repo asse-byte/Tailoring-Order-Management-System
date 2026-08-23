@@ -30,6 +30,8 @@ ALTER TABLE sales ADD COLUMN IF NOT EXISTS unit_cost integer CHECK (unit_cost >=
 -- information that exists: the cost price is not versioned before today, so
 -- past COGS keeps exactly the value the reports show right now, and stops
 -- moving from here on.
+ALTER TABLE sales DISABLE TRIGGER USER;
+
 UPDATE sales s
    SET unit_cost = COALESCE(p.cost_price, 0)
   FROM products p
@@ -42,6 +44,8 @@ UPDATE sales s
 
 -- Anything whose item was already deleted keeps a 0 cost (unknowable).
 UPDATE sales SET unit_cost = 0 WHERE unit_cost IS NULL;
+
+ALTER TABLE sales ENABLE TRIGGER USER;
 
 -- The effective view gains the frozen cost so every COGS sum reads it and
 -- never joins the live catalogue again.
