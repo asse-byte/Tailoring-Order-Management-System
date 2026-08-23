@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/couture_icons.dart';
+import '../../../core/theme/couture_palette.dart';
+import '../../../core/widgets/couture/couture_bits.dart';
+import '../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../core/widgets/formatted_number_field.dart';
@@ -17,7 +20,8 @@ class MerchantsScreen extends StatefulWidget {
   State<MerchantsScreen> createState() => _MerchantsScreenState();
 }
 
-class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProviderStateMixin {
+class _MerchantsScreenState extends State<MerchantsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final MerchantRepository _repo = MerchantRepository();
 
@@ -34,6 +38,11 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    // The two tabs are chips under the band, so the chips have to know which
+    // one is showing after a swipe as well as after a tap.
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     _loadAll();
   }
 
@@ -75,32 +84,50 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
   void _toast(String msg, {bool error = false}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
-      backgroundColor: error ? AppColors.error : AppColors.success,
+      backgroundColor: error
+          ? CouturePalette.terracottaDeep
+          : CoutureScheme.of(context).goodInk,
     ));
   }
 
   int get _totalSupplierDebt => _purchases.fold(0, (sum, p) => sum + p.reste);
-  int get _totalWholesaleReceivable => _wholesaleOrders.fold(0, (sum, o) => sum + o.reste);
+  int get _totalWholesaleReceivable =>
+      _wholesaleOrders.fold(0, (sum, o) => sum + o.reste);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Commerçants & Achats en Gros'),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppColors.primary,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
-          tabs: const [
-            Tab(icon: Icon(Icons.store_rounded), text: 'Fournisseurs (Crédits)'),
-            Tab(icon: Icon(Icons.local_shipping_rounded), text: 'Ventes en Gros'),
+    return CoutureScaffold(
+      title: 'Gros et fournisseurs',
+      subtitle: 'Ce que la boutique doit, ce qu\'on lui doit',
+      actions: <Widget>[
+        CoutureBandAction(
+          icon: CoutureIcons.refresh,
+          tooltip: 'Actualiser',
+          onPressed: _loadAll,
+        ),
+      ],
+      below: Padding(
+        padding: const EdgeInsets.fromLTRB(CouturePalette.s4, CouturePalette.s3,
+            CouturePalette.s4, CouturePalette.s3),
+        child: Row(
+          children: <Widget>[
+            CoutureFilterChip(
+              icon: CoutureIcons.storefront,
+              label: 'Fournisseurs',
+              selected: _tabController.index == 0,
+              onTap: () => _tabController.animateTo(0),
+            ),
+            const SizedBox(width: CouturePalette.s2),
+            CoutureFilterChip(
+              icon: CoutureIcons.truck,
+              label: 'Ventes en gros',
+              selected: _tabController.index == 1,
+              onTap: () => _tabController.animateTo(1),
+            ),
           ],
         ),
       ),
-      body: TabBarView(
+      child: TabBarView(
         controller: _tabController,
         children: [
           _buildSuppliersTab(),
@@ -114,7 +141,8 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
   // TAB 1: FOURNISSEURS & ACHATS À CRÉDIT
   // ==========================================================================
   Widget _buildSuppliersTab() {
-    if (_loadingSuppliers) return const Center(child: CircularProgressIndicator());
+    if (_loadingSuppliers)
+      return const Center(child: CircularProgressIndicator());
     return RefreshIndicator(
       onRefresh: _loadAll,
       child: ListView(
@@ -122,8 +150,9 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
         children: [
           // Stat Summary Card
           Card(
-            color: AppColors.surface,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            color: CoutureScheme.of(context).card,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Wrap(
@@ -138,17 +167,26 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppColors.error.withValues(alpha: 0.12),
+                          color: CoutureScheme.of(context).urgentWash,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.error, size: 28),
+                        child: Icon(CoutureIcons.wallet,
+                            color: CoutureScheme.of(context).urgentText,
+                            size: 26),
                       ),
                       const SizedBox(width: 16),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Dettes Fournisseurs Totales', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                          Text(formatFcfa(_totalSupplierDebt), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.error)),
+                          Text('Ce que la boutique doit',
+                              style: TextStyle(
+                                  color: CoutureScheme.of(context).inkSoft,
+                                  fontSize: 13)),
+                          Text(formatFcfa(_totalSupplierDebt),
+                              style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                  color: CoutureScheme.of(context).urgentText)),
                         ],
                       ),
                     ],
@@ -168,7 +206,8 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Répertoire des Fournisseurs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text('Répertoire des Fournisseurs',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               TextButton.icon(
                 icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
                 label: const Text('Nouveau Fournisseur'),
@@ -180,10 +219,14 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
 
           if (_suppliers.isEmpty)
             Card(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              child: const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('Aucun fournisseur enregistré. Cliquez sur "+ Nouveau Fournisseur" pour en ajouter un.', style: TextStyle(color: AppColors.textMuted)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                    'Aucun fournisseur. Appuyez sur « Nouveau fournisseur ».',
+                    style:
+                        TextStyle(color: CoutureScheme.of(context).inkFaint)),
               ),
             )
           else
@@ -198,10 +241,12 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                     width: 230,
                     margin: const EdgeInsets.only(right: 12),
                     child: Card(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(14),
-                        onTap: () => _openAddSupplierPurchaseModal(preselectedSupplier: s),
+                        onTap: () => _openAddSupplierPurchaseModal(
+                            preselectedSupplier: s),
                         child: Padding(
                           padding: const EdgeInsets.all(12),
                           child: Row(
@@ -211,22 +256,60 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                    if (s.phone.isNotEmpty) Text('Tél: ${s.phone}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                    Text(s.name,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis),
+                                    if (s.phone.isNotEmpty)
+                                      Text('Tél: ${s.phone}',
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: CoutureScheme.of(context)
+                                                  .inkSoft)),
                                     const SizedBox(height: 4),
-                                    Text('Dette: ${formatFcfa(s.totalDebt)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: s.totalDebt > 0 ? AppColors.error : AppColors.success)),
+                                    Text('Dette: ${formatFcfa(s.totalDebt)}',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: s.totalDebt > 0
+                                                ? CoutureScheme.of(context)
+                                                    .urgentText
+                                                : CoutureScheme.of(context)
+                                                    .goodInk)),
                                   ],
                                 ),
                               ),
                               PopupMenuButton<String>(
-                                icon: const Icon(Icons.more_vert_rounded, size: 18),
+                                icon: const Icon(Icons.more_vert_rounded,
+                                    size: 18),
                                 onSelected: (val) {
                                   if (val == 'edit') _openEditSupplierModal(s);
-                                  if (val == 'delete') _confirmDeleteSupplier(s);
+                                  if (val == 'delete')
+                                    _confirmDeleteSupplier(s);
                                 },
                                 itemBuilder: (ctx) => [
-                                  const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_rounded, size: 16), SizedBox(width: 8), Text('Modifier')])),
-                                  const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 16), SizedBox(width: 8), Text('Supprimer', style: TextStyle(color: AppColors.error))])),
+                                  const PopupMenuItem(
+                                      value: 'edit',
+                                      child: Row(children: [
+                                        Icon(Icons.edit_rounded, size: 16),
+                                        SizedBox(width: 8),
+                                        Text('Modifier')
+                                      ])),
+                                  const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Row(children: [
+                                        Icon(CoutureIcons.trash,
+                                            color:
+                                                CouturePalette.terracottaDeep,
+                                            size: 16),
+                                        SizedBox(width: 8),
+                                        Text('Supprimer',
+                                            style: TextStyle(
+                                                color: CouturePalette
+                                                    .terracottaDeep))
+                                      ])),
                                 ],
                               ),
                             ],
@@ -240,7 +323,8 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
             ),
           const SizedBox(height: 20),
 
-          const Text('Historique des Achats à Crédit', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text('Historique des Achats à Crédit',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
 
           if (_purchases.isEmpty)
@@ -263,16 +347,26 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
-          backgroundColor: isPaid ? AppColors.success.withValues(alpha: 0.15) : AppColors.error.withValues(alpha: 0.15),
-          child: Icon(isPaid ? Icons.check_circle_rounded : Icons.pending_actions_rounded, color: isPaid ? AppColors.success : AppColors.error),
+          backgroundColor: isPaid
+              ? CoutureScheme.of(context).goodWash
+              : CoutureScheme.of(context).urgentWash,
+          child: Icon(isPaid ? CoutureIcons.checkCircle : CoutureIcons.clock,
+              color: isPaid
+                  ? CoutureScheme.of(context).goodInk
+                  : CoutureScheme.of(context).urgentText,
+              size: 20),
         ),
-        title: Text(p.supplierName, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(p.supplierName,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(p.description),
             const SizedBox(height: 4),
-            Text('Date: ${p.purchaseDate} · Total: ${formatFcfa(p.totalAmount)}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            Text(
+                'Date: ${p.purchaseDate} · Total: ${formatFcfa(p.totalAmount)}',
+                style: TextStyle(
+                    fontSize: 12, color: CoutureScheme.of(context).inkSoft)),
           ],
         ),
         trailing: Row(
@@ -282,10 +376,17 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(isPaid ? 'PAYÉ' : 'Reste: ${formatFcfa(p.reste)}', style: TextStyle(fontWeight: FontWeight.bold, color: isPaid ? AppColors.success : AppColors.error)),
+                Text(isPaid ? 'Payé' : 'Reste ${formatFcfa(p.reste)}',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: isPaid
+                            ? CoutureScheme.of(context).goodInk
+                            : CoutureScheme.of(context).urgentText)),
                 if (!isPaid)
                   TextButton(
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(50, 24)),
+                    style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(50, 24)),
                     onPressed: () => _openSupplierPaymentModal(p),
                     child: const Text('Régler'),
                   ),
@@ -298,8 +399,23 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                 if (val == 'delete') _confirmDeleteSupplierPurchase(p);
               },
               itemBuilder: (ctx) => [
-                const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_rounded, size: 16), SizedBox(width: 8), Text('Modifier')])),
-                const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 16), SizedBox(width: 8), Text('Supprimer', style: TextStyle(color: AppColors.error))])),
+                const PopupMenuItem(
+                    value: 'edit',
+                    child: Row(children: [
+                      Icon(Icons.edit_rounded, size: 16),
+                      SizedBox(width: 8),
+                      Text('Modifier')
+                    ])),
+                const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(children: [
+                      Icon(CoutureIcons.trash,
+                          color: CouturePalette.terracottaDeep, size: 16),
+                      SizedBox(width: 8),
+                      Text('Supprimer',
+                          style:
+                              TextStyle(color: CouturePalette.terracottaDeep))
+                    ])),
               ],
             ),
           ],
@@ -312,7 +428,8 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
   // TAB 2: VENTES EN GROS (PRÊT-À-PORTER)
   // ==========================================================================
   Widget _buildWholesaleTab() {
-    if (_loadingWholesale) return const Center(child: CircularProgressIndicator());
+    if (_loadingWholesale)
+      return const Center(child: CircularProgressIndicator());
     return RefreshIndicator(
       onRefresh: _loadAll,
       child: ListView(
@@ -320,8 +437,9 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
         children: [
           // Summary Card
           Card(
-            color: AppColors.surface,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            color: CoutureScheme.of(context).card,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Wrap(
@@ -336,17 +454,25 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.12),
+                          color: CoutureScheme.of(context).goodWash,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.trending_up_rounded, color: AppColors.success, size: 28),
+                        child: Icon(CoutureIcons.wallet,
+                            color: CoutureScheme.of(context).goodInk, size: 26),
                       ),
                       const SizedBox(width: 16),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Créances Gros à Recouvrer', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                          Text(formatFcfa(_totalWholesaleReceivable), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                          Text('Ce qu\'on doit à la boutique',
+                              style: TextStyle(
+                                  color: CoutureScheme.of(context).inkSoft,
+                                  fontSize: 13)),
+                          Text(formatFcfa(_totalWholesaleReceivable),
+                              style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                  color: CoutureScheme.of(context).goodInk)),
                         ],
                       ),
                     ],
@@ -362,13 +488,15 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
           ),
           const SizedBox(height: 16),
 
-          const Text('Commandes & Distributions en Gros', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text('Commandes & Distributions en Gros',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
 
           if (_wholesaleOrders.isEmpty)
             const Padding(
               padding: EdgeInsets.all(32),
-              child: Center(child: Text('Aucune commande en gros enregistrée.')),
+              child:
+                  Center(child: Text('Aucune commande en gros enregistrée.')),
             )
           else
             ..._wholesaleOrders.map((o) => _buildWholesaleCard(o)),
@@ -384,11 +512,20 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ExpansionTile(
         leading: CircleAvatar(
-          backgroundColor: isPaid ? AppColors.success.withValues(alpha: 0.15) : AppColors.primary.withValues(alpha: 0.15),
-          child: Icon(Icons.storefront_rounded, color: isPaid ? AppColors.success : AppColors.primary),
+          backgroundColor: isPaid
+              ? CoutureScheme.of(context).goodWash
+              : CoutureScheme.of(context).iconWash,
+          child: Icon(CoutureIcons.storefront,
+              color: isPaid
+                  ? CoutureScheme.of(context).goodInk
+                  : CoutureScheme.of(context).iconInk,
+              size: 20),
         ),
-        title: Text(o.merchantName, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('Date: ${o.orderDate} · Total: ${formatFcfa(o.totalAmount)} · Reste: ${formatFcfa(o.reste)}', style: const TextStyle(fontSize: 12)),
+        title: Text(o.merchantName,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(
+            'Date: ${o.orderDate} · Total: ${formatFcfa(o.totalAmount)} · Reste: ${formatFcfa(o.reste)}',
+            style: const TextStyle(fontSize: 12)),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -396,17 +533,21 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Divider(),
-                const Text('Articles distribués:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const Text('Articles distribués:',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 ...o.items.map((i) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Expanded(
-                            child: Text('• ${i.model} x${i.qty}', maxLines: 2, overflow: TextOverflow.ellipsis),
+                            child: Text('• ${i.model} x${i.qty}',
+                                maxLines: 2, overflow: TextOverflow.ellipsis),
                           ),
                           const SizedBox(width: 8),
-                          Text('${formatFcfa(i.total)} (${formatFcfa(i.unitPrice)}/unité)'),
+                          Text(
+                              '${formatFcfa(i.total)} (${formatFcfa(i.unitPrice)}/unité)'),
                         ],
                       ),
                     )),
@@ -419,7 +560,8 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                     spacing: 8,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.primary),
+                        icon: Icon(CoutureIcons.printer,
+                            color: CoutureScheme.of(context).iconInk),
                         tooltip: 'Imprimer Facture',
                         onPressed: () {
                           final settings = context.read<ShopSettingsProvider>();
@@ -431,12 +573,14 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                         },
                       ),
                       IconButton(
-                        icon: const Icon(Icons.edit_rounded, color: AppColors.primary),
+                        icon: Icon(CoutureIcons.pencil,
+                            color: CoutureScheme.of(context).inkSoft),
                         tooltip: 'Modifier Vente',
                         onPressed: () => _openEditWholesaleOrderModal(o),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                        icon: Icon(CoutureIcons.trash,
+                            color: CoutureScheme.of(context).urgentText),
                         tooltip: 'Supprimer Vente',
                         onPressed: () => _confirmDeleteWholesaleOrder(o),
                       ),
@@ -477,8 +621,10 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
             children: [
               TextFormField(
                 initialValue: name,
-                decoration: const InputDecoration(labelText: 'Nom du Fournisseur'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                decoration:
+                    const InputDecoration(labelText: 'Nom du Fournisseur'),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Requis' : null,
                 onSaved: (v) => name = v?.trim() ?? '',
               ),
               const SizedBox(height: 12),
@@ -492,7 +638,9 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
@@ -519,7 +667,8 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
       context,
       itemName: s.name,
       itemLabel: 'ce fournisseur',
-      historyNote: 'Tous ses achats et historiques restent sauvegardés sur le serveur.',
+      historyNote:
+          'Tous ses achats et historiques restent sauvegardés sur le serveur.',
     );
     if (confirm == true) {
       try {
@@ -538,7 +687,8 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
     int totalAmount = p.totalAmount;
     int advanceAmount = p.advanceAmount;
     final totalCtrl = TextEditingController(text: formatThousands(totalAmount));
-    final advanceCtrl = TextEditingController(text: formatThousands(advanceAmount));
+    final advanceCtrl =
+        TextEditingController(text: formatThousands(advanceAmount));
 
     await showDialog(
       context: context,
@@ -554,7 +704,8 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                 TextFormField(
                   initialValue: description,
                   decoration: const InputDecoration(labelText: 'Description'),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Requis' : null,
                   onSaved: (v) => description = v?.trim() ?? '',
                 ),
                 const SizedBox(height: 12),
@@ -575,7 +726,9 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
@@ -608,11 +761,16 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Supprimer l\'achat'),
-        content: Text('Voulez-vous vraiment supprimer cet achat de ${formatFcfa(p.totalAmount)} chez ${p.supplierName} ?'),
+        content: Text(
+            'Voulez-vous vraiment supprimer cet achat de ${formatFcfa(p.totalAmount)} chez ${p.supplierName} ?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: CouturePalette.terracottaDeep,
+                foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Supprimer'),
           ),
@@ -640,7 +798,8 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
     int advanceAmount = o.advanceAmount;
 
     final priceCtrl = TextEditingController(text: formatThousands(unitPrice));
-    final advanceCtrl = TextEditingController(text: formatThousands(advanceAmount));
+    final advanceCtrl =
+        TextEditingController(text: formatThousands(advanceAmount));
 
     await showDialog(
       context: context,
@@ -655,8 +814,10 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
               children: [
                 TextFormField(
                   initialValue: merchantName,
-                  decoration: const InputDecoration(labelText: 'Nom du Commerçant'),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  decoration:
+                      const InputDecoration(labelText: 'Nom du Commerçant'),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Requis' : null,
                   onSaved: (v) => merchantName = v?.trim() ?? '',
                 ),
                 const SizedBox(height: 8),
@@ -669,8 +830,10 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                 const SizedBox(height: 12),
                 TextFormField(
                   initialValue: modelName,
-                  decoration: const InputDecoration(labelText: 'Modèle / Vêtement'),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  decoration:
+                      const InputDecoration(labelText: 'Modèle / Vêtement'),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Requis' : null,
                   onSaved: (v) => modelName = v?.trim() ?? '',
                 ),
                 const SizedBox(height: 8),
@@ -678,7 +841,8 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                   initialValue: '$qty',
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'Quantité'),
-                  validator: (v) => (int.tryParse(v ?? '') ?? 0) <= 0 ? 'Qté > 0' : null,
+                  validator: (v) =>
+                      (int.tryParse(v ?? '') ?? 0) <= 0 ? 'Qté > 0' : null,
                   onSaved: (v) => qty = int.tryParse(v ?? '') ?? 1,
                 ),
                 const SizedBox(height: 8),
@@ -699,7 +863,9 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
@@ -710,7 +876,10 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                   o.id,
                   merchantName: merchantName,
                   merchantPhone: merchantPhone,
-                  items: [WholesaleOrderItem(model: modelName, qty: qty, unitPrice: unitPrice)],
+                  items: [
+                    WholesaleOrderItem(
+                        model: modelName, qty: qty, unitPrice: unitPrice)
+                  ],
                   totalAmount: total,
                   advanceAmount: advanceAmount,
                 );
@@ -735,11 +904,16 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Supprimer Vente en Gros'),
-        content: Text('Voulez-vous vraiment supprimer cette vente de ${formatFcfa(o.totalAmount)} pour ${o.merchantName} ?'),
+        content: Text(
+            'Voulez-vous vraiment supprimer cette vente de ${formatFcfa(o.totalAmount)} pour ${o.merchantName} ?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: CouturePalette.terracottaDeep,
+                foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Supprimer'),
           ),
@@ -756,6 +930,7 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
       }
     }
   }
+
   Future<void> _openAddSupplierModal() async {
     final formKey = GlobalKey<FormState>();
     String name = '';
@@ -772,8 +947,10 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
             mainAxisSize: MainAxisSize.min,
             children: [
               TextFormField(
-                decoration: const InputDecoration(labelText: 'Nom du Fournisseur'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                decoration:
+                    const InputDecoration(labelText: 'Nom du Fournisseur'),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Requis' : null,
                 onSaved: (v) => name = v?.trim() ?? '',
               ),
               const SizedBox(height: 12),
@@ -786,7 +963,9 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
@@ -808,7 +987,8 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
     );
   }
 
-  Future<void> _openAddSupplierPurchaseModal({Supplier? preselectedSupplier}) async {
+  Future<void> _openAddSupplierPurchaseModal(
+      {Supplier? preselectedSupplier}) async {
     final formKey = GlobalKey<FormState>();
     final String supplierId = preselectedSupplier?.id ?? '';
     String supplierName = preselectedSupplier?.name ?? '';
@@ -822,7 +1002,9 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(preselectedSupplier != null ? 'Nouvel Achat — ${preselectedSupplier.name}' : 'Nouvel Achat à Crédit'),
+        title: Text(preselectedSupplier != null
+            ? 'Nouvel Achat — ${preselectedSupplier.name}'
+            : 'Nouvel Achat à Crédit'),
         content: Form(
           key: formKey,
           child: SingleChildScrollView(
@@ -832,14 +1014,19 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                 if (preselectedSupplier == null)
                   TextFormField(
                     initialValue: supplierName,
-                    decoration: const InputDecoration(labelText: 'Nom du Fournisseur'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                    decoration:
+                        const InputDecoration(labelText: 'Nom du Fournisseur'),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Requis' : null,
                     onSaved: (v) => supplierName = v?.trim() ?? '',
                   ),
                 const SizedBox(height: 12),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Description des marchandises (Tissu, Bazin...)'),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  decoration: const InputDecoration(
+                      labelText:
+                          'Description des marchandises (Tissu, Bazin...)'),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Requis' : null,
                   onSaved: (v) => description = v?.trim() ?? '',
                 ),
                 const SizedBox(height: 12),
@@ -860,7 +1047,9 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
@@ -903,25 +1092,30 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Reste à payer actuel: ${formatFcfa(p.reste)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text('Reste à payer actuel: ${formatFcfa(p.reste)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               FormattedNumberField(
                 controller: amountCtrl,
                 label: 'Montant versé (FCFA)',
-                validator: (v) => (v == null || v <= 0) ? 'Montant invalide' : null,
+                validator: (v) =>
+                    (v == null || v <= 0) ? 'Montant invalide' : null,
                 onChanged: (v) => amount = v ?? 0,
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               formKey.currentState!.save();
               try {
-                await _repo.recordSupplierPayment(purchaseId: p.id, amount: amount);
+                await _repo.recordSupplierPayment(
+                    purchaseId: p.id, amount: amount);
                 if (!ctx.mounted) return;
                 Navigator.pop(ctx);
                 _loadAll();
@@ -961,8 +1155,10 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Nom du Commerçant'),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  decoration:
+                      const InputDecoration(labelText: 'Nom du Commerçant'),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Requis' : null,
                   onSaved: (v) => merchantName = v?.trim() ?? '',
                 ),
                 const SizedBox(height: 8),
@@ -973,8 +1169,10 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Modèle / Vêtement (Prêt-à-porter)'),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  decoration: const InputDecoration(
+                      labelText: 'Modèle / Vêtement (Prêt-à-porter)'),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Requis' : null,
                   onSaved: (v) => modelName = v?.trim() ?? '',
                 ),
                 const SizedBox(height: 8),
@@ -982,7 +1180,8 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                   initialValue: '1',
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'Quantité'),
-                  validator: (v) => (int.tryParse(v ?? '') ?? 0) <= 0 ? 'Qté > 0' : null,
+                  validator: (v) =>
+                      (int.tryParse(v ?? '') ?? 0) <= 0 ? 'Qté > 0' : null,
                   onSaved: (v) => qty = int.tryParse(v ?? '') ?? 1,
                 ),
                 const SizedBox(height: 8),
@@ -1003,7 +1202,9 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
@@ -1013,7 +1214,10 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
                 await _repo.createWholesaleOrder(
                   merchantName: merchantName,
                   merchantPhone: merchantPhone,
-                  items: [WholesaleOrderItem(model: modelName, qty: qty, unitPrice: unitPrice)],
+                  items: [
+                    WholesaleOrderItem(
+                        model: modelName, qty: qty, unitPrice: unitPrice)
+                  ],
                   totalAmount: total,
                   advanceAmount: advanceAmount,
                 );
@@ -1047,25 +1251,30 @@ class _MerchantsScreenState extends State<MerchantsScreen> with SingleTickerProv
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Reste à payer actuel: ${formatFcfa(o.reste)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text('Reste à payer actuel: ${formatFcfa(o.reste)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               FormattedNumberField(
                 controller: amountCtrl,
                 label: 'Montant versé (FCFA)',
-                validator: (v) => (v == null || v <= 0) ? 'Montant invalide' : null,
+                validator: (v) =>
+                    (v == null || v <= 0) ? 'Montant invalide' : null,
                 onChanged: (v) => amount = v ?? 0,
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               formKey.currentState!.save();
               try {
-                await _repo.recordWholesalePayment(orderId: o.id, amount: amount);
+                await _repo.recordWholesalePayment(
+                    orderId: o.id, amount: amount);
                 if (!ctx.mounted) return;
                 Navigator.pop(ctx);
                 _loadAll();

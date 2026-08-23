@@ -136,7 +136,9 @@ class ReportPdfService {
                 alignment: pw.Alignment.center,
                 child: logo == null
                     ? pw.Text(
-                        shopName.trim().isNotEmpty ? shopName.trim()[0].toUpperCase() : 'C',
+                        shopName.trim().isNotEmpty
+                            ? shopName.trim()[0].toUpperCase()
+                            : 'C',
                         style: const pw.TextStyle(
                             color: PdfColors.white,
                             fontSize: 26,
@@ -163,10 +165,12 @@ class ReportPdfService {
               ),
               pw.Spacer(),
               pw.Container(
-                padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding:
+                    const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: pw.BoxDecoration(
                   color: PdfColors.grey100,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  borderRadius:
+                      const pw.BorderRadius.all(pw.Radius.circular(8)),
                   border: pw.Border.all(color: PdfColors.grey300, width: 0.8),
                 ),
                 child: pw.Column(
@@ -183,7 +187,8 @@ class ReportPdfService {
                     pw.SizedBox(height: 2),
                     pw.Text(
                       'Période: $periodLabel',
-                      style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey800),
+                      style: const pw.TextStyle(
+                          fontSize: 9, color: PdfColors.grey800),
                     ),
                   ],
                 ),
@@ -202,18 +207,22 @@ class ReportPdfService {
                   padding: const pw.EdgeInsets.all(10),
                   decoration: pw.BoxDecoration(
                     color: PdfColors.grey50,
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(6)),
                     border: pw.Border.all(color: PdfColors.grey300, width: 0.7),
                   ),
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text('CHIFFRE D\'AFFAIRES',
-                          style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                          style: const pw.TextStyle(
+                              fontSize: 8, color: PdfColors.grey700)),
                       pw.SizedBox(height: 4),
                       pw.Text(formatFcfa(r.totalRevenue),
                           style: const pw.TextStyle(
-                              fontSize: 12.5, fontWeight: pw.FontWeight.bold, color: _teal)),
+                              fontSize: 12.5,
+                              fontWeight: pw.FontWeight.bold,
+                              color: _teal)),
                     ],
                   ),
                 ),
@@ -224,14 +233,16 @@ class ReportPdfService {
                   padding: const pw.EdgeInsets.all(10),
                   decoration: pw.BoxDecoration(
                     color: PdfColors.grey50,
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(6)),
                     border: pw.Border.all(color: PdfColors.grey300, width: 0.7),
                   ),
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text('TOTAL DES CHARGES',
-                          style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                          style: const pw.TextStyle(
+                              fontSize: 8, color: PdfColors.grey700)),
                       pw.SizedBox(height: 4),
                       pw.Text(formatFcfa(r.totalCosts),
                           style: const pw.TextStyle(
@@ -250,7 +261,8 @@ class ReportPdfService {
                     color: r.netProfit >= 0
                         ? const PdfColor.fromInt(0xFFE6F4EA)
                         : const PdfColor.fromInt(0xFFFCE8E6),
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(6)),
                     border: pw.Border.all(
                       color: r.netProfit >= 0
                           ? const PdfColor.fromInt(0xFF137333)
@@ -285,16 +297,31 @@ class ReportPdfService {
 
           // Section 1: Financial Details
           _sectionHeader('1. L\'argent de la boutique'),
-          _financialRow('Argent reçu — commandes des clients', formatFcfa(r.ordersRevenue), isSub: true),
-          _financialRow('Argent reçu — ventes en boutique', formatFcfa(r.salesRevenue), isSub: true),
-          _financialRow('Argent reçu — ventes en gros', formatFcfa(r.wholesaleRevenue), isSub: true),
-          _financialRow('TOTAL DES REVENUS (CHIFFRE D\'AFFAIRES)', formatFcfa(r.totalRevenue), bold: true, color: _teal),
+          _financialRow('Argent reçu — commandes des clients',
+              formatFcfa(r.ordersRevenue),
+              isSub: true),
+          _financialRow(
+              'Argent reçu — ventes en boutique', formatFcfa(r.salesRevenue),
+              isSub: true),
+          _financialRow(
+              'Argent reçu — ventes en gros', formatFcfa(r.wholesaleRevenue),
+              isSub: true),
+          _financialRow('TOTAL DES REVENUS (CHIFFRE D\'AFFAIRES)',
+              formatFcfa(r.totalRevenue),
+              bold: true, color: _teal),
           pw.SizedBox(height: 6),
-          _financialRow('Achat de la marchandise vendue', formatFcfa(r.cogs), isSub: true),
-          _financialRow('Main d\'œuvre couture (Rémunération à la pièce)', formatFcfa(r.tailorWages), isSub: true),
-          _financialRow('Salaires du personnel', formatFcfa(r.salaries), isSub: true),
-          _financialRow('Dépenses & Frais d\'exploitation du salon', formatFcfa(r.expenses), isSub: true),
-          _financialRow('TOTAL DE L\'ARGENT SORTI', formatFcfa(r.totalCosts), bold: true, color: const PdfColor.fromInt(0xFFC5221F)),
+          _financialRow('Achat de la marchandise vendue', formatFcfa(r.cogs),
+              isSub: true),
+          _financialRow('Main d\'œuvre couture (Rémunération à la pièce)',
+              formatFcfa(r.tailorWages),
+              isSub: true),
+          _financialRow('Salaires du personnel', formatFcfa(r.salaries),
+              isSub: true),
+          _financialRow('Dépenses & Frais d\'exploitation du salon',
+              formatFcfa(r.expenses),
+              isSub: true),
+          _financialRow('TOTAL DE L\'ARGENT SORTI', formatFcfa(r.totalCosts),
+              bold: true, color: const PdfColor.fromInt(0xFFC5221F)),
           pw.SizedBox(height: 6),
           pw.Container(
             padding: const pw.EdgeInsets.all(8),
@@ -306,13 +333,18 @@ class ReportPdfService {
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text('CE QUI RESTE À LA BOUTIQUE :',
-                    style: const pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: _teal)),
+                    style: const pw.TextStyle(
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.bold,
+                        color: _teal)),
                 pw.Text(
                   formatFcfa(r.netProfit),
                   style: pw.TextStyle(
                     fontSize: 13,
                     fontWeight: pw.FontWeight.bold,
-                    color: r.netProfit >= 0 ? const PdfColor.fromInt(0xFF137333) : const PdfColor.fromInt(0xFFC5221F),
+                    color: r.netProfit >= 0
+                        ? const PdfColor.fromInt(0xFF137333)
+                        : const PdfColor.fromInt(0xFFC5221F),
                   ),
                 ),
               ],
@@ -326,9 +358,12 @@ class ReportPdfService {
               pw.Expanded(
                 child: pw.Column(
                   children: [
-                    _financialRow('Nouveaux clients', '${r.newClients}', isSub: true),
-                    _financialRow('Clients servis', '${r.servedClients}', isSub: true),
-                    _financialRow('Articles vendus', '${r.productsSoldUnits}', isSub: true),
+                    _financialRow('Nouveaux clients', '${r.newClients}',
+                        isSub: true),
+                    _financialRow('Clients servis', '${r.servedClients}',
+                        isSub: true),
+                    _financialRow('Articles vendus', '${r.productsSoldUnits}',
+                        isSub: true),
                   ],
                 ),
               ),
@@ -336,9 +371,15 @@ class ReportPdfService {
               pw.Expanded(
                 child: pw.Column(
                   children: [
-                    _financialRow('Commandes créées sur la période', '${r.ordersCreated}', isSub: true),
-                    _financialRow('Commandes terminées et livrées', '${r.ordersDelivered}', isSub: true),
-                    _financialRow('Commandes en cours à l\'atelier', '${r.ordersActive}', isSub: true),
+                    _financialRow(
+                        'Commandes créées sur la période', '${r.ordersCreated}',
+                        isSub: true),
+                    _financialRow('Commandes terminées et livrées',
+                        '${r.ordersDelivered}',
+                        isSub: true),
+                    _financialRow(
+                        'Commandes en cours à l\'atelier', '${r.ordersActive}',
+                        isSub: true),
                   ],
                 ),
               ),
@@ -360,10 +401,20 @@ class ReportPdfService {
                 pw.TableRow(
                   decoration: const pw.BoxDecoration(color: _teal),
                   children: <pw.Widget>[
-                    _cell('#', bold: true, color: PdfColors.white, align: pw.TextAlign.center),
-                    _cell('Nom du Tailleur', bold: true, color: PdfColors.white),
-                    _cell('Pièces confectionnées', bold: true, color: PdfColors.white, align: pw.TextAlign.center),
-                    _cell('Montant rémunéré', bold: true, color: PdfColors.white, align: pw.TextAlign.right),
+                    _cell('#',
+                        bold: true,
+                        color: PdfColors.white,
+                        align: pw.TextAlign.center),
+                    _cell('Nom du Tailleur',
+                        bold: true, color: PdfColors.white),
+                    _cell('Pièces confectionnées',
+                        bold: true,
+                        color: PdfColors.white,
+                        align: pw.TextAlign.center),
+                    _cell('Montant rémunéré',
+                        bold: true,
+                        color: PdfColors.white,
+                        align: pw.TextAlign.right),
                   ],
                 ),
                 ...r.topTailors.asMap().entries.map((entry) {
@@ -374,10 +425,12 @@ class ReportPdfService {
                       color: idx % 2 == 0 ? PdfColors.white : PdfColors.grey50,
                     ),
                     children: <pw.Widget>[
-                      _cell('${idx + 1}', align: pw.TextAlign.center, bold: true),
+                      _cell('${idx + 1}',
+                          align: pw.TextAlign.center, bold: true),
                       _cell(t.tailorName, bold: true),
                       _cell('${t.piecesTotal}', align: pw.TextAlign.center),
-                      _cell(formatFcfa(t.amountTotal), align: pw.TextAlign.right, bold: true),
+                      _cell(formatFcfa(t.amountTotal),
+                          align: pw.TextAlign.right, bold: true),
                     ],
                   );
                 }),
@@ -392,11 +445,13 @@ class ReportPdfService {
             children: [
               pw.Text(
                 'Document de gestion confidentiel — $shopName',
-                style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey600),
+                style:
+                    const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey600),
               ),
               pw.Text(
                 'Généré par Couture Pro',
-                style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey600),
+                style:
+                    const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey600),
               ),
             ],
           ),

@@ -19,7 +19,9 @@ class MerchantInvoiceService {
   static Future<Uint8List?> _logoBytes(String? logoUrl) async {
     if (logoUrl != null && logoUrl.isNotEmpty) {
       try {
-        final url = logoUrl.startsWith('http') ? logoUrl : '${ApiClient.baseUrl}$logoUrl';
+        final url = logoUrl.startsWith('http')
+            ? logoUrl
+            : '${ApiClient.baseUrl}$logoUrl';
         final res = await http.get(Uri.parse(url));
         if (res.statusCode == 200) return res.bodyBytes;
       } catch (_) {}
@@ -60,7 +62,9 @@ class MerchantInvoiceService {
                   alignment: pw.Alignment.center,
                   child: logo == null
                       ? pw.Text(
-                          shopName.trim().isNotEmpty ? shopName.trim()[0].toUpperCase() : 'C',
+                          shopName.trim().isNotEmpty
+                              ? shopName.trim()[0].toUpperCase()
+                              : 'C',
                           style: const pw.TextStyle(
                               color: PdfColors.white,
                               fontSize: 26,
@@ -87,10 +91,12 @@ class MerchantInvoiceService {
                 ),
                 pw.Spacer(),
                 pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const pw.EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
                   decoration: pw.BoxDecoration(
                     color: PdfColors.grey100,
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(8)),
                     border: pw.Border.all(color: PdfColors.grey300, width: 0.8),
                   ),
                   child: pw.Column(
@@ -156,27 +162,37 @@ class MerchantInvoiceService {
                       ),
                       if (order.merchantPhone.isNotEmpty)
                         pw.Text('Tél: ${order.merchantPhone}',
-                            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                            style: const pw.TextStyle(
+                                fontSize: 10, color: PdfColors.grey700)),
                     ],
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: <pw.Widget>[
                       pw.Text('Date commande: ${order.orderDate}',
-                          style: const pw.TextStyle(fontSize: 9.5, color: PdfColors.grey800)),
+                          style: const pw.TextStyle(
+                              fontSize: 9.5, color: PdfColors.grey800)),
                       pw.SizedBox(height: 4),
                       pw.Container(
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
                         decoration: pw.BoxDecoration(
-                          color: order.status == 'livre' ? const PdfColor.fromInt(0xFFE6F4EA) : const PdfColor.fromInt(0xFFFEF7E0),
-                          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                          color: order.status == 'livre'
+                              ? const PdfColor.fromInt(0xFFE6F4EA)
+                              : const PdfColor.fromInt(0xFFFEF7E0),
+                          borderRadius:
+                              const pw.BorderRadius.all(pw.Radius.circular(4)),
                         ),
                         child: pw.Text(
-                          order.status == 'livre' ? 'Livré' : 'En cours de préparation',
+                          order.status == 'livre'
+                              ? 'Livré'
+                              : 'En cours de préparation',
                           style: pw.TextStyle(
                             fontSize: 9,
                             fontWeight: pw.FontWeight.bold,
-                            color: order.status == 'livre' ? const PdfColor.fromInt(0xFF137333) : const PdfColor.fromInt(0xFFB06000),
+                            color: order.status == 'livre'
+                                ? const PdfColor.fromInt(0xFF137333)
+                                : const PdfColor.fromInt(0xFFB06000),
                           ),
                         ),
                       ),
@@ -200,10 +216,20 @@ class MerchantInvoiceService {
                 pw.TableRow(
                   decoration: const pw.BoxDecoration(color: _teal),
                   children: <pw.Widget>[
-                    _cell('Modèle / Produit', bold: true, color: PdfColors.white),
-                    _cell('Qté', bold: true, color: PdfColors.white, align: pw.TextAlign.center),
-                    _cell('Prix Unitaire', bold: true, color: PdfColors.white, align: pw.TextAlign.right),
-                    _cell('Total', bold: true, color: PdfColors.white, align: pw.TextAlign.right),
+                    _cell('Modèle / Produit',
+                        bold: true, color: PdfColors.white),
+                    _cell('Qté',
+                        bold: true,
+                        color: PdfColors.white,
+                        align: pw.TextAlign.center),
+                    _cell('Prix Unitaire',
+                        bold: true,
+                        color: PdfColors.white,
+                        align: pw.TextAlign.right),
+                    _cell('Total',
+                        bold: true,
+                        color: PdfColors.white,
+                        align: pw.TextAlign.right),
                   ],
                 ),
                 ...order.items.asMap().entries.map(
@@ -212,13 +238,16 @@ class MerchantInvoiceService {
                     final item = entry.value;
                     return pw.TableRow(
                       decoration: pw.BoxDecoration(
-                        color: idx % 2 == 0 ? PdfColors.white : PdfColors.grey50,
+                        color:
+                            idx % 2 == 0 ? PdfColors.white : PdfColors.grey50,
                       ),
                       children: <pw.Widget>[
                         _cell(item.model, bold: true),
                         _cell('${item.qty}', align: pw.TextAlign.center),
-                        _cell(formatFcfa(item.unitPrice), align: pw.TextAlign.right),
-                        _cell(formatFcfa(item.total), bold: true, align: pw.TextAlign.right),
+                        _cell(formatFcfa(item.unitPrice),
+                            align: pw.TextAlign.right),
+                        _cell(formatFcfa(item.total),
+                            bold: true, align: pw.TextAlign.right),
                       ],
                     );
                   },
@@ -236,7 +265,8 @@ class MerchantInvoiceService {
                   padding: const pw.EdgeInsets.all(12),
                   decoration: pw.BoxDecoration(
                     color: PdfColors.grey100,
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(8)),
                     border: pw.Border.all(color: PdfColors.grey300, width: 0.8),
                   ),
                   child: pw.Column(
@@ -244,16 +274,21 @@ class MerchantInvoiceService {
                       pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
-                          pw.Text('Total Commande:', style: const pw.TextStyle(fontSize: 10)),
+                          pw.Text('Total Commande:',
+                              style: const pw.TextStyle(fontSize: 10)),
                           pw.Text(formatFcfa(order.totalAmount),
-                              style: const pw.TextStyle(fontSize: 10.5, fontWeight: pw.FontWeight.bold, color: PdfColors.grey900)),
+                              style: const pw.TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.grey900)),
                         ],
                       ),
                       pw.SizedBox(height: 4),
                       pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
-                          pw.Text('Acomptes reçus:', style: const pw.TextStyle(fontSize: 10)),
+                          pw.Text('Acomptes reçus:',
+                              style: const pw.TextStyle(fontSize: 10)),
                           pw.Text(
                             formatFcfa(order.advanceAmount + order.paidTotal),
                             style: const pw.TextStyle(
@@ -266,7 +301,8 @@ class MerchantInvoiceService {
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.symmetric(vertical: 6),
-                        child: pw.Divider(color: PdfColors.grey300, thickness: 0.5),
+                        child: pw.Divider(
+                            color: PdfColors.grey300, thickness: 0.5),
                       ),
                       pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -284,7 +320,9 @@ class MerchantInvoiceService {
                             style: pw.TextStyle(
                               fontSize: 13,
                               fontWeight: pw.FontWeight.bold,
-                              color: order.reste > 0 ? const PdfColor.fromInt(0xFFC5221F) : _teal,
+                              color: order.reste > 0
+                                  ? const PdfColor.fromInt(0xFFC5221F)
+                                  : _teal,
                             ),
                           ),
                         ],
@@ -300,7 +338,8 @@ class MerchantInvoiceService {
             pw.Center(
               child: pw.Text(
                 'Merci pour votre confiance commerciale ! — $shopName | Couture Pro',
-                style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey600),
+                style:
+                    const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey600),
               ),
             ),
           ],
