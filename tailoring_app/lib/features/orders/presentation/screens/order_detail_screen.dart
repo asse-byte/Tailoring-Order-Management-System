@@ -6,17 +6,16 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/garment_types.dart';
 import '../../../../core/network/api_client.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/context_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/utils/whatsapp.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
-import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/primary_button.dart';
-import '../../../../core/widgets/section_header.dart';
-import '../../../../core/widgets/status_badge.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
 import '../../../staff/data/staff_repository.dart';
@@ -61,8 +60,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     try {
       final List<StaffContact> all = await _staffRepo.listContacts();
       if (!mounted) return;
-      setState(() => _tailors =
-          all.where((StaffContact s) => s.type == 'couturier' && s.active).toList());
+      setState(() => _tailors = all
+          .where((StaffContact s) => s.type == 'couturier' && s.active)
+          .toList());
     } catch (_) {/* optional */}
   }
 
@@ -91,7 +91,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: error ? AppColors.error : AppColors.success,
+        backgroundColor: error
+            ? CouturePalette.terracottaDeep
+            : CoutureScheme.of(context).goodInk,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -104,7 +106,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         <({String key, String label, String hint})>[
       (key: AppConstants.statusEnAttente, label: 'En attente', hint: ''),
       (key: AppConstants.statusEnCours, label: 'En cours', hint: ''),
-      (key: AppConstants.statusTermine, label: 'Terminé', hint: 'Prêt à livrer'),
+      (
+        key: AppConstants.statusTermine,
+        label: 'Terminé',
+        hint: 'Prêt à livrer'
+      ),
       (
         key: AppConstants.statusLivre,
         label: 'Livré',
@@ -131,7 +137,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ...options.map((o) => RadioListTile<String>(
                       title: Row(
                         children: <Widget>[
-                          StatusBadge(status: o.key, compact: true),
+                          CoutureStatusPill(status: o.key, compact: true),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(o.hint.isEmpty ? o.label : o.hint),
@@ -214,7 +220,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
           FilledButton.icon(
             onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.chat_rounded, size: 18),
+            icon: const Icon(CoutureIcons.whatsapp, size: 18),
             label: const Text('Envoyer'),
           ),
         ],
@@ -275,7 +281,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success,
+              backgroundColor: CoutureScheme.of(context).goodInk,
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(ctx, true),
@@ -300,7 +306,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> _editDetails() async {
     final TailoringOrder order = _order!;
     final formKey = GlobalKey<FormState>();
-    final advanceCtrl = TextEditingController(text: formatThousands(order.advance));
+    final advanceCtrl =
+        TextEditingController(text: formatThousands(order.advance));
     final fabricCtrl = TextEditingController(text: order.fabric);
     final notesCtrl = TextEditingController(text: order.notes);
     DateTime? expectedDate = order.expectedDate;
@@ -336,7 +343,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       initialValue: tailorId,
                       decoration: const InputDecoration(
                         labelText: 'Couturier',
-                        prefixIcon: Icon(Icons.badge_outlined, size: 20),
+                        prefixIcon: Icon(CoutureIcons.scissors, size: 20),
                       ),
                       items: <DropdownMenuItem<String?>>[
                         const DropdownMenuItem<String?>(
@@ -355,7 +362,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: ctx,
-                          initialDate: expectedDate ?? DateTime.now().add(const Duration(days: 7)),
+                          initialDate: expectedDate ??
+                              DateTime.now().add(const Duration(days: 7)),
                           firstDate: DateTime(2020),
                           lastDate: DateTime(2100),
                         );
@@ -365,14 +373,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       },
                       child: InputDecorator(
                         decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.event_outlined, size: 20),
+                          prefixIcon:
+                              Icon(CoutureIcons.calendarBlank, size: 20),
                         ),
                         child: Text(
                           expectedDate != null
                               ? DateFormatter.date(expectedDate!, locale: 'fr')
                               : 'Choisir une date de livraison',
                           style: TextStyle(
-                            color: expectedDate != null ? context.cTextPrimary : AppColors.textMuted,
+                            color: expectedDate != null
+                                ? CoutureScheme.of(context).ink
+                                : CoutureScheme.of(context).inkFaint,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -389,7 +400,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     FormattedNumberField(
                       controller: advanceCtrl,
                       label: 'Avance (FCFA)',
-                      validator: (v) => (v == null || v < 0) ? 'Invalide' : null,
+                      validator: (v) =>
+                          (v == null || v < 0) ? 'Invalide' : null,
                     ),
                     const SizedBox(height: 12),
                     AppTextField(
@@ -462,7 +474,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 decoration: const InputDecoration(labelText: 'Type'),
                 items: () {
                   final Map<String, dynamic> customForGender =
-                      (_customGarments[gender] as Map<String, dynamic>?) ?? <String, dynamic>{};
+                      (_customGarments[gender] as Map<String, dynamic>?) ??
+                          <String, dynamic>{};
                   final List<String> customList = customForGender.keys.toList();
 
                   final List<String> choices = <String>[
@@ -474,7 +487,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   }
                   return choices;
                 }()
-                    .map((String g) => DropdownMenuItem<String>(value: g, child: Text(g)))
+                    .map((String g) =>
+                        DropdownMenuItem<String>(value: g, child: Text(g)))
                     .toList(growable: false),
                 onChanged: (String? v) => garment = v ?? garment,
               ),
@@ -531,7 +545,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> _correctLine(OrderItemLine line) async {
     final formKey = GlobalKey<FormState>();
     final qtyCtrl = TextEditingController(text: line.quantity.toString());
-    final priceCtrl = TextEditingController(text: formatThousands(line.unitPrice));
+    final priceCtrl =
+        TextEditingController(text: formatThousands(line.unitPrice));
     final reasonCtrl = TextEditingController();
     bool voided = false;
 
@@ -562,8 +577,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   controller: priceCtrl,
                   label: 'Prix unitaire (FCFA)',
                   enabled: !voided,
-                  validator: (v) =>
-                      (!voided && (v == null || v < 0)) ? 'Prix invalide' : null,
+                  validator: (v) => (!voided && (v == null || v < 0))
+                      ? 'Prix invalide'
+                      : null,
                 ),
                 const SizedBox(height: 4),
                 CheckboxListTile(
@@ -574,7 +590,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
                 TextFormField(
                   controller: reasonCtrl,
-                  decoration: const InputDecoration(labelText: 'Motif (obligatoire)'),
+                  decoration:
+                      const InputDecoration(labelText: 'Motif (obligatoire)'),
                   validator: (v) =>
                       (v == null || v.trim().isEmpty) ? 'Motif requis' : null,
                 ),
@@ -636,13 +653,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               autofocus: true,
               decoration: const InputDecoration(
                 hintText: 'Numéro de téléphone',
-                prefixIcon: Icon(Icons.phone),
+                prefixIcon: Icon(CoutureIcons.phone),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () {
               var input = ctrl.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
@@ -763,7 +782,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 child: const Text('Retour'),
               ),
               FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+                style: FilledButton.styleFrom(
+                    backgroundColor: CouturePalette.terracottaDeep),
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: const Text('Oui, annuler'),
               ),
@@ -786,60 +806,155 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Détails de la commande')),
-      body: _loading
+    return CoutureScaffold(
+      title: 'La commande',
+      subtitle: _order?.clientName,
+      child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _order == null
-              ? EmptyState(
+              ? CoutureEmpty(
+                  icon: CoutureIcons.warningCircle,
+                  tone: CoutureTone.urgent,
                   title: 'Commande introuvable',
-                  message: _error ?? 'Cette commande a peut-être été supprimée.',
-                  icon: Icons.error_outline,
+                  message: _error == null
+                      ? 'Elle a peut-être été annulée.'
+                      : 'Elle a peut-être été annulée, ou la connexion a coupé.',
                 )
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                    padding: const EdgeInsets.fromLTRB(
+                        CouturePalette.s4,
+                        CouturePalette.s4,
+                        CouturePalette.s4,
+                        CouturePalette.s8),
                     children: <Widget>[
                       _header(_order!),
-                      const SizedBox(height: 20),
-                      SectionHeader(
-                        title: 'Articles',
-                        action: TextButton.icon(
+                      const SizedBox(height: CouturePalette.s4),
+                      _moneyCard(_order!),
+                      const SizedBox(height: CouturePalette.s6),
+                      _sectionRow(
+                        'LES ARTICLES',
+                        TextButton.icon(
                           onPressed: _addLine,
-                          icon: const Icon(Icons.add_rounded, size: 18),
+                          icon: const Icon(CoutureIcons.plus, size: 16),
                           label: const Text('Ajouter'),
+                          style: TextButton.styleFrom(
+                              foregroundColor:
+                                  CoutureScheme.of(context).iconInk),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: CouturePalette.s2),
                       _lineItemsCard(_order!),
-                      const SizedBox(height: 20),
-                      const SectionHeader(title: 'Infos de commande'),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: CouturePalette.s6),
+                      _section('LA COMMANDE'),
+                      const SizedBox(height: CouturePalette.s2),
                       _infoCard(_order!),
                       if (_order!.modelMedia.isNotEmpty) ...<Widget>[
-                        const SizedBox(height: 20),
-                        const SectionHeader(title: 'Modèle du client (Photos & Vidéos)'),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: CouturePalette.s6),
+                        _section('LE MODÈLE DU CLIENT'),
+                        const SizedBox(height: CouturePalette.s2),
                         _modelMediaCard(_order!),
                       ],
                       if (_order!.notes.isNotEmpty) ...<Widget>[
-                        const SizedBox(height: 20),
-                        const SectionHeader(title: 'Notes'),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: CouturePalette.s6),
+                        _section('NOTES'),
+                        const SizedBox(height: CouturePalette.s2),
                         _noteBlock(_order!.notes),
                       ],
-                      const SizedBox(height: 20),
-                      const SectionHeader(title: 'Mesures de référence'),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: CouturePalette.s6),
+                      _section('LES MESURES'),
+                      const SizedBox(height: CouturePalette.s2),
                       _measurements(_order!.measurementsSnapshot),
-                      const SizedBox(height: 24),
-                      const SectionHeader(title: 'Actions'),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: CouturePalette.s6),
+                      _section('CE QUE VOUS POUVEZ FAIRE'),
+                      const SizedBox(height: CouturePalette.s3),
                       _actions(auth),
                     ],
                   ),
                 ),
+    );
+  }
+
+  Widget _section(String label) => Text(label,
+      style: CouturePalette.sectionLabel
+          .copyWith(color: CoutureScheme.of(context).inkFaint));
+
+  Widget _sectionRow(String label, Widget action) => Row(
+        children: <Widget>[
+          Expanded(child: _section(label)),
+          action,
+        ],
+      );
+
+  /// What the money is doing, in one block. It used to be three rows buried
+  /// among "Couturier" and "Tissu" in the info list — and it is the first thing
+  /// anyone asks about at the counter.
+  Widget _moneyCard(TailoringOrder order) {
+    final CoutureScheme c = CoutureScheme.of(context);
+    final bool settled = order.reste <= 0;
+    return CoutureCard(
+      child: Column(
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text('Prix de la commande',
+                    style: TextStyle(fontSize: 13.5, color: c.inkSoft)),
+              ),
+              Text(formatFcfa(order.total),
+                  style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w700, color: c.ink)),
+            ],
+          ),
+          const SizedBox(height: CouturePalette.s2),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text('Déjà payé',
+                    style: TextStyle(fontSize: 13.5, color: c.inkSoft)),
+              ),
+              Text(formatFcfa(order.advance),
+                  style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                      color: c.ink)),
+            ],
+          ),
+          const SizedBox(height: CouturePalette.s3),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+                horizontal: CouturePalette.s3, vertical: 10),
+            decoration: BoxDecoration(
+              color: settled ? c.goodWash : c.urgentWash,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                    settled
+                        ? CoutureIcons.checkCircle
+                        : CoutureIcons.warningCircle,
+                    size: 17,
+                    color: settled ? c.goodInk : c.urgentText),
+                const SizedBox(width: CouturePalette.s2),
+                Expanded(
+                  child: Text(
+                    settled
+                        ? 'Tout est payé'
+                        : 'Le client doit encore ${formatFcfa(order.reste)}',
+                    style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: settled ? c.goodInk : c.urgentText),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -886,7 +1001,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                            icon: const Icon(CoutureIcons.close,
+                                color: Colors.white, size: 26),
                             onPressed: () => Navigator.pop(ctx),
                           ),
                         ],
@@ -910,17 +1026,24 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           child: const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 36),
+                              Icon(CoutureIcons.play,
+                                  color: Colors.white, size: 34),
                               SizedBox(height: 4),
-                              Text('Vidéo', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                              Text('Vidéo',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold)),
                             ],
                           ),
                         )
                       : CachedNetworkImage(
                           imageUrl: resolvedUrl,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                          errorWidget: (_, __, ___) => const Icon(Icons.broken_image_rounded),
+                          placeholder: (_, __) => const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2)),
+                          errorWidget: (_, __, ___) =>
+                              const Icon(CoutureIcons.images),
                         ),
                 ),
               ),
@@ -938,83 +1061,107 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         Row(
           children: <Widget>[
             Expanded(
-              child: Text(order.garmentType,
-                  style: Theme.of(context).textTheme.displayMedium),
+              child: Text(
+                order.garmentType,
+                style: TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w600,
+                  color: CoutureScheme.of(context).ink,
+                  height: 1.2,
+                ),
+              ),
             ),
-            StatusBadge(status: order.status),
+            const SizedBox(width: CouturePalette.s2),
+            CoutureStatusPill(status: order.status),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         Text(
-          'Client : ${order.clientName}'
+          '${order.clientName}'
           '${order.clientPhone.isNotEmpty ? ' · ${order.clientPhone}' : ''}',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(color: AppColors.textSecondary),
+          style: TextStyle(
+              fontSize: 13.5, color: CoutureScheme.of(context).inkSoft),
         ),
       ],
     );
   }
 
   Widget _lineItemsCard(TailoringOrder order) {
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
+    final CoutureScheme c = CoutureScheme.of(context);
+    return CoutureCard(
+      padding: const EdgeInsets.fromLTRB(CouturePalette.s3, CouturePalette.s2,
+          CouturePalette.s2, CouturePalette.s2),
       child: Column(
         children: <Widget>[
           for (final line in order.items)
-            ListTile(
-              dense: true,
-              title: Text(
-                line.garmentType,
-                style: TextStyle(
-                  decoration: line.voided ? TextDecoration.lineThrough : null,
-                  color: line.voided ? AppColors.textMuted : null,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Text(
-                '${line.quantity} × ${formatFcfa(line.unitPrice)}'
-                '${line.corrected ? '  · corrigé' : ''}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 7),
+              child: Row(
                 children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          line.garmentType,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            decoration:
+                                line.voided ? TextDecoration.lineThrough : null,
+                            color: line.voided ? c.inkFaint : c.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          line.voided
+                              ? 'Enlevé de la commande'
+                              : '${line.quantity} × ${formatFcfa(line.unitPrice)}'
+                                  '${line.corrected ? ' · corrigé' : ''}',
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              color: line.voided ? c.urgentText : c.inkSoft),
+                        ),
+                      ],
+                    ),
+                  ),
                   Text(
                     formatFcfa(line.lineTotal),
                     style: TextStyle(
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w700,
-                      color: line.voided ? AppColors.textMuted : AppColors.primary,
+                      color: line.voided ? c.inkFaint : c.ink,
                     ),
                   ),
                   if (!line.voided)
                     IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      icon:
+                          Icon(CoutureIcons.pencil, size: 17, color: c.inkSoft),
                       tooltip: 'Corriger',
                       onPressed: () => _correctLine(line),
-                    ),
+                    )
+                  else
+                    const SizedBox(width: CouturePalette.s6),
                 ],
               ),
             ),
-          const Divider(height: 1),
+          Divider(height: 18, color: c.line),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+            padding: const EdgeInsets.fromLTRB(0, 2, CouturePalette.s2, 4),
             child: Row(
               children: <Widget>[
-                Text('Total', style: Theme.of(context).textTheme.titleMedium),
+                Text('Total',
+                    style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                        color: c.inkSoft)),
                 const Spacer(),
                 Text(
                   formatFcfa(order.total),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
+                  style: TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w700, color: c.ink),
                 ),
               ],
             ),
@@ -1030,76 +1177,63 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       (
         label: 'Couturier',
         value: (order.tailorName == null || order.tailorName!.isEmpty)
-            ? 'Non assigné'
+            ? 'Pas encore choisi'
             : order.tailorName!,
-        icon: Icons.badge_outlined
+        icon: CoutureIcons.scissors
       ),
       (
         label: 'Tissu',
         value: order.fabric.isEmpty ? '—' : order.fabric,
-        icon: Icons.texture_rounded
+        icon: CoutureIcons.stack
       ),
       (
-        label: 'Début',
+        label: 'Commencée le',
         value: order.startDate != null
             ? DateFormatter.date(order.startDate!, locale: 'fr')
             : '—',
-        icon: Icons.play_arrow_outlined
+        icon: CoutureIcons.calendarBlank
       ),
       (
-        label: 'Livraison prévue',
+        label: 'À rendre le',
         value: order.expectedDate != null
             ? DateFormatter.date(order.expectedDate!, locale: 'fr')
             : '—',
-        icon: Icons.event_outlined
+        icon: CoutureIcons.calendarCheck
       ),
       if (order.deliveredDate != null)
         (
-          label: 'Livrée le',
+          label: 'Remise le',
           value: DateFormatter.date(order.deliveredDate!, locale: 'fr'),
-          icon: Icons.local_shipping_outlined
+          icon: CoutureIcons.truck
         ),
-      (label: 'Total', value: formatFcfa(order.total), icon: Icons.payments_outlined),
-      (
-        label: 'Avance',
-        value: formatFcfa(order.advance),
-        icon: Icons.account_balance_wallet_outlined
-      ),
-      (label: 'Reste', value: formatFcfa(order.reste), icon: Icons.pending_outlined),
     ];
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
+    final CoutureScheme c = CoutureScheme.of(context);
+    return CoutureCard(
       child: Column(
         children: <Widget>[
           for (int i = 0; i < rows.length; i++) ...<Widget>[
             Row(
               children: <Widget>[
-                Icon(rows[i].icon, size: 18, color: AppColors.primary),
-                const SizedBox(width: 12),
+                Icon(rows[i].icon, size: 17, color: c.iconInk),
+                const SizedBox(width: CouturePalette.s3),
                 Expanded(
                   child: Text(rows[i].label,
-                      style: Theme.of(context).textTheme.bodySmall),
+                      style: TextStyle(fontSize: 13, color: c.inkSoft)),
                 ),
                 Flexible(
                   child: Text(
                     rows[i].value,
                     textAlign: TextAlign.right,
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: c.ink),
                   ),
                 ),
               ],
             ),
-            if (i != rows.length - 1)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 10),
-                child: Divider(height: 1),
-              ),
+            if (i != rows.length - 1) Divider(height: 20, color: c.line),
           ],
         ],
       ),
@@ -1107,15 +1241,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Widget _noteBlock(String text) {
+    final CoutureScheme c = CoutureScheme.of(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(CouturePalette.s3 + 2),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkSurfaceAlt : AppColors.surfaceAlt,
+        color: c.quiet,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).dividerColor),
       ),
-      child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+      child: Text(text,
+          style: TextStyle(fontSize: 13.5, height: 1.45, color: c.inkList)),
     );
   }
 
@@ -1125,8 +1260,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     snapshot.forEach((garment, values) {
       if (values is! Map || values.isEmpty) return;
       sections.add(Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(garment, style: Theme.of(context).textTheme.titleSmall),
+        padding: const EdgeInsets.only(bottom: CouturePalette.s2),
+        child: Text(garment,
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: CoutureScheme.of(context).ink)),
       ));
       sections.add(Wrap(
         spacing: 10,
@@ -1134,20 +1273,25 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         children: values.entries
             .map<Widget>((e) => Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardTheme.color,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Theme.of(context).dividerColor),
-                    ),
+                      horizontal: CouturePalette.s3, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: CoutureScheme.of(context).card,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: CoutureScheme.of(context).line),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text('${e.key}',
-                          style: Theme.of(context).textTheme.bodySmall),
-                      const SizedBox(height: 4),
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              color: CoutureScheme.of(context).inkFaint)),
+                      const SizedBox(height: 3),
                       Text('${e.value}',
-                          style: Theme.of(context).textTheme.titleMedium),
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: CoutureScheme.of(context).ink)),
                     ],
                   ),
                 ))
@@ -1156,81 +1300,100 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       sections.add(const SizedBox(height: 12));
     });
     if (sections.isEmpty) {
-      return Text('Aucune mesure enregistrée pour ce client.',
-          style: Theme.of(context).textTheme.bodySmall);
+      return Text('Aucune mesure notée pour ce client.',
+          style: TextStyle(
+              fontSize: 13, color: CoutureScheme.of(context).inkFaint));
     }
     return Column(
         crossAxisAlignment: CrossAxisAlignment.start, children: sections);
   }
 
   Widget _actions(AuthProvider auth) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          if (_order != null && _order!.reste > 0) ...<Widget>[
-            ElevatedButton.icon(
-              icon: const Icon(Icons.check_circle_outline_rounded),
-              label: Text('Marquer comme soldé (${formatFcfa(_order!.reste)})'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: _markAsPaid,
+    final CoutureScheme c = CoutureScheme.of(context);
+    final ButtonStyle outlined = OutlinedButton.styleFrom(
+      foregroundColor: c.inkList,
+      side: BorderSide(color: c.line),
+      minimumSize: const Size.fromHeight(CouturePalette.minTouch),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // Taking the rest of the money is the action of this screen whenever
+        // there is money left to take, so it is the only filled button.
+        if (_order != null && _order!.reste > 0) ...<Widget>[
+          FilledButton.icon(
+            icon: const Icon(CoutureIcons.checkCircle, size: 20),
+            label: Text('Le client a payé ${formatFcfa(_order!.reste)}',
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            style: FilledButton.styleFrom(
+              backgroundColor: c.urgentInk,
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(54),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15)),
             ),
-            const SizedBox(height: 10),
-          ],
-          PrimaryButton(
-            label: 'Modifier le statut',
-            icon: Icons.timeline_rounded,
-            onPressed: _changeStatus,
+            onPressed: _markAsPaid,
           ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.edit_outlined),
-            label: const Text('Modifier couturier, avance & notes'),
-            onPressed: _editDetails,
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.picture_as_pdf_outlined),
-                  label: const Text('Facture PDF (WhatsApp)', style: TextStyle(fontSize: 12)),
-                  onPressed: _shareInvoice,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
-                  label: const Text('Facture Textuelle', style: TextStyle(fontSize: 12)),
-                  onPressed: _sendWhatsAppText,
-                ),
-              ),
-            ],
-          ),
-          // Cancelling is open to both roles since the owner's decision of
-          // 2026-08-23. The order is archived, never erased, and the row
-          // records who cancelled it (migration 025).
-          const SizedBox(height: 10),
-          TextButton.icon(
-            icon: const Icon(Icons.block_rounded),
-            label: const Text('Annuler cette commande'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            onPressed: _confirmDelete,
-          ),
+          const SizedBox(height: CouturePalette.s2 + 2),
         ],
-      ),
+        FilledButton.icon(
+          icon: const Icon(CoutureIcons.needle, size: 19),
+          label: const Text('Où en est la commande ?',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          style: FilledButton.styleFrom(
+            backgroundColor: c.iconInk,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(52),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          ),
+          onPressed: _changeStatus,
+        ),
+        const SizedBox(height: CouturePalette.s2 + 2),
+        OutlinedButton.icon(
+          style: outlined,
+          icon: const Icon(CoutureIcons.pencil, size: 18),
+          label: const Text('Couturier, avance et notes'),
+          onPressed: _editDetails,
+        ),
+        const SizedBox(height: CouturePalette.s2 + 2),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: OutlinedButton.icon(
+                style: outlined,
+                icon: const Icon(CoutureIcons.printer, size: 18),
+                label: const Text('Facture', style: TextStyle(fontSize: 13)),
+                onPressed: _shareInvoice,
+              ),
+            ),
+            const SizedBox(width: CouturePalette.s2),
+            Expanded(
+              child: OutlinedButton.icon(
+                style: outlined,
+                icon: Icon(CoutureIcons.whatsapp, size: 18, color: c.goodInk),
+                label: const Text('WhatsApp', style: TextStyle(fontSize: 13)),
+                onPressed: _sendWhatsAppText,
+              ),
+            ),
+          ],
+        ),
+        // Cancelling is open to both roles since the owner's decision of
+        // 2026-08-23. The order is archived, never erased, and the row
+        // records who cancelled it (migration 025).
+        const SizedBox(height: CouturePalette.s2 + 2),
+        TextButton.icon(
+          icon: const Icon(CoutureIcons.prohibit, size: 18),
+          label: const Text('Annuler cette commande'),
+          style: TextButton.styleFrom(
+              foregroundColor: c.urgentText,
+              minimumSize: const Size.fromHeight(CouturePalette.minTouch)),
+          onPressed: _confirmDelete,
+        ),
+      ],
     );
   }
 }
