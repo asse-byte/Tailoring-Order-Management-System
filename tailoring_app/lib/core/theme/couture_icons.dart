@@ -49,6 +49,7 @@ class CoutureIcons {
   // ---- actions --------------------------------------------------------------
   static const IconData plusCircle = IconData(0xe3d6, fontFamily: _family);
   static const IconData plus = IconData(0xe3d4, fontFamily: _family);
+  static const IconData minus = IconData(0xe32a, fontFamily: _family);
   static const IconData magnifyingGlass = IconData(0xe30c, fontFamily: _family);
   static const IconData signOut = IconData(0xe42a, fontFamily: _family);
   static const IconData close = IconData(0xe4f6, fontFamily: _family);
@@ -84,6 +85,21 @@ class CoutureIcons {
   static const IconData truck = IconData(0xe4b4, fontFamily: _family);
   static const IconData prohibit = IconData(0xe3de, fontFamily: _family);
   static const IconData warningCircle = IconData(0xe4e2, fontFamily: _family);
+
+  // ---- the shop's own product types -----------------------------------------
+  // The manager invents the types (Parfums, Montres, Bonnets…) and picks one of
+  // these glyphs for each. Concrete objects, never abstract shapes: a short list
+  // of recognisable things is easier to choose from than a long list of ideas.
+  static const IconData sprayBottle = IconData(0xe7e4, fontFamily: _family);
+  static const IconData sneaker = IconData(0xe80c, fontFamily: _family);
+  static const IconData stack = IconData(0xe466, fontFamily: _family);
+  static const IconData watch = IconData(0xe4e6, fontFamily: _family);
+  static const IconData baseballCap = IconData(0xea28, fontFamily: _family);
+  static const IconData handbag = IconData(0xe29c, fontFamily: _family);
+  static const IconData eyeglasses = IconData(0xe7ba, fontFamily: _family);
+  static const IconData diamond = IconData(0xe1ec, fontFamily: _family);
+  static const IconData tShirt = IconData(0xe670, fontFamily: _family);
+  static const IconData tag = IconData(0xe478, fontFamily: _family);
 
   // ---- management -----------------------------------------------------------
   static const IconData wallet = IconData(0xe68a, fontFamily: _family);
