@@ -4,7 +4,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/network/api_client.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_bits.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
@@ -77,7 +80,9 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: error ? AppColors.error : AppColors.success,
+        backgroundColor: error
+            ? CouturePalette.terracottaDeep
+            : CoutureScheme.of(context).goodInk,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -163,14 +168,16 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        const Icon(Icons.collections_rounded, color: AppColors.primary, size: 24),
+                        Icon(CoutureIcons.images,
+                            color: CoutureScheme.of(ctx).iconInk, size: 22),
                         const SizedBox(width: 10),
                         Text(
-                          'Nouveau modèle (Mon Album)',
-                          style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                              ),
+                          'Nouveau modèle',
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w600,
+                            color: CoutureScheme.of(ctx).ink,
+                          ),
                         ),
                       ],
                     ),
@@ -180,7 +187,7 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Nom du modèle *',
                         hintText: 'ex: Robe Bazin Deluxe',
-                        prefixIcon: Icon(Icons.checkroom_rounded),
+                        prefixIcon: Icon(CoutureIcons.coatHanger),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -189,7 +196,7 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Type de tissu',
                         hintText: 'ex: Bazin Getzner / Soie',
-                        prefixIcon: Icon(Icons.texture_rounded),
+                        prefixIcon: Icon(CoutureIcons.stack),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -197,7 +204,7 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                       controller: priceCtrl,
                       label: 'Prix estimé / Confection (FCFA)',
                       hint: '0',
-                      prefixIcon: Icons.payments_rounded,
+                      prefixIcon: CoutureIcons.wallet,
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -205,13 +212,16 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                       maxLines: 2,
                       decoration: const InputDecoration(
                         labelText: 'Description / Notes',
-                        prefixIcon: Icon(Icons.notes_rounded),
+                        prefixIcon: Icon(CoutureIcons.clipboardText),
                       ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       'Photos et Vidéos du modèle',
-                      style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      style: Theme.of(ctx)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     if (uploadedMedia.isNotEmpty)
@@ -224,29 +234,35 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                             final item = uploadedMedia[idx];
                             final isVid = item['kind'] == 'video';
                             final rawUrl = item['url'] ?? '';
-                            final url = rawUrl.startsWith('http') ? rawUrl : '${ApiClient.baseUrl}$rawUrl';
+                            final url = rawUrl.startsWith('http')
+                                ? rawUrl
+                                : '${ApiClient.baseUrl}$rawUrl';
 
                             return Stack(
                               children: [
                                 Container(
                                   width: 80,
                                   height: 80,
-                                  margin: const EdgeInsets.only(right: 8, top: 4),
+                                  margin:
+                                      const EdgeInsets.only(right: 8, top: 4),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey.shade300),
+                                    border:
+                                        Border.all(color: Colors.grey.shade300),
                                   ),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
                                     child: isVid
                                         ? Container(
                                             color: Colors.black87,
-                                            child: const Icon(Icons.play_circle_fill, color: Colors.white, size: 32),
+                                            child: const Icon(CoutureIcons.play,
+                                                color: Colors.white, size: 30),
                                           )
                                         : CachedNetworkImage(
                                             imageUrl: url,
                                             fit: BoxFit.cover,
-                                            errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
+                                            errorWidget: (_, __, ___) =>
+                                                const Icon(CoutureIcons.images),
                                           ),
                                   ),
                                 ),
@@ -255,7 +271,8 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                                   right: 4,
                                   child: GestureDetector(
                                     onTap: () {
-                                      setSheetState(() => uploadedMedia.removeAt(idx));
+                                      setSheetState(
+                                          () => uploadedMedia.removeAt(idx));
                                     },
                                     child: Container(
                                       decoration: const BoxDecoration(
@@ -263,7 +280,8 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                                         shape: BoxShape.circle,
                                       ),
                                       padding: const EdgeInsets.all(3),
-                                      child: const Icon(Icons.close, color: Colors.white, size: 14),
+                                      child: const Icon(CoutureIcons.close,
+                                          color: Colors.white, size: 13),
                                     ),
                                   ),
                                 ),
@@ -277,24 +295,33 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: uploading ? null : () => pickAndUpload('image', ImageSource.gallery),
-                            icon: const Icon(Icons.photo_library_rounded),
+                            onPressed: uploading
+                                ? null
+                                : () =>
+                                    pickAndUpload('image', ImageSource.gallery),
+                            icon: const Icon(CoutureIcons.images),
                             label: const Text('Galerie'),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: uploading ? null : () => pickAndUpload('image', ImageSource.camera),
-                            icon: const Icon(Icons.camera_alt_rounded),
+                            onPressed: uploading
+                                ? null
+                                : () =>
+                                    pickAndUpload('image', ImageSource.camera),
+                            icon: const Icon(CoutureIcons.camera),
                             label: const Text('Photo'),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: uploading ? null : () => pickAndUpload('video', ImageSource.gallery),
-                            icon: const Icon(Icons.videocam_rounded),
+                            onPressed: uploading
+                                ? null
+                                : () =>
+                                    pickAndUpload('video', ImageSource.gallery),
+                            icon: const Icon(CoutureIcons.videoCamera),
                             label: const Text('Vidéo'),
                           ),
                         ),
@@ -311,21 +338,24 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                       height: 48,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: CoutureScheme.of(ctx).iconInk,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
                         ),
                         onPressed: (saving || uploading)
                             ? null
                             : () async {
                                 final name = nameCtrl.text.trim();
                                 if (name.isEmpty) {
-                                  _toast('Écrivez le nom du modèle.', error: true);
+                                  _toast('Écrivez le nom du modèle.',
+                                      error: true);
                                   return;
                                 }
                                 setSheetState(() => saving = true);
                                 try {
-                                  final price = parseThousands(priceCtrl.text) ?? 0;
+                                  final price =
+                                      parseThousands(priceCtrl.text) ?? 0;
                                   await _repo.create(
                                     name: name,
                                     fabricType: fabricCtrl.text.trim(),
@@ -347,10 +377,13 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2),
                               )
-                            : const Icon(Icons.save_rounded),
-                        label: const Text('Enregistrer dans Mon Album', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            : const Icon(CoutureIcons.checkCircle),
+                        label: const Text('Enregistrer dans Mon Album',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16)),
                       ),
                     ),
                   ],
@@ -373,9 +406,12 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
       ),
       builder: (ctx) {
         final hasImg = m.media.any((x) => x.kind == 'image');
-        final imgUrl = hasImg ? m.media.firstWhere((x) => x.kind == 'image').url : '';
+        final imgUrl =
+            hasImg ? m.media.firstWhere((x) => x.kind == 'image').url : '';
         final resolvedImg = imgUrl.isNotEmpty
-            ? (imgUrl.startsWith('http') ? imgUrl : '${ApiClient.baseUrl}$imgUrl')
+            ? (imgUrl.startsWith('http')
+                ? imgUrl
+                : '${ApiClient.baseUrl}$imgUrl')
             : '';
 
         return DraggableScrollableSheet(
@@ -412,10 +448,11 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                 Container(
                   height: 180,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
+                    color: CoutureScheme.of(context).quiet,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Icon(Icons.collections_rounded, size: 64, color: AppColors.primary),
+                  child: Icon(CoutureIcons.images,
+                      size: 56, color: CoutureScheme.of(context).inkFaint),
                 ),
               const SizedBox(height: 20),
               Row(
@@ -424,16 +461,18 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                   Expanded(
                     child: Text(
                       m.name,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        color: CoutureScheme.of(context).ink,
+                      ),
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
+                      color: CoutureScheme.of(context).iconInk,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -455,7 +494,11 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
 
               // Showcase All Photos & Videos
               if (m.media.isNotEmpty) ...[
-                Text('Photos et vidéos (${m.media.length})', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                Text('Photos et vidéos (${m.media.length})',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
                 SizedBox(
                   height: 110,
@@ -466,14 +509,17 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                       final item = m.media[idx];
                       final isVid = item.kind == 'video';
                       final raw = item.url;
-                      final url = raw.startsWith('http') ? raw : '${ApiClient.baseUrl}$raw';
+                      final url = raw.startsWith('http')
+                          ? raw
+                          : '${ApiClient.baseUrl}$raw';
 
                       return GestureDetector(
                         onTap: () async {
                           if (isVid) {
                             final uri = Uri.parse(url);
                             if (await canLaunchUrl(uri)) {
-                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              await launchUrl(uri,
+                                  mode: LaunchMode.externalApplication);
                             }
                           } else {
                             showDialog(
@@ -483,9 +529,13 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                                 child: Stack(
                                   alignment: Alignment.topRight,
                                   children: [
-                                    InteractiveViewer(child: CachedNetworkImage(imageUrl: url, fit: BoxFit.contain)),
+                                    InteractiveViewer(
+                                        child: CachedNetworkImage(
+                                            imageUrl: url,
+                                            fit: BoxFit.contain)),
                                     IconButton(
-                                      icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                                      icon: const Icon(CoutureIcons.close,
+                                          color: Colors.white, size: 26),
                                       onPressed: () => Navigator.pop(context),
                                     ),
                                   ],
@@ -507,15 +557,22 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                                 ? Container(
                                     color: Colors.black87,
                                     child: const Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        Icon(Icons.play_circle_fill, color: Colors.white, size: 36),
+                                        Icon(CoutureIcons.play,
+                                            color: Colors.white, size: 34),
                                         SizedBox(height: 4),
-                                        Text('Vidéo', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                        Text('Vidéo',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold)),
                                       ],
                                     ),
                                   )
-                                : CachedNetworkImage(imageUrl: url, fit: BoxFit.cover),
+                                : CachedNetworkImage(
+                                    imageUrl: url, fit: BoxFit.cover),
                           ),
                         ),
                       );
@@ -528,16 +585,18 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
               // Delete button for managers
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  foregroundColor: CouturePalette.terracottaDeep,
+                  side: const BorderSide(color: CouturePalette.terracottaDeep),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                 ),
                 onPressed: () async {
                   final confirm = await confirmDeleteByTyping(
                     context,
                     itemName: m.name,
                     itemLabel: 'ce modèle',
-                    historyNote: 'Les commandes créées avec ce modèle restent enregistrées.',
+                    historyNote:
+                        'Les commandes créées avec ce modèle restent enregistrées.',
                   );
                   if (confirm == true) {
                     try {
@@ -552,7 +611,7 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
                     }
                   }
                 },
-                icon: const Icon(Icons.delete_outline_rounded),
+                icon: const Icon(CoutureIcons.trash),
                 label: const Text('Supprimer ce modèle'),
               ),
             ],
@@ -564,107 +623,75 @@ class _ModelsShowcaseScreenState extends State<ModelsShowcaseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Mon Album'),
-        centerTitle: true,
-      ),
+    final CoutureScheme c = CoutureScheme.of(context);
+    return CoutureScaffold(
+      title: 'Mon Album',
+      subtitle: 'À montrer au client',
+      actions: <Widget>[
+        CoutureBandAction(
+          icon: CoutureIcons.refresh,
+          tooltip: 'Actualiser',
+          onPressed: _loadModels,
+        ),
+      ],
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddModelSheet,
-        backgroundColor: AppColors.primary,
+        backgroundColor: c.urgentInk,
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_a_photo_rounded),
-        label: const Text('Ajouter un modèle', style: TextStyle(fontWeight: FontWeight.bold)),
+        elevation: 2,
+        icon: const Icon(CoutureIcons.plus, size: 20),
+        label: const Text('Ajouter un modèle',
+            style: TextStyle(fontWeight: FontWeight.w600)),
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadModels,
-        child: Column(
-          children: [
-            // Search Bar
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: TextField(
-                controller: _searchCtrl,
-                onChanged: (_) => setState(_applySearch),
-                decoration: InputDecoration(
-                  hintText: 'Rechercher un modèle, tissu...',
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  suffixIcon: _searchCtrl.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear_rounded),
-                          onPressed: () {
-                            _searchCtrl.clear();
-                            setState(_applySearch);
-                          },
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: Theme.of(context).cardTheme.color,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-            ),
-
-            // Content
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
-                              const SizedBox(height: 12),
-                              Text('Erreur: $_error', style: const TextStyle(color: AppColors.error)),
-                              const SizedBox(height: 16),
-                              ElevatedButton(onPressed: _loadModels, child: const Text('Réessayer')),
-                            ],
-                          ),
-                        )
-                      : _filteredModels.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.collections_outlined, size: 64, color: Colors.grey.shade400),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'Aucun modèle dans Mon Album',
-                                    style: TextStyle(fontSize: 16, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Cliquez sur "+ Ajouter un modèle" pour ajouter des photos et vidéos.',
-                                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : GridView.builder(
-                              padding: const EdgeInsets.fromLTRB(14, 8, 14, 20),
-                              gridDelegate:
-                                  const SliverGridDelegateWithMaxCrossAxisExtent(
-                                maxCrossAxisExtent: 260,
-                                childAspectRatio: 0.70,
-                                crossAxisSpacing: 14,
-                                mainAxisSpacing: 14,
-                              ),
-                              itemCount: _filteredModels.length,
-                              itemBuilder: (ctx, idx) =>
-                                  _AlbumTile(
-                                model: _filteredModels[idx],
-                                onTap: () =>
-                                    _viewModelShowcase(_filteredModels[idx]),
-                              ),
-                            ),
-            ),
-          ],
+      below: Padding(
+        padding: const EdgeInsets.fromLTRB(CouturePalette.s4, CouturePalette.s3,
+            CouturePalette.s4, CouturePalette.s3),
+        child: CoutureSearchField(
+          controller: _searchCtrl,
+          hint: 'Nom du modèle, tissu',
+          onChanged: (_) => setState(_applySearch),
+          onClear: () {
+            _searchCtrl.clear();
+            setState(_applySearch);
+          },
         ),
+      ),
+      child: RefreshIndicator(
+        onRefresh: _loadModels,
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? const CoutureEmpty(
+                    icon: CoutureIcons.warningCircle,
+                    tone: CoutureTone.urgent,
+                    title: 'L\'album ne s\'affiche pas',
+                    message:
+                        'Vérifiez la connexion, puis appuyez sur Actualiser.',
+                  )
+                : _filteredModels.isEmpty
+                    ? const CoutureEmpty(
+                        icon: CoutureIcons.images,
+                        title: 'Album vide',
+                        message:
+                            'Appuyez sur « Ajouter un modèle » pour mettre vos photos et vos vidéos.',
+                      )
+                    : GridView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(
+                            CouturePalette.s4, 0, CouturePalette.s4, 96),
+                        gridDelegate:
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 260,
+                          childAspectRatio: 0.70,
+                          crossAxisSpacing: CouturePalette.s3,
+                          mainAxisSpacing: CouturePalette.s3,
+                        ),
+                        itemCount: _filteredModels.length,
+                        itemBuilder: (BuildContext ctx, int idx) => _AlbumTile(
+                          model: _filteredModels[idx],
+                          onTap: () => _viewModelShowcase(_filteredModels[idx]),
+                        ),
+                      ),
       ),
     );
   }
@@ -706,7 +733,7 @@ class _AlbumTile extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          color: AppColors.primary.withValues(alpha: 0.06),
+          color: CoutureScheme.of(context).quiet,
           boxShadow: <BoxShadow>[
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.10),
@@ -727,15 +754,13 @@ class _AlbumTile extends StatelessWidget {
                 placeholder: (_, __) => const ColoredBox(
                   color: Color(0x11000000),
                 ),
-                errorWidget: (_, __, ___) => const Icon(
-                    Icons.checkroom_rounded,
-                    size: 48,
-                    color: AppColors.primary),
+                errorWidget: (_, __, ___) => Icon(CoutureIcons.coatHanger,
+                    size: 46, color: CoutureScheme.of(context).inkFaint),
               )
             else
-              const Center(
-                child: Icon(Icons.checkroom_rounded,
-                    size: 52, color: AppColors.primary),
+              Center(
+                child: Icon(CoutureIcons.coatHanger,
+                    size: 50, color: CoutureScheme.of(context).inkFaint),
               ),
 
             // A soft fade so the caption stays readable over a bright fabric
@@ -757,8 +782,7 @@ class _AlbumTile extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 15,
                   backgroundColor: Color(0x66000000),
-                  child: Icon(Icons.play_arrow_rounded,
-                      color: Colors.white, size: 20),
+                  child: Icon(CoutureIcons.play, color: Colors.white, size: 16),
                 ),
               ),
 
@@ -785,9 +809,11 @@ class _AlbumTile extends StatelessWidget {
                   Text(
                     formatFcfa(model.price.toInt()),
                     style: const TextStyle(
-                      color: Color(0xFFE8C766),
+                      // On a photograph, over a dark fade: white reads at any
+                      // brightness of fabric, and the palette's colours do not.
+                      color: Colors.white,
                       fontSize: 17,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],

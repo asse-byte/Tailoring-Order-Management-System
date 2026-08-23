@@ -88,6 +88,7 @@ class CoutureSearchField extends StatelessWidget {
     required this.hint,
     required this.onChanged,
     this.onClear,
+    this.onSubmitted,
   });
 
   final TextEditingController controller;
@@ -95,12 +96,19 @@ class CoutureSearchField extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final VoidCallback? onClear;
 
+  /// Fired when the seller presses the keyboard's search key. Optional: most
+  /// screens debounce [onChanged] instead and never need it.
+  final ValueChanged<String>? onSubmitted;
+
   @override
   Widget build(BuildContext context) {
     final CoutureScheme c = CoutureScheme.of(context);
     return TextField(
       controller: controller,
       onChanged: onChanged,
+      onSubmitted: onSubmitted,
+      textInputAction:
+          onSubmitted == null ? TextInputAction.done : TextInputAction.search,
       style: TextStyle(fontSize: 14.5, color: c.ink),
       decoration: InputDecoration(
         hintText: hint,

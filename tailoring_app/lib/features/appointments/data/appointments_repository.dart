@@ -59,7 +59,8 @@ class Appointment {
 }
 
 class AppointmentsRepository {
-  AppointmentsRepository({ApiClient? client}) : _api = client ?? ApiClient.instance;
+  AppointmentsRepository({ApiClient? client})
+      : _api = client ?? ApiClient.instance;
 
   final ApiClient _api;
 
