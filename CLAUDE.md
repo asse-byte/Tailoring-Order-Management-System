@@ -518,6 +518,65 @@ mistake them for oversights — or assume a protection that is not there.
   protection, and an attacker attacks it offline with no rate limit. See
   `signing/README.md` for what to check and how to respond.
 
+## Visual redesign — "Indigo & Terre" (started 2026-08-23, screen by screen)
+
+The owner asked for an app that looks designed rather than assembled, in a
+French simple enough for someone who reads slowly. Two directions were drawn
+and compared; the owner picked the indigo one and asked that the final call be
+made on merit. It holds up for three reasons that are specific to these shops:
+white on indigo measures 13.4:1 for a cheap phone held in the street (the gold
+alternative's accent was 3.9:1, under the AA floor); each shop's own
+`settings.theme_color` becomes the header band, so an arbitrary brand colour
+cannot break the palette; and indigo is this region's dye rather than borrowed
+luxury vocabulary.
+
+**The rollout is one screen per session, and the tokens are deliberately
+additive.** `lib/core/theme/couture_palette.dart` is new and `AppColors` is
+untouched, so a screen nobody has reviewed still looks exactly as it did. Do
+NOT "tidy up" by pointing `AppColors` at the new values — that restyles a dozen
+unreviewed screens in one go. When the last screen has moved, `AppColors` can
+be retired.
+
+- **`CouturePalette`** holds the raw tokens (warm paper `#F6F1EA`, indigo
+  `#1E2E52`, terracotta `#B04E31`, the ink greys, a 4-pt spacing scale and a
+  48-px minimum touch target). Every colour was checked numerically against
+  WCAG AA on its own ground; two values from the first sketch failed (a 2.8:1
+  caption grey, a 3.9:1 terracotta) and are already corrected.
+- **`CoutureScheme.of(context)`** is what a screen actually paints with. The
+  app's default is `ThemeMode.system`, so a phone set to dark shows the dark
+  theme whether or not anyone chose it — a light-only screen there is a bug,
+  not a style. Hence a full second token set (warm near-black, never the
+  blue-grey Material default), also measured: 6.0:1 at worst.
+- **Icons: Phosphor Regular, one family at one weight**, replacing a mix of
+  filled/rounded/outlined Material glyphs from three eras. The font is
+  **vendored** in `assets/icons/` (MIT licence beside it) and its code points
+  are listed in `lib/core/theme/couture_icons.dart`. This is not a preference:
+  `phosphor_flutter`'s `PhosphorIconData extends IconData`, and `IconData` is a
+  `final class` now, so the package does not compile at all — 2.1.0 is its
+  latest release, there is nothing to upgrade to. Adding an icon is one line;
+  Flutter tree-shakes the 480 KB font down to the glyphs actually named.
+
+**Dashboard — DONE.** The destinations are unchanged and no query, computation
+or permission was touched; what changed is weight. Fourteen identical tiles
+gave "Vendre" (used dozens of times a day) exactly the same prominence as
+"Réglages" (once a month). It now reads in five tiers: the till alone in the
+band → new order / find a client → the four of the day as cards → the shop as a
+quiet list → management as small chips. Two shortcuts were added to screens
+that were already reachable elsewhere and already permission-guarded
+(`/admin/walk-in` from the orders list, `/admin/reports` from Finances).
+`backend`-side nothing changed.
+
+`test/dashboard_layout_test.dart` pins rule 1 at the UI layer: the secretary is
+offered no Finances / Rapports / Grossistes tile (verified non-vacuous — it
+fails when the guard is removed), both roles keep the counter work, and the
+screen lays out on a 320-wide phone without overflowing. That last one earned
+its place immediately: the day cards were sized by aspect ratio, which ties
+card height to screen width, and they clipped their caption by 1.3 px on a
+small phone. They use a fixed `mainAxisExtent` now.
+
+Still to move: every other screen, one per session, same rules — visual only,
+`flutter analyze` and the full test suite green after each edit.
+
 ## Working conventions
 
 - Work module by module; a module must run end-to-end before moving on.

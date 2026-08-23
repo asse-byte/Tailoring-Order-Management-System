@@ -42,6 +42,17 @@ void main() {
     });
   }
 
+  // The icon family is vendored (see lib/core/theme/couture_icons.dart), so
+  // nothing but this asset stands between the app and a screen full of empty
+  // boxes — there is no package to notice the file is gone.
+  test('the icon font is bundled', () async {
+    final data = await rootBundle.load('assets/icons/Phosphor.ttf');
+    expect(data.lengthInBytes, greaterThan(100000),
+        reason: 'the Phosphor font is truncated or missing');
+    expect(data.getUint32(0), anyOf(0x00010000, 0x74727565),
+        reason: 'assets/icons/Phosphor.ttf is not a TrueType file');
+  });
+
   test('the PDF faces are bundled too', () async {
     for (final String path in <String>[
       'assets/fonts/Lato-Regular.ttf',

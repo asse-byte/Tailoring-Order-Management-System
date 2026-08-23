@@ -76,6 +76,14 @@ flutter:
     - assets/fonts/
     - assets/google_fonts/
   fonts:
+    # The interface icon family: Phosphor Regular, one weight for the whole app
+    # (the screens used to mix three eras of Material glyphs). The font is
+    # vendored rather than pulled from `phosphor_flutter`, whose IconData
+    # subclass no longer compiles now that Flutter made IconData final; see
+    # lib/core/theme/couture_icons.dart. MIT licence in assets/icons/.
+    - family: PhosphorRegular
+      fonts:
+        - asset: assets/icons/Phosphor.ttf
     - family: Lato
       fonts:
         - asset: assets/fonts/Lato-Regular.ttf
