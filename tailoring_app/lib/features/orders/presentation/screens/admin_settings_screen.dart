@@ -7,7 +7,9 @@ import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/localization/language_provider.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/context_colors.dart';
+import '../../../../core/theme/couture_icons.dart';
+import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
@@ -36,7 +38,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           child: TextFormField(
             controller: controller,
             decoration: InputDecoration(labelText: context.loc.shopNameLabel),
-            validator: (v) => v == null || v.trim().isEmpty ? context.loc.requiredField : null,
+            validator: (v) => v == null || v.trim().isEmpty
+                ? context.loc.requiredField
+                : null,
           ),
         ),
         actions: [
@@ -61,8 +65,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success ? 'Nom de la boutique mis à jour.' : 'Échec de la mise à jour.'),
-            backgroundColor: success ? AppColors.success : AppColors.error,
+            content: Text(success
+                ? 'Nom de la boutique mis à jour.'
+                : 'Échec de la mise à jour.'),
+            backgroundColor: success
+                ? CoutureScheme.of(context).goodInk
+                : CoutureScheme.of(context).urgentText,
           ),
         );
       }
@@ -80,14 +88,20 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
 
     if (file != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Téléversement du logo...'), duration: Duration(seconds: 1)),
+        const SnackBar(
+            content: Text('Téléversement du logo...'),
+            duration: Duration(seconds: 1)),
       );
       final success = await provider.uploadAndSetLogo(file);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success ? context.loc.logoUploadedSuccess : context.loc.logoUploadFailed),
-            backgroundColor: success ? AppColors.success : AppColors.error,
+            content: Text(success
+                ? context.loc.logoUploadedSuccess
+                : context.loc.logoUploadFailed),
+            backgroundColor: success
+                ? CoutureScheme.of(context).goodInk
+                : CoutureScheme.of(context).urgentText,
           ),
         );
       }
@@ -125,7 +139,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(ok ? 'Lien mis à jour.' : 'Échec de la mise à jour.'),
-            backgroundColor: ok ? AppColors.success : AppColors.error,
+            backgroundColor: ok
+                ? CoutureScheme.of(context).goodInk
+                : CoutureScheme.of(context).urgentText,
           ),
         );
       }
@@ -135,8 +151,16 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   Future<void> _changeThemeColor(BuildContext context) async {
     final provider = context.read<ShopSettingsProvider>();
     const List<String> palette = <String>[
-      '#1E293B', '#0F172A', '#334155', '#475569', '#64748B',
-      '#94A3B8', '#000000', '#27272A', '#3F3F46', '#52525B',
+      '#1E293B',
+      '#0F172A',
+      '#334155',
+      '#475569',
+      '#64748B',
+      '#94A3B8',
+      '#000000',
+      '#27272A',
+      '#3F3F46',
+      '#52525B',
     ];
     final String? chosen = await showDialog<String>(
       context: context,
@@ -149,8 +173,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           children: palette.map((hex) {
             final Color c =
                 Color(int.parse('FF${hex.substring(1)}', radix: 16));
-            final bool selected =
-                provider.themeColorHex.toUpperCase() == hex;
+            final bool selected = provider.themeColorHex.toUpperCase() == hex;
             return GestureDetector(
               onTap: () => Navigator.pop(ctx, hex),
               child: Container(
@@ -160,11 +183,13 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   color: c,
                   shape: BoxShape.circle,
                   border: Border.all(
-                      color: selected ? AppColors.textPrimary : Colors.transparent,
+                      color: selected
+                          ? CoutureScheme.of(context).ink
+                          : Colors.transparent,
                       width: 3),
                 ),
                 child: selected
-                    ? const Icon(Icons.check_rounded, color: Colors.white)
+                    ? const Icon(CoutureIcons.checkCircle, color: Colors.white)
                     : null,
               ),
             );
@@ -181,8 +206,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       final ok = await provider.updateThemeColor(chosen);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(ok ? 'Couleur du thème mise à jour.' : 'Échec de la mise à jour.'),
-          backgroundColor: ok ? AppColors.success : AppColors.error,
+          content: Text(ok
+              ? 'Couleur du thème mise à jour.'
+              : 'Échec de la mise à jour.'),
+          backgroundColor: ok
+              ? CoutureScheme.of(context).goodInk
+              : CoutureScheme.of(context).urgentText,
         ));
       }
     }
@@ -198,24 +227,25 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     // reports) stays manager-only — see CLAUDE.md rule 1.
     final bool isSec = auth.isSecretary;
 
-    return Scaffold(
-      backgroundColor: context.cBackground,
-      appBar: AppBar(title: Text(context.loc.settings)),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+    return CoutureScaffold(
+      title: 'Réglages',
+      subtitle: isSec ? 'Votre compte' : 'La boutique et les comptes',
+      child: ListView(
+        padding: const EdgeInsets.all(CouturePalette.s4 + 4),
         children: <Widget>[
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: context.cSurface,
+              color: CoutureScheme.of(context).card,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: context.cBorder),
+              border: Border.all(color: CoutureScheme.of(context).line),
             ),
             child: Row(
               children: <Widget>[
                 CircleAvatar(
                   radius: 26,
-                  backgroundColor: shopSettings.themeColor.withValues(alpha: 0.15),
+                  backgroundColor:
+                      shopSettings.themeColor.withValues(alpha: 0.15),
                   child: Text(
                     (auth.user?.name.isNotEmpty ?? false)
                         ? auth.user!.name[0].toUpperCase()
@@ -233,11 +263,14 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(auth.user?.name ?? (isSec ? 'Secrétaire' : 'Gérant'),
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: context.cTextPrimary,
-                              )),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: CoutureScheme.of(context).ink,
+                                  )),
                       Text(auth.user?.email ?? '',
-                          style: TextStyle(color: context.cTextSecondary, fontSize: 12.5)),
+                          style: TextStyle(
+                              color: CoutureScheme.of(context).inkSoft,
+                              fontSize: 12.5)),
                     ],
                   ),
                 ),
@@ -249,7 +282,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             icon: Icons.lock_reset_outlined,
             title: context.loc.changePassword,
             subtitle: context.loc.changePasswordSubtitle,
-            color: AppColors.accentDark,
+            color: CoutureScheme.of(context).iconInk,
             onTap: () => context.push('/admin/change-password'),
           ),
           const SizedBox(height: 24),
@@ -257,7 +290,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             context.loc.shopSettings,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: context.cTextPrimary,
+                  color: CoutureScheme.of(context).ink,
                 ),
           ),
           const SizedBox(height: 10),
@@ -265,26 +298,28 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             // Read-only shop identity: informative, not editable, and carries
             // no financial figure.
             _ActionTile(
-              icon: Icons.store_rounded,
+              icon: CoutureIcons.storefront,
               title: context.loc.shopNameLabel,
               subtitle: shopSettings.shopName,
-              color: AppColors.primary,
+              color: CoutureScheme.of(context).iconInk,
               onTap: null,
             )
           else ...[
             _ActionTile(
-              icon: Icons.store_rounded,
+              icon: CoutureIcons.storefront,
               title: context.loc.shopNameLabel,
               subtitle: shopSettings.shopName,
-              color: AppColors.primary,
+              color: CoutureScheme.of(context).iconInk,
               onTap: () => _changeShopName(context),
             ),
             const SizedBox(height: 10),
             _ActionTile(
-              icon: Icons.image_rounded,
+              icon: CoutureIcons.images,
               title: context.loc.editShopLogo,
-              subtitle: shopSettings.logoUrl != null ? 'Logo téléversé' : 'Aucun logo (Placeholder actif)',
-              color: AppColors.accent,
+              subtitle: shopSettings.logoUrl != null
+                  ? 'Logo téléversé'
+                  : 'Aucun logo (Placeholder actif)',
+              color: CoutureScheme.of(context).iconInk,
               onTap: () => _changeLogo(context),
             ),
             const SizedBox(height: 10),
@@ -297,10 +332,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                 showDialog(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
                     title: const Row(
                       children: [
-                        Icon(Icons.check_circle_rounded, color: Color(0xFF25D366)),
+                        Icon(CoutureIcons.checkCircle,
+                            color: Color(0xFF25D366)),
                         SizedBox(width: 8),
                         Text('WhatsApp Automatique'),
                       ],
@@ -321,7 +358,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             ),
             const SizedBox(height: 10),
             _ActionTile(
-              icon: Icons.link_rounded,
+              icon: CoutureIcons.share,
               title: 'Lien du groupe promo',
               subtitle: shopSettings.promoGroupLink.isEmpty
                   ? 'Non défini (affiché sur les factures)'
@@ -331,7 +368,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             ),
             const SizedBox(height: 10),
             _ActionTile(
-              icon: Icons.palette_rounded,
+              icon: CoutureIcons.images,
               title: 'Couleur du thème',
               subtitle: shopSettings.themeColorHex,
               color: shopSettings.themeColor,
@@ -342,7 +379,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               icon: Icons.assessment_rounded,
               title: 'Rapport & statistiques',
               subtitle: 'Rapport mensuel / annuel imprimable',
-              color: AppColors.primary,
+              color: CoutureScheme.of(context).iconInk,
               onTap: () => context.push('/admin/reports'),
             ),
           ],
@@ -352,11 +389,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           const _ThemeModeSelector(),
           const SizedBox(height: 24),
           OutlinedButton.icon(
-            icon: const Icon(Icons.logout_rounded),
+            icon: const Icon(CoutureIcons.signOut),
             label: Text(context.loc.signOut),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.error,
-              side: const BorderSide(color: AppColors.error, width: 1.4),
+              foregroundColor: CoutureScheme.of(context).urgentText,
+              side: BorderSide(
+                  color: CoutureScheme.of(context).urgentText, width: 1.4),
             ),
             onPressed: () async {
               final bool yes = await showConfirmDialog(
@@ -385,30 +423,33 @@ class _LanguageSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
-        color: context.cSurface,
+        color: CoutureScheme.of(context).card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: context.cBorder),
+        border: Border.all(color: CoutureScheme.of(context).line),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButtonFormField<String>(
           initialValue: lang.locale.languageCode,
           decoration: InputDecoration(
             labelText: context.loc.language,
-            labelStyle: TextStyle(color: context.cTextSecondary),
+            labelStyle: TextStyle(color: CoutureScheme.of(context).inkSoft),
             prefixIcon:
                 Icon(Icons.translate_rounded, color: shopSettings.themeColor),
             border: InputBorder.none,
           ),
-          dropdownColor: context.cSurface,
-          style: TextStyle(color: context.cTextPrimary, fontSize: 14.5),
+          dropdownColor: CoutureScheme.of(context).card,
+          style:
+              TextStyle(color: CoutureScheme.of(context).ink, fontSize: 14.5),
           items: [
             DropdownMenuItem(
               value: 'en',
-              child: Text(context.loc.english, style: TextStyle(color: context.cTextPrimary)),
+              child: Text(context.loc.english,
+                  style: TextStyle(color: CoutureScheme.of(context).ink)),
             ),
             DropdownMenuItem(
               value: 'fr',
-              child: Text(context.loc.french, style: TextStyle(color: context.cTextPrimary)),
+              child: Text(context.loc.french,
+                  style: TextStyle(color: CoutureScheme.of(context).ink)),
             ),
           ],
           onChanged: (val) {
@@ -435,13 +476,14 @@ class _ActionTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final Color color;
+
   /// Null renders a read-only tile (no ripple, no chevron).
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: context.cSurface,
+      color: CoutureScheme.of(context).card,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -450,7 +492,7 @@ class _ActionTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: context.cBorder),
+            border: Border.all(color: CoutureScheme.of(context).line),
           ),
           child: Row(
             children: <Widget>[
@@ -473,7 +515,7 @@ class _ActionTile extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: context.cTextPrimary,
+                        color: CoutureScheme.of(context).ink,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -481,15 +523,15 @@ class _ActionTile extends StatelessWidget {
                       subtitle,
                       style: TextStyle(
                         fontSize: 12.5,
-                        color: context.cTextSecondary,
+                        color: CoutureScheme.of(context).inkSoft,
                       ),
                     ),
                   ],
                 ),
               ),
               if (onTap != null)
-                Icon(Icons.chevron_right_rounded,
-                    color: context.cTextSecondary),
+                Icon(CoutureIcons.caretRight,
+                    color: CoutureScheme.of(context).inkSoft),
             ],
           ),
         ),
@@ -508,33 +550,37 @@ class _ThemeModeSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
-        color: context.cSurface,
+        color: CoutureScheme.of(context).card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: context.cBorder),
+        border: Border.all(color: CoutureScheme.of(context).line),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButtonFormField<ThemeMode>(
           initialValue: themeProv.themeMode,
-          dropdownColor: context.cSurface,
-          style: TextStyle(color: context.cTextPrimary, fontSize: 14.5),
+          dropdownColor: CoutureScheme.of(context).card,
+          style:
+              TextStyle(color: CoutureScheme.of(context).ink, fontSize: 14.5),
           decoration: InputDecoration(
             labelText: "Mode d'affichage / Theme Mode",
-            labelStyle: TextStyle(color: context.cTextSecondary),
-            prefixIcon: Icon(Icons.dark_mode_rounded, color: shopSettings.themeColor),
+            labelStyle: TextStyle(color: CoutureScheme.of(context).inkSoft),
+            prefixIcon: Icon(CoutureIcons.gear, color: shopSettings.themeColor),
             border: InputBorder.none,
           ),
           items: [
             DropdownMenuItem(
               value: ThemeMode.system,
-              child: Text('Système / System', style: TextStyle(color: context.cTextPrimary)),
+              child: Text('Système / System',
+                  style: TextStyle(color: CoutureScheme.of(context).ink)),
             ),
             DropdownMenuItem(
               value: ThemeMode.light,
-              child: Text('Clair / Light', style: TextStyle(color: context.cTextPrimary)),
+              child: Text('Clair / Light',
+                  style: TextStyle(color: CoutureScheme.of(context).ink)),
             ),
             DropdownMenuItem(
               value: ThemeMode.dark,
-              child: Text('Sombre / Dark', style: TextStyle(color: context.cTextPrimary)),
+              child: Text('Sombre / Dark',
+                  style: TextStyle(color: CoutureScheme.of(context).ink)),
             ),
           ],
           onChanged: (ThemeMode? val) {

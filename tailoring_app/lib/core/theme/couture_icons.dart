@@ -55,6 +55,9 @@ class CoutureIcons {
   static const IconData plus = IconData(0xe3d4, fontFamily: _family);
   static const IconData minus = IconData(0xe32a, fontFamily: _family);
   static const IconData magnifyingGlass = IconData(0xe30c, fontFamily: _family);
+  static const IconData eye = IconData(0xe220, fontFamily: _family);
+  static const IconData lock = IconData(0xe2fa, fontFamily: _family);
+  static const IconData eyeSlash = IconData(0xe224, fontFamily: _family);
   static const IconData signOut = IconData(0xe42a, fontFamily: _family);
   static const IconData close = IconData(0xe4f6, fontFamily: _family);
   static const IconData refresh = IconData(0xe094, fontFamily: _family);
