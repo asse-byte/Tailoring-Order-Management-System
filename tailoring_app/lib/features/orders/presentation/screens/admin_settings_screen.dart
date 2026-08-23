@@ -323,27 +323,38 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             ),
             const SizedBox(height: 10),
             _ActionTile(
-              icon: Icons.mark_chat_read_rounded,
-              title: 'Service WhatsApp Automatique',
-              subtitle: 'Envoi 100% automatique en arrière-plan (Actif)',
+              icon: CoutureIcons.whatsapp,
+              title: 'Service WhatsApp automatique',
+              subtitle: 'Dépend d\'un fournisseur configuré sur le serveur',
               color: const Color(0xFF25D366),
               onTap: () {
                 showDialog(
                   context: context,
                   builder: (ctx) => AlertDialog(
+                    backgroundColor: CoutureScheme.of(ctx).card,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20)),
                     title: const Row(
                       children: [
-                        Icon(CoutureIcons.checkCircle,
-                            color: Color(0xFF25D366)),
+                        Icon(CoutureIcons.whatsapp, color: Color(0xFF25D366)),
                         SizedBox(width: 8),
-                        Text('WhatsApp Automatique'),
+                        Text('WhatsApp automatique'),
                       ],
                     ),
+                    // Deliberately does NOT promise that messages go out: they
+                    // only do when a WhatsApp provider is configured on the
+                    // shop's server (WHATSAPP_PROVIDER / _INSTANCE_ID /
+                    // _API_KEY). Without one the service answers
+                    // `not_configured` and sends nothing — and a manager who
+                    // read "Actif" stops calling clients who were never told
+                    // their order was ready. See CLAUDE.md, Antigravity review.
                     content: const Text(
-                      'Le service d\'envoi automatique WhatsApp en arrière-plan est activé et prêt sur le serveur.\n\n'
-                      'Lors du passage d\'une commande à "Terminé", la notification est envoyée immédiatement et automatiquement au numéro du client sans appuyer sur aucun bouton.',
+                      'L\'envoi automatique ne marche que si un fournisseur '
+                      'WhatsApp est installé sur le serveur de la boutique.\n\n'
+                      'Quand il est installé, le client est prévenu dès qu\'une '
+                      'commande passe à « Prêt ».\n\n'
+                      'Sinon, aucun message ne part tout seul : utilisez le '
+                      'bouton WhatsApp de la commande pour prévenir le client.',
                     ),
                     actions: [
                       TextButton(

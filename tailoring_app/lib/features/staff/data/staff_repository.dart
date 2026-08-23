@@ -385,6 +385,19 @@ class StaffRepository {
     });
   }
 
+  /// Who changed a daily entry, when, from → to, and why — newest first.
+  ///
+  /// Both roles may correct entries (owner decision), so this is what lets the
+  /// owner see exactly who touched a tailor's numbers if the pay is ever
+  /// disputed. The rows come from the append-only correction log; the entry
+  /// itself is never edited in place.
+  Future<List<Map<String, dynamic>>> listEntryCorrections(
+      String entryId) async {
+    final dynamic res =
+        await _api.get('/api/tailor-entries/$entryId/corrections');
+    return (res['items'] as List).cast<Map<String, dynamic>>();
+  }
+
   Future<List<WeeklyTailorSummary>> listWeeklyTotals(String weekId) async {
     final dynamic res =
         await _api.get('/api/tailor-entries/weekly?week_id=$weekId');

@@ -184,12 +184,55 @@ router.post('/:id/corrections', asyncH(async (req, res) => {
 }));
 
 // Full history: who changed what, when, from → to, and why.
+//
+// This is the shop owner's evidence when a tailor disputes their pay, so each
+// row carries the PREVIOUS value of every field, not just the pieces count.
+// `entry_corrections` only stores the new values (plus the legacy old_pieces),
+// so the "from" side of a change is the previous correction in the chain — or
+// the original entry, for the first one. Walk the chain oldest-first to
+// resolve it, then hand it back newest-first for display.
 router.get('/:id/corrections', asyncH(async (req, res) => {
+  const { rows: origin } = await db.query(
+    `SELECT pieces_count, piece_rate, garment_type
+     FROM tailor_daily_entries WHERE id = $1`, [req.params.id]);
+  if (!origin[0]) return res.status(404).json({ error: 'Saisie introuvable.' });
+
   const { rows } = await db.query(
-    `SELECT c.*, u.name AS corrected_by_name
+    `SELECT c.*, u.name AS corrected_by_name, u.username AS corrected_by_username
      FROM entry_corrections c JOIN users u ON u.id = c.corrected_by
-     WHERE c.entry_id = $1 ORDER BY c.corrected_at DESC`, [req.params.id]);
-  res.json({ items: rows });
+     WHERE c.entry_id = $1
+     ORDER BY c.corrected_at ASC, c.id ASC`, [req.params.id]);
+
+  let prev = {
+    pieces_count: origin[0].pieces_count,
+    piece_rate: origin[0].piece_rate,
+    garment_type: origin[0].garment_type,
+    voided: false,
+  };
+  const items = rows.map((c) => {
+    // A correction only carries the fields it changed; everything else keeps
+    // the value it had, which is what makes "from → to" readable at all.
+    const next = {
+      pieces_count: c.new_pieces,
+      piece_rate: c.new_piece_rate ?? prev.piece_rate,
+      garment_type: c.new_garment_type ?? prev.garment_type,
+      voided: c.voided,
+    };
+    const item = {
+      ...c,
+      old_pieces: prev.pieces_count,
+      old_piece_rate: prev.piece_rate,
+      old_garment_type: prev.garment_type,
+      new_piece_rate: next.piece_rate,
+      new_garment_type: next.garment_type,
+      old_amount: prev.voided ? 0 : prev.pieces_count * prev.piece_rate,
+      new_amount: next.voided ? 0 : next.pieces_count * next.piece_rate,
+    };
+    prev = next;
+    return item;
+  });
+
+  res.json({ items: items.reverse() });
 }));
 
 module.exports = router;

@@ -1658,6 +1658,12 @@ class _StaffScreenState extends State<StaffScreen> {
                         (v == null || v.trim().isEmpty) ? 'Motif requis' : null,
                     onSaved: (v) => reason = v?.trim() ?? '',
                   ),
+                  // Audit trail, collapsed so the form stays as simple as it
+                  // was. Both the manager and the secretary may correct
+                  // entries, so the owner needs to see who touched a tailor's
+                  // numbers if the pay is ever disputed.
+                  if (e.corrected)
+                    _EntryCorrectionHistory(entryId: e.id, repo: _repo),
                 ],
               ),
             ),
@@ -2001,6 +2007,158 @@ class _SummaryStat extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Collapsed "who changed this entry" log shown inside the correction dialog.
+///
+/// A tailor's weekly entries decide their pay, and BOTH the manager and the
+/// secretary are allowed to correct them (deliberate owner decision, see
+/// CLAUDE.md rule 2). Attribution is therefore not decoration: if a tailor
+/// disputes their pay, this is where the owner sees exactly who changed what,
+/// when, and why. The data comes from the append-only correction log — the
+/// entry itself is never edited in place.
+class _EntryCorrectionHistory extends StatefulWidget {
+  const _EntryCorrectionHistory({required this.entryId, required this.repo});
+
+  final String entryId;
+  final StaffRepository repo;
+
+  @override
+  State<_EntryCorrectionHistory> createState() =>
+      _EntryCorrectionHistoryState();
+}
+
+class _EntryCorrectionHistoryState extends State<_EntryCorrectionHistory> {
+  bool _open = false;
+  bool _loading = false;
+  bool _failed = false;
+  List<Map<String, dynamic>> _items = const <Map<String, dynamic>>[];
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
+    try {
+      final List<Map<String, dynamic>> items =
+          await widget.repo.listEntryCorrections(widget.entryId);
+      if (mounted) setState(() => _items = items);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// "4 → 6 pièces", "2,500 → 3,000 FCFA la pièce", "Chemise → Boubou".
+  List<String> _changes(Map<String, dynamic> c) {
+    final List<String> out = <String>[];
+    final int? oldP = c['old_pieces'] as int?;
+    final int? newP = c['new_pieces'] as int?;
+    if (oldP != null && newP != null && oldP != newP) {
+      out.add('$oldP → $newP pièces');
+    }
+    final int? oldR = c['old_piece_rate'] as int?;
+    final int? newR = c['new_piece_rate'] as int?;
+    if (oldR != null && newR != null && oldR != newR) {
+      out.add(
+          '${formatThousands(oldR)} → ${formatThousands(newR)} FCFA la pièce');
+    }
+    final String? oldG = c['old_garment_type'] as String?;
+    final String? newG = c['new_garment_type'] as String?;
+    if (oldG != null && newG != null && oldG != newG) {
+      out.add('$oldG → $newG');
+    }
+    if (c['voided'] == true) out.add('Entrée annulée');
+    return out;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final CoutureScheme c = CoutureScheme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            style: TextButton.styleFrom(
+                padding: EdgeInsets.zero, foregroundColor: c.inkSoft),
+            icon: Icon(
+                _open ? CoutureIcons.close : CoutureIcons.clockCounterClockwise,
+                size: 16),
+            label: const Text('Qui a modifié cette saisie ?',
+                style: TextStyle(fontSize: 13)),
+            onPressed: () {
+              setState(() => _open = !_open);
+              if (_open && _items.isEmpty && !_loading) _load();
+            },
+          ),
+        ),
+        if (_open)
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: CouturePalette.s2),
+              child: SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else if (_failed)
+            Text('L\'historique ne s\'affiche pas.',
+                style: TextStyle(fontSize: 12, color: c.urgentText))
+          else if (_items.isEmpty)
+            Text('Aucune modification.',
+                style: TextStyle(fontSize: 12, color: c.inkFaint))
+          else
+            Column(
+              children: _items.map((Map<String, dynamic> item) {
+                final String who =
+                    (item['corrected_by_name'] as String?) ?? 'Inconnu';
+                final String when = (item['corrected_at'] as String?)
+                        ?.replaceFirst('T', ' ')
+                        .split('.')
+                        .first ??
+                    '';
+                final List<String> changes = _changes(item);
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: CouturePalette.s2),
+                  padding: const EdgeInsets.all(CouturePalette.s2 + 2),
+                  decoration: BoxDecoration(
+                    color: c.quiet,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text('$who · $when',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: c.inkSoft)),
+                      if (changes.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(changes.join(' · '),
+                              style: TextStyle(fontSize: 12.5, color: c.ink)),
+                        ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text('Motif : ${item['reason'] ?? ''}',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontStyle: FontStyle.italic,
+                                color: c.inkSoft)),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(growable: false),
+            ),
+      ],
     );
   }
 }

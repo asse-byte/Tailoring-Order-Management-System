@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -18,6 +19,7 @@ import '../../../../core/widgets/formatted_number_field.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../settings/presentation/providers/shop_settings_provider.dart';
+import '../../../ready_to_wear/data/pret_a_porter_repository.dart';
 import '../../../staff/data/staff_repository.dart';
 import '../../data/invoice_service.dart';
 import '../../data/orders_repository.dart';
@@ -47,7 +49,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   };
   List<StaffContact> _tailors = <StaffContact>[];
   bool _loading = true;
+  bool _uploadingMedia = false;
   String? _error;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -850,12 +854,52 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       _section('LA COMMANDE'),
                       const SizedBox(height: CouturePalette.s2),
                       _infoCard(_order!),
-                      if (_order!.modelMedia.isNotEmpty) ...<Widget>[
-                        const SizedBox(height: CouturePalette.s6),
-                        _section('LE MODÈLE DU CLIENT'),
-                        const SizedBox(height: CouturePalette.s2),
+                      // Always shown, even with nothing in it yet: the client
+                      // often brings the photo after the order is written, and
+                      // before this the section simply did not exist until
+                      // someone had already attached something elsewhere.
+                      const SizedBox(height: CouturePalette.s6),
+                      _sectionRow(
+                        'LE MODÈLE DU CLIENT',
+                        _uploadingMedia
+                            ? const Padding(
+                                padding:
+                                    EdgeInsets.only(right: CouturePalette.s3),
+                                child: SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2)),
+                              )
+                            : Row(
+                                children: <Widget>[
+                                  IconButton(
+                                    tooltip: 'Ajouter une photo',
+                                    icon: Icon(CoutureIcons.camera,
+                                        size: 20,
+                                        color:
+                                            CoutureScheme.of(context).iconInk),
+                                    onPressed: _addModelPhoto,
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Ajouter une vidéo',
+                                    icon: Icon(CoutureIcons.videoCamera,
+                                        size: 20,
+                                        color:
+                                            CoutureScheme.of(context).iconInk),
+                                    onPressed: _addModelVideo,
+                                  ),
+                                ],
+                              ),
+                      ),
+                      const SizedBox(height: CouturePalette.s2),
+                      if (_order!.modelMedia.isEmpty)
+                        Text('Aucune photo pour ce modèle.',
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: CoutureScheme.of(context).inkFaint))
+                      else
                         _modelMediaCard(_order!),
-                      ],
                       if (_order!.notes.isNotEmpty) ...<Widget>[
                         const SizedBox(height: CouturePalette.s6),
                         _section('NOTES'),
@@ -958,13 +1002,101 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
+  Future<void> _addModelPhoto() async {
+    try {
+      final XFile? file = await _picker.pickImage(
+          source: ImageSource.gallery, imageQuality: 85);
+      if (file != null) await _uploadModelMedia(file, 'image');
+    } catch (e) {
+      _toast('La photo ne s\'ouvre pas : $e', error: true);
+    }
+  }
+
+  Future<void> _addModelVideo() async {
+    try {
+      final XFile? file = await _picker.pickVideo(
+          source: ImageSource.gallery, maxDuration: const Duration(minutes: 3));
+      if (file != null) await _uploadModelMedia(file, 'video');
+    } catch (e) {
+      _toast('La vidéo ne s\'ouvre pas : $e', error: true);
+    }
+  }
+
+  /// Uploads the file, then saves the whole media list back on the order.
+  ///
+  /// This list is plain descriptive data on the `orders` row — not financial
+  /// history — so it is edited in place like the notes are, and no correction
+  /// row is involved.
+  Future<void> _uploadModelMedia(XFile file, String kind) async {
+    setState(() => _uploadingMedia = true);
+    try {
+      final Map<String, String> uploaded =
+          await PretAPorterRepository().uploadMedia(file);
+      final List<Map<String, String>> next =
+          List<Map<String, String>>.from(_order!.modelMedia)
+            ..add(<String, String>{
+              'url': uploaded['url']!,
+              'kind': kind,
+              'thumb_url': uploaded['thumb_url'] ?? '',
+            });
+      final TailoringOrder updated =
+          await _repo.update(_order!.id, modelMedia: next);
+      if (mounted) setState(() => _order = updated);
+      _toast('Photo ajoutée.');
+    } catch (e) {
+      _toast('L\'envoi n\'a pas marché : $e', error: true);
+    } finally {
+      if (mounted) setState(() => _uploadingMedia = false);
+    }
+  }
+
+  Future<void> _removeModelMedia(int index) async {
+    final CoutureScheme c = CoutureScheme.of(context);
+    final bool ok = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext ctx) => AlertDialog(
+            backgroundColor: c.card,
+            title: Text('Enlever cette photo ?',
+                style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w600, color: c.ink)),
+            content: Text('Elle ne sera plus attachée à cette commande.',
+                style: TextStyle(color: c.inkSoft)),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: TextButton.styleFrom(foregroundColor: c.inkSoft),
+                child: const Text('Retour'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                    backgroundColor: CouturePalette.terracottaDeep),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Enlever'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!ok) return;
+    try {
+      final List<Map<String, String>> next =
+          List<Map<String, String>>.from(_order!.modelMedia)..removeAt(index);
+      final TailoringOrder updated =
+          await _repo.update(_order!.id, modelMedia: next);
+      if (mounted) setState(() => _order = updated);
+      _toast('Photo enlevée.');
+    } catch (e) {
+      _toast('Impossible : $e', error: true);
+    }
+  }
+
   Widget _modelMediaCard(TailoringOrder order) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(CouturePalette.s3),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
+        color: CoutureScheme.of(context).card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).dividerColor),
+        border: Border.all(color: CoutureScheme.of(context).line),
       ),
       child: SizedBox(
         height: 100,
@@ -1011,41 +1143,63 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   );
                 }
               },
-              child: Container(
-                width: 100,
-                margin: const EdgeInsets.only(right: 10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Theme.of(context).dividerColor),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: isVideo
-                      ? Container(
-                          color: Colors.black87,
-                          child: const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(CoutureIcons.play,
-                                  color: Colors.white, size: 34),
-                              SizedBox(height: 4),
-                              Text('Vidéo',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        )
-                      : CachedNetworkImage(
-                          imageUrl: resolvedUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2)),
-                          errorWidget: (_, __, ___) =>
-                              const Icon(CoutureIcons.images),
+              child: Stack(
+                children: <Widget>[
+                  Container(
+                    width: 100,
+                    margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: CoutureScheme.of(context).line),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: isVideo
+                          ? Container(
+                              color: Colors.black87,
+                              child: const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(CoutureIcons.play,
+                                      color: Colors.white, size: 34),
+                                  SizedBox(height: 4),
+                                  Text('Vidéo',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: resolvedUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => const Center(
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2)),
+                              errorWidget: (_, __, ___) =>
+                                  const Icon(CoutureIcons.images),
+                            ),
+                    ),
+                  ),
+                  // Take this reference photo or video off the order.
+                  Positioned(
+                    top: 2,
+                    right: 12,
+                    child: GestureDetector(
+                      onTap: () => _removeModelMedia(index),
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
                         ),
-                ),
+                        child: const Icon(CoutureIcons.close,
+                            color: Colors.white, size: 14),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             );
           },
