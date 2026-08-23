@@ -121,7 +121,9 @@ class AppRouter {
               builder: (_, __) => const CounterSaleScreen(),
             ),
             GoRoute(
-              // Manager only: a list of sales is a list of takings.
+              // Both roles since the owner's decision of 2026-08-23: the
+              // secretary sells at the counter, so finding a sale she made and
+              // fixing it is hers. The purchase cost is stripped server-side.
               path: 'sales-history',
               builder: (_, __) => const SalesHistoryScreen(),
             ),
@@ -212,9 +214,6 @@ class AppRouter {
           '/admin/merchants',
           // Outstanding client debt across the shop.
           '/admin/unpaid-orders',
-          // Past sales with their totals are the shop's takings. Selling
-          // (/admin/sell) is hers; reading the takings back is not.
-          '/admin/sales-history',
         ];
         if (auth.isSecretary &&
             managerOnlyRoutes

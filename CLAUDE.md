@@ -33,7 +33,7 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
      stripped from her reads, ignored on her writes, and any staff-pay route for a
      non-couturier returns 403 to her.
      Still MANAGER-ONLY: monthly salaries, `/api/salary-payments`,
-     `/api/finance`, `/api/reports`, `/api/expenses`, `GET /api/sales`,
+     `/api/finance`, `/api/reports`, `/api/expenses`,
      product/model `cost_price` + `/stats`, `/api/settings/private`, `/api/users`.
      - `GET /api/staff/:id/all-time-summary` (added 2026-08-14) is both-roles and
        follows exactly the same split: the secretary gets the piece-work side
@@ -45,6 +45,21 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
        they carry the day's cash and the outstanding client debt. The Flutter
        dashboard therefore renders its KPI strip for the manager only, and
        `/admin/unpaid-orders` is in the router's manager-only list.
+   - **SALES are the secretary's to read and correct (owner decision
+     2026-08-23):** she stands at the counter, so finding a sale she made and
+     fixing it had to be hers — the old write-only pattern meant a mistyped
+     quantity waited for the manager. `GET /api/sales`, `GET
+     /api/sales/receipts`, `GET /api/sales/receipts/:id` and
+     `POST /api/sales/:id/corrections` are all both-roles.
+     **What was NOT relaxed is the purchase cost.** `withoutCost()` in
+     `sales.js` strips `unit_cost` and `cost_total` from every sale row leaving
+     the server, so she sees what the shop took and never what it paid — the
+     margin stays manager-only, as do `/stats` and `cost_price` everywhere else.
+     `GET /api/sales` was opened alongside the receipts on purpose: it is the
+     same rows in a different shape, and leaving it shut would have protected
+     nothing while inviting a future session to "fix" the inconsistency the
+     wrong way. Corrections still require a reason and record `corrected_by`,
+     which is what this exception rests on.
    - **ORDERS are fully the secretary's, cancellation included (owner decision
      2026-08-23):** she already created and edited orders (`POST`/`PUT
      /api/orders` have always been both-roles, `advance` included). Cancelling
@@ -94,7 +109,8 @@ The user communicates in Arabic; reply to them in Arabic unless asked otherwise.
    Finances.
 3. Staff / Personnel — two distinct types:
    - **Couturiers principaux**: per-piece pay. Manager **or secretary** sets
-     `piece_rate` (per tailor, per entry, or default) and enters the daily
+     `piece_rate` (per tailor, or per entry — the shop-wide default was removed
+     on the owner's instruction, migration 027) and enters the daily
      pieces count; system computes daily amount and weekly totals (paid
      weekly). Daily entries are immutable history — never deleted after week
      close (corrections only).
@@ -387,18 +403,20 @@ clients. Fixed + regression test ("secretary DELETE /clients → 403").
   a trap for every future multi-write route.
   Creating a receipt is both-roles (the secretary is at the counter, and she
   gets the lines + total back so she can hand over the invoice, minus
-  `unit_cost`). **Reading receipts back is manager-only**, exactly like
-  `GET /api/sales`: a list of receipts is a list of takings.
+  `unit_cost`). Reading receipts back is **both-roles** since the owner's
+  decision of 2026-08-23 (see rule 2) — with the purchase cost stripped.
   The header is append-only like every financial row; a receipt changes by
   correcting its lines through the existing `sale_corrections` path, which
   already puts stock back.
 - **Sales are atomic and server-priced**: `POST /api/sales` reads the
   price from the DB, computes the total server-side, and decrements
   stock in the same transaction (`quantity >= qty` guard). The client
-  never sends prices. Secretary can create sales but `GET /api/sales`
-  is manager-only (write-only pattern). Sale corrections (qty fix or
-  void, manager-only) adjust product stock by the delta in the same
-  transaction.
+  never sends prices. Both roles create, read and correct sales
+  (owner decision 2026-08-23 — the write-only pattern is gone), but every
+  sale row is stripped of `unit_cost`/`cost_total` on the way out by
+  `withoutCost()`. Sale corrections (qty fix or void) adjust product stock
+  by the delta in the same transaction and always carry a reason +
+  `corrected_by`.
 - **Customer role removed** from the Flutter app: no self-registration,
   no customer-facing screens. Clients are plain DB records.
 - The 29 Firestore-rules guarantees were ported 1:1 to API integration

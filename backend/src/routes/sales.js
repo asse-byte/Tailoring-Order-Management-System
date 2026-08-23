@@ -1,6 +1,5 @@
 const express = require('express');
 const db = require('../db');
-const { managerOnly } = require('../middleware/auth');
 const { asyncH, pagination, intOrNull, str, dateStr, likeEscape } = require('../util');
 
 const router = express.Router();
@@ -59,6 +58,20 @@ async function sellOneLine(tx, { kind, itemId, qty, customPrice, userId, receipt
 }
 
 /**
+ * Strip the purchase cost (and the margin it reveals) from sale rows.
+ *
+ * The secretary reads the sales history since the owner's decision of
+ * 2026-08-23, but `cost_price` and everything derived from it stays
+ * manager-only under rule 1 — that part of the rule was never relaxed.
+ */
+function withoutCost(rows) {
+  return rows.map((row) => {
+    const { unit_cost: _c, cost_total: _t, ...rest } = row;
+    return rest;
+  });
+}
+
+/**
  * Register a sale — allowed for BOTH roles (the secretary sells at the
  * counter), but the server prices everything itself:
  *   - unit_price is read from the DB row (any price/total in the request
@@ -76,8 +89,8 @@ router.post('/', asyncH(async (req, res) => {
   }));
 
   if (sale.error) return res.status(sale.status).json({ error: sale.error });
-  // The secretary gets a bare confirmation — no totals echo needed; the
-  // manager sees full rows via GET.
+  // The secretary gets a bare confirmation from this legacy single-item route;
+  // the till uses POST /receipts, which hands her the full basket back.
   if (req.user.role !== 'MANAGER') {
     return res.status(201).json({ ok: true, id: sale.sale.id });
   }
@@ -93,10 +106,10 @@ router.post('/', asyncH(async (req, res) => {
 // a walk-in who gives no name still gets one) plus every line, sold in ONE
 // transaction so the whole basket succeeds or none of it does.
 //
-// Creating a receipt is open to both roles, like POST /api/sales: the secretary
-// is the one at the counter. Reading them back is manager-only, exactly like
-// GET /api/sales — a list of receipts is a list of takings, which rule 1 keeps
-// away from her.
+// Both roles create AND read receipts (owner decision 2026-08-23): the
+// secretary is the one at the counter, so she needs to find a sale she made and
+// fix it. The purchase cost is stripped from everything she is sent — that half
+// of rule 1 was never relaxed.
 
 router.post('/receipts', asyncH(async (req, res) => {
   const rawLines = req.body.lines;
@@ -178,14 +191,11 @@ router.post('/receipts', asyncH(async (req, res) => {
     ...result.receipt,
     total,
     items_count: result.lines.reduce((sum, l) => sum + Number(l.qty), 0),
-    lines: result.lines.map((l) => {
-      const { unit_cost: _cost, ...rest } = l; // never leak the margin
-      return rest;
-    }),
+    lines: withoutCost(result.lines),
   });
 }));
 
-router.get('/receipts', managerOnly, asyncH(async (req, res) => {
+router.get('/receipts', asyncH(async (req, res) => {
   const { limit, offset } = pagination(req, 50, 200);
   const from = dateStr(req.query.from);
   const to = dateStr(req.query.to);
@@ -220,7 +230,7 @@ router.get('/receipts', managerOnly, asyncH(async (req, res) => {
   });
 }));
 
-router.get('/receipts/:id', managerOnly, asyncH(async (req, res) => {
+router.get('/receipts/:id', asyncH(async (req, res) => {
   const { rows } = await db.query(
     'SELECT * FROM sale_receipts_effective WHERE id = $1', [req.params.id]);
   if (!rows[0]) return res.status(404).json({ error: 'Vente introuvable.' });
@@ -229,12 +239,16 @@ router.get('/receipts/:id', managerOnly, asyncH(async (req, res) => {
     `SELECT s.*, u.name AS seller_name
        FROM sales_effective s JOIN users u ON u.id = s.created_by
       WHERE s.receipt_id = $1 ORDER BY s.sold_at`, [req.params.id]);
-  res.json({ ...rows[0], lines });
+  res.json({ ...rows[0], lines: withoutCost(lines) });
 }));
 
-// Revenue history is MANAGER-ONLY (write-only pattern for the secretary).
+// The flat sale list, behind the receipts view. Open to both roles since the
+// owner's decision of 2026-08-23: keeping it closed while /receipts is open
+// would protect nothing — it is the same rows in a different shape — and an
+// inconsistent boundary is the kind a future session "fixes" in the wrong
+// direction. What stays closed is the purchase cost, stripped below.
 // Reads the EFFECTIVE view: latest correction wins, voided sales flagged.
-router.get('/', managerOnly, asyncH(async (req, res) => {
+router.get('/', asyncH(async (req, res) => {
   const { limit, offset } = pagination(req, 50, 200);
   const { from, to, kind } = req.query;
   const { rows } = await db.query(
@@ -246,14 +260,18 @@ router.get('/', managerOnly, asyncH(async (req, res) => {
      ORDER BY s.sold_at DESC LIMIT $4 OFFSET $5`,
     [from || null, to || null,
       ['produit', 'pret_a_porter'].includes(kind) ? kind : null, limit, offset]);
-  res.json({ items: rows, limit, offset });
+  res.json({ items: withoutCost(rows), limit, offset });
 }));
 
-// ---- correction log (manager-only) — the ONLY way to change a sale ----
+// ---- correction log — the ONLY way to change a sale ----
 // Correcting the qty or voiding a product sale puts the stock difference
 // back on the shelf (or takes it) in the same transaction.
+// Both roles: the secretary sells at the counter, so fixing her own mistake
+// is hers too (owner decision 2026-08-23). Every correction still carries a
+// mandatory reason and records `corrected_by`, so who changed what is always
+// answerable — that audit trail is what the exception rests on.
 
-router.post('/:id/corrections', managerOnly, asyncH(async (req, res) => {
+router.post('/:id/corrections', asyncH(async (req, res) => {
   const reason = str(req.body.reason);
   if (!reason) {
     return res.status(400).json({ error: 'Le motif de la correction est obligatoire.' });
@@ -291,7 +309,7 @@ router.post('/:id/corrections', managerOnly, asyncH(async (req, res) => {
   return res.status(result.status).json(result.body);
 }));
 
-router.get('/:id/corrections', managerOnly, asyncH(async (req, res) => {
+router.get('/:id/corrections', asyncH(async (req, res) => {
   const { rows } = await db.query(
     `SELECT c.*, u.name AS corrected_by_name
      FROM sale_corrections c JOIN users u ON u.id = c.corrected_by

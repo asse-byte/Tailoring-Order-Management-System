@@ -270,16 +270,64 @@ describe('one trip to the till = one receipt', () => {
 
 // ---------------------------------------------------------------------------
 describe('financial isolation still holds for receipts', () => {
-  test('the secretary can sell but never read the takings back', async () => {
+  // The owner opened the sales history to the secretary on 2026-08-23 so she
+  // can fix her own counter mistakes. What was NOT relaxed is the purchase
+  // cost: she may see what the shop took, never what it paid, because that is
+  // the margin.
+  test('the secretary can read back a sale she made, and correct it', async () => {
     const productId = await newProduct('parfum', 'Rose Taif', 20000, 12000, 5);
     const created = await asSec(request(app).post('/api/sales/receipts'))
-      .send({ lines: [{ kind: 'produit', item_id: productId, qty: 1 }] });
+      .send({ lines: [{ kind: 'produit', item_id: productId, qty: 2 }] });
     expect(created.status).toBe(201);
 
-    // A list of receipts is a list of takings — rule 1 keeps it from her,
-    // exactly like GET /api/sales.
-    expect((await asSec(request(app).get('/api/sales/receipts'))).status).toBe(403);
-    expect((await asSec(request(app).get(`/api/sales/receipts/${created.body.id}`))).status)
+    const listed = await asSec(request(app).get('/api/sales/receipts'));
+    expect(listed.status).toBe(200);
+    expect(listed.body.items.map((r) => r.id)).toContain(created.body.id);
+
+    const detail = await asSec(
+      request(app).get(`/api/sales/receipts/${created.body.id}`));
+    expect(detail.status).toBe(200);
+    expect(detail.body.total).toBe(40000);
+
+    // She fixes it: the client only took one.
+    const fix = await asSec(
+      request(app).post(`/api/sales/${detail.body.lines[0].id}/corrections`))
+      .send({ new_qty: 1, reason: 'Le client n’en a pris qu’un' });
+    expect(fix.status).toBe(201);
+
+    const after = await asSec(
+      request(app).get(`/api/sales/receipts/${created.body.id}`));
+    expect(after.body.total).toBe(20000);
+    const { rows } = await db.query(
+      'SELECT quantity FROM products WHERE id = $1', [productId]);
+    expect(rows[0].quantity).toBe(4); // one back on the shelf
+
+    // And the correction names her, so the owner can always audit it.
+    const { rows: who } = await db.query(
+      `SELECT u.role FROM sale_corrections c JOIN users u ON u.id = c.corrected_by
+        WHERE c.sale_id = $1`, [detail.body.lines[0].id]);
+    expect(who[0].role).toBe('SECRETARY');
+  });
+
+  test('nothing she reads back carries the purchase cost', async () => {
+    const productId = await newProduct('montre', 'Montre or', 90000, 55000, 3);
+    const created = await asSec(request(app).post('/api/sales/receipts'))
+      .send({ lines: [{ kind: 'produit', item_id: productId, qty: 1 }] });
+
+    for (const res of [
+      await asSec(request(app).get('/api/sales/receipts')),
+      await asSec(request(app).get(`/api/sales/receipts/${created.body.id}`)),
+      await asSec(request(app).get('/api/sales')),
+    ]) {
+      expect(res.status).toBe(200);
+      expect(JSON.stringify(res.body)).not.toMatch(/unit_cost|cost_total/);
+      expect(JSON.stringify(res.body)).not.toContain('55000');
+    }
+  });
+
+  test('the profit stats stay manager-only', async () => {
+    const productId = await newProduct('bonnet', 'Bonnet or', 9000, 4000, 3);
+    expect((await asSec(request(app).get(`/api/products/${productId}/stats`))).status)
       .toBe(403);
   });
 

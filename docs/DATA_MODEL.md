@@ -207,7 +207,7 @@ Index on `scheduled_at`.
 Key-value: `(key text PK, value jsonb, is_public boolean)`.
 Public rows (`shop_name`, `logo_url`) are served by
 `GET /api/settings/public` **without auth** (login screen).
-Private rows (🔒 `default_piece_rate`) are manager-only.
+Private rows are manager-only. (`default_piece_rate` was removed on the owner's instruction, migration 027: a tailor's rate now comes from the entry or from `staff_pay`, never from a shop-wide fallback.)
 
 ---
 

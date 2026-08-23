@@ -94,3 +94,41 @@ test('monthly ranking totals per tailor, highest-first', async () => {
   const iBakary = res.body.items.findIndex((r) => r.tailor_id === t2);
   expect(iSalif).toBeLessThan(iBakary);
 });
+
+// ---------------------------------------------------------------------------
+// The shop-wide default piece rate is gone (migration 027, owner decision
+// 2026-08-23). The rate chain is now two links, and a tailor with no rate is
+// an explicit error rather than a silent fallback to a forgotten number.
+// ---------------------------------------------------------------------------
+test('a tailor with no piece rate is refused, not silently defaulted', async () => {
+  const staffId = (await asM(request(app).post('/api/staff'))
+    .send({ full_name: 'Couturier Sans Tarif', phone: '76555001', type: 'couturier' })).body.id;
+
+  const res = await asM(request(app).post('/api/tailor-entries'))
+    .send({ tailor_id: staffId, entry_date: '2026-06-01', pieces_count: 3 });
+  expect(res.status).toBe(400);
+  expect(res.body.error).toMatch(/prix par pièce/i);
+
+  // The setting itself no longer exists anywhere.
+  const { rows } = await db.query(
+    "SELECT 1 FROM settings WHERE key = 'default_piece_rate'");
+  expect(rows).toHaveLength(0);
+});
+
+test('the rate typed on the entry still wins over the tailor’s own rate', async () => {
+  const staffId = (await asM(request(app).post('/api/staff'))
+    .send({ full_name: 'Couturier Deux Tarifs', phone: '76555002', type: 'couturier' })).body.id;
+  await asM(request(app).put(`/api/staff-pay/${staffId}`)).send({ piece_rate: 2000 });
+
+  // No rate given → the tailor's own 2 000 applies.
+  const a = await asM(request(app).post('/api/tailor-entries'))
+    .send({ tailor_id: staffId, entry_date: '2026-06-02', pieces_count: 2 });
+  expect(a.status).toBe(201);
+  expect(a.body.piece_rate).toBe(2000);
+
+  // A rate typed for this garment overrides it.
+  const b = await asM(request(app).post('/api/tailor-entries'))
+    .send({ tailor_id: staffId, entry_date: '2026-06-02', pieces_count: 1, piece_rate: 7500 });
+  expect(b.status).toBe(201);
+  expect(b.body.piece_rate).toBe(7500);
+});

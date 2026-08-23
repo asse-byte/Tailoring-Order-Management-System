@@ -34,14 +34,13 @@ class DashboardScreen extends StatelessWidget {
         icon: Icons.point_of_sale_rounded,
         route: '/admin/sell',
       ),
-      // Past sales carry the shop's takings, so the list is the manager's
-      // (the router and the API both refuse it to the secretary).
-      if (!isSec)
-        const _DashboardItem(
-          title: 'Les ventes',
-          icon: Icons.receipt_rounded,
-          route: '/admin/sales-history',
-        ),
+      // Both roles: she sells, so she can find a sale and fix it. What she
+      // never sees is the purchase cost, stripped by the API.
+      const _DashboardItem(
+        title: 'Les ventes',
+        icon: Icons.receipt_rounded,
+        route: '/admin/sales-history',
+      ),
       _DashboardItem(
         title: context.loc.appointments,
         icon: Icons.event_rounded,

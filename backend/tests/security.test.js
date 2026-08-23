@@ -68,8 +68,6 @@ afterAll(async () => {
 describe('SECRETARY — financial routes are completely blocked (403)', () => {
   const NIL = '00000000-0000-0000-0000-000000000000';
   const financialReads = [
-    ['GET', '/api/sales'],
-    ['GET', `/api/sales/${NIL}/corrections`],
     ['GET', '/api/expenses'],
     ['GET', '/api/salary-payments'],
     ['GET', `/api/salary-payments/${NIL}/corrections`],
@@ -150,11 +148,14 @@ describe('SECRETARY — financial routes are completely blocked (403)', () => {
       .toBe(403);
   });
 
-  it('cannot correct a sale (corrections are manager-only)', async () => {
+  it('may correct a sale, but the reason stays mandatory', async () => {
+    // Fixing her own counter mistake is hers since the owner's decision of
+    // 2026-08-23. The append-only path is unchanged: no reason, no correction.
     const res = await asSec(
       request(app).post(`/api/sales/${NIL}/corrections`))
-      .send({ new_qty: 1, reason: 'tentative' });
-    expect(res.status).toBe(403);
+      .send({ new_qty: 1 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/motif/i);
   });
 
   it('cannot create users or change passwords of others', async () => {
@@ -209,11 +210,11 @@ describe('SECRETARY — allowed daily operations', () => {
     expect(get.status).toBe(200);
     expect(get.body.homme['Veste croisée']).toEqual(['epaule', 'poitrine', 'manche']);
 
-    // The guard that actually matters stays shut: private settings (finance,
-    // piece rates…) remain manager-only for every method.
+    // The guard that actually matters stays shut: private settings remain
+    // manager-only for every method.
     expect((await asSec(request(app).get('/api/settings/private'))).status).toBe(403);
     expect((await asSec(request(app).put('/api/settings/private'))
-      .send({ default_piece_rate: 1 })).status).toBe(403);
+      .send({ shop_name: 'Piraté' })).status).toBe(403);
   });
 
   it('can read products and prêt-à-porter (to sell at the counter)', async () => {
@@ -721,7 +722,18 @@ describe('Authentication and token integrity', () => {
   it('public settings expose only the public keys (shop identity)', async () => {
     const res = await request(app).get('/api/settings/public');
     expect(res.body).toHaveProperty('shop_name');
-    expect(res.body).not.toHaveProperty('default_piece_rate');
+
+    // The real guarantee, stated so it survives a new public setting being
+    // added: this unauthenticated endpoint returns ONLY rows flagged public.
+    const { rows: privateKeys } = await db.query(
+      'SELECT key FROM settings WHERE is_public = false');
+    for (const { key } of privateKeys) {
+      expect(res.body).not.toHaveProperty(key);
+    }
+    const { rows: publicKeys } = await db.query(
+      'SELECT key FROM settings WHERE is_public = true');
+    expect(Object.keys(res.body).sort())
+      .toEqual(publicKeys.map((r) => r.key).sort());
   });
 
   it('a token signed with the wrong secret → 401', async () => {
