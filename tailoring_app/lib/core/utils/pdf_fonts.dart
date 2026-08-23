@@ -28,8 +28,10 @@ class PdfFonts {
   /// "couture" masthead rather than the default Helvetica look.
   static Future<pw.ThemeData> theme() async {
     if (_cached != null) return _cached!;
-    final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/Lato-Regular.ttf'));
-    final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/Lato-Bold.ttf'));
+    final regular =
+        pw.Font.ttf(await rootBundle.load('assets/fonts/Lato-Regular.ttf'));
+    final bold =
+        pw.Font.ttf(await rootBundle.load('assets/fonts/Lato-Bold.ttf'));
     final display = pw.Font.ttf(
         await rootBundle.load('assets/fonts/CormorantGaramond-SemiBold.ttf'));
     _cached = pw.ThemeData.withFont(
@@ -44,6 +46,6 @@ class PdfFonts {
   }
 
   /// The display face on its own, for a shop name or a document title.
-  static Future<pw.Font> display() async =>
-      pw.Font.ttf(await rootBundle.load('assets/fonts/CormorantGaramond-SemiBold.ttf'));
+  static Future<pw.Font> display() async => pw.Font.ttf(
+      await rootBundle.load('assets/fonts/CormorantGaramond-SemiBold.ttf'));
 }

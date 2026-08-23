@@ -9,7 +9,6 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/couture_icons.dart';
 import '../../../../core/theme/couture_palette.dart';
 import '../../../../core/widgets/couture/couture_scaffold.dart';
-import '../../../../core/theme/context_colors.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/utils/validators.dart';
@@ -536,7 +535,7 @@ class _WalkInOrderScreenState extends State<WalkInOrderScreen> {
                           : 'Choisir une date',
                       style: TextStyle(
                         color: _expected != null
-                            ? context.cTextPrimary
+                            ? CoutureScheme.of(context).ink
                             : CoutureScheme.of(context).inkFaint,
                       ),
                     ),

@@ -7,7 +7,9 @@ void updateWebTabFaviconAndTitle(String? logoUrl, String shopName) {
   if (kIsWeb) {
     try {
       final String resolved = logoUrl != null
-          ? (logoUrl.startsWith('http') ? logoUrl : '${ApiClient.baseUrl}$logoUrl')
+          ? (logoUrl.startsWith('http')
+              ? logoUrl
+              : '${ApiClient.baseUrl}$logoUrl')
           : 'favicon.png';
       js.context.callMethod('changeFavicon', <dynamic>[resolved]);
       js.context.callMethod('changeTitle', <dynamic>[shopName]);

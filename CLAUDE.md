@@ -530,12 +530,14 @@ alternative's accent was 3.9:1, under the AA floor); each shop's own
 cannot break the palette; and indigo is this region's dye rather than borrowed
 luxury vocabulary.
 
-**The rollout is one screen per session, and the tokens are deliberately
-additive.** `lib/core/theme/couture_palette.dart` is new and `AppColors` is
-untouched, so a screen nobody has reviewed still looks exactly as it did. Do
-NOT "tidy up" by pointing `AppColors` at the new values — that restyles a dozen
-unreviewed screens in one go. When the last screen has moved, `AppColors` can
-be retired.
+**The rollout is DONE: every screen has moved, and `AppColors` has been retired
+as planned.** It ran screen by screen, tokens additive, so that a screen nobody
+had reviewed yet still looked exactly as it did — `AppColors`,
+`context_colors.dart`, `status_badge.dart` and `empty_state.dart` came out only
+once nothing referenced them. `app_theme.dart` reads `CouturePalette` directly
+now, which is what dialogs, date pickers, text fields and chips inherit.
+Material's "container" roles are pinned to the app's own washes in the
+`ColorScheme`, because seeding them tinted a selected segmented button lavender.
 
 - **`CouturePalette`** holds the raw tokens (warm paper `#F6F1EA`, indigo
   `#1E2E52`, terracotta `#B04E31`, the ink greys, a 4-pt spacing scale and a
@@ -574,8 +576,31 @@ its place immediately: the day cards were sized by aspect ratio, which ties
 card height to screen width, and they clipped their caption by 1.3 px on a
 small phone. They use a fixed `mainAxisExtent` now.
 
-Still to move: every other screen, one per session, same rules — visual only,
-`flutter analyze` and the full test suite green after each edit.
+**The shared pieces live in `lib/core/widgets/couture/`** and every redesigned
+screen is built from them: `CoutureScaffold` (the band is the shop's own
+`theme_color`, thinner than the home screen's, with `below` for a search/filter
+header, `bottomBar` for a pinned save button and `CoutureBandAction` for the
+icon buttons), plus `CoutureCard`, `CoutureWash`, `CoutureSearchField`,
+`CoutureFilterChip`, `CoutureStatusPill` and `CoutureEmpty`. A new screen uses
+these, never a bare `Scaffold` + `AppBar`.
+
+**Every screen moved**, in this order, one commit per group: dashboard →
+Commandes + Historique → Clients + Vendre → Rendez-vous + Les ventes + Album →
+Produits + Prêt-à-porter → détail commande + nouvelle commande → fiche client +
+formulaire + mesures → Finances + Rapports + Impayés + Gros → Tailleurs + Staff
+→ connexion + splash + Réglages + reçu + programme + compte.
+
+Things found and fixed on the way, none of them style: a bottom sheet Material
+had tinted lilac; a line total wrapping onto two lines; the one money field in
+the app with no thousands separators; a sold-out card reading "Plus que 0"; a
+"Bas / Low" badge in a French-only app; a gender toggle offering "Homme /
+Homme"; a sales list that only searched when you pressed Enter; and an "en
+couture" badge showing a mallet, because the Material set has no sewing glyph.
+
+Rules that held throughout and still hold: **visual only** — no query,
+computation, filter or permission was changed on any screen, rule 1 and rule 2
+are byte-for-byte what they were, and `flutter analyze` plus the full test suite
+were green at every commit.
 
 ## Working conventions
 

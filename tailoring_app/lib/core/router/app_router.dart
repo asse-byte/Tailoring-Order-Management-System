@@ -78,7 +78,8 @@ class AppRouter {
             GoRoute(
               path: 'clients/:id/measurements/:type',
               builder: (_, state) {
-                final Map<String, dynamic>? extra = state.extra as Map<String, dynamic>?;
+                final Map<String, dynamic>? extra =
+                    state.extra as Map<String, dynamic>?;
                 return MeasurementsScreen(
                   clientId: state.pathParameters['id']!,
                   garmentType:

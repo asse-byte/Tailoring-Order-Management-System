@@ -6,9 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/localization/language_provider.dart';
 import '../../../../core/theme/theme_provider.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/couture_icons.dart';
 import '../../../../core/theme/couture_palette.dart';
+import '../../../../core/theme/couture_icons.dart';
 import '../../../../core/widgets/couture/couture_scaffold.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -363,7 +362,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               subtitle: shopSettings.promoGroupLink.isEmpty
                   ? 'Non défini (affiché sur les factures)'
                   : shopSettings.promoGroupLink,
-              color: AppColors.info,
+              color: CouturePalette.indigo,
               onTap: () => _changePromoLink(context),
             ),
             const SizedBox(height: 10),

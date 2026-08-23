@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'app_colors.dart';
+import 'couture_palette.dart';
 
-/// App-wide Material 3 theme. Uses Google Fonts `Poppins` for all text.
+/// App-wide Material 3 theme. Poppins for all text.
+///
+/// This is what dialogs, date pickers, text fields and chips inherit — every
+/// surface a screen does NOT paint itself. It reads [CouturePalette] directly
+/// now that every screen has moved onto it; `AppColors` was retired with the
+/// last one, exactly as the rollout note in CLAUDE.md said it would be.
 class AppTheme {
   AppTheme._();
 
   static TextTheme _textTheme(Brightness brightness) {
     final Color base = brightness == Brightness.light
-        ? AppColors.textPrimary
-        : AppColors.darkTextPrimary;
+        ? CouturePalette.ink
+        : CouturePalette.inkDark;
     final Color muted = brightness == Brightness.light
-        ? AppColors.textSecondary
-        : AppColors.darkTextSecondary;
+        ? CouturePalette.inkSoft
+        : CouturePalette.inkSoftDark;
 
     return GoogleFonts.poppinsTextTheme().copyWith(
       displayLarge: GoogleFonts.poppins(
@@ -78,48 +83,55 @@ class AppTheme {
   /// Deep Teal is used. It drives the seed, buttons, focus ring and nav accent
   /// so each resold instance feels bespoke without touching every widget.
   static ThemeData light({Color? brand}) {
-    final Color primary = brand ?? AppColors.primary;
+    final Color primary = brand ?? CouturePalette.indigo;
     final ColorScheme scheme = ColorScheme.fromSeed(
       seedColor: primary,
       brightness: Brightness.light,
       primary: primary,
-      secondary: AppColors.accent,
-      surface: AppColors.surface,
-      error: AppColors.error,
+      secondary: CouturePalette.terracotta,
+      surface: CouturePalette.card,
+      error: CouturePalette.terracottaDeep,
+      // Material tints its "container" roles from the seed, which turned a
+      // selected segmented button lavender. These are the app's own washes.
+      primaryContainer: CouturePalette.indigoWash,
+      onPrimaryContainer: CouturePalette.indigo,
+      secondaryContainer: CouturePalette.indigoWash,
+      onSecondaryContainer: CouturePalette.indigo,
+      surfaceContainerHighest: CouturePalette.quiet,
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
       brightness: Brightness.light,
-      dividerColor: AppColors.border,
-      scaffoldBackgroundColor: AppColors.background,
+      dividerColor: CouturePalette.line,
+      scaffoldBackgroundColor: CouturePalette.paper,
       textTheme: _textTheme(Brightness.light),
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: CouturePalette.card,
+        foregroundColor: CouturePalette.ink,
         elevation: 0,
         centerTitle: false,
         titleTextStyle: GoogleFonts.poppins(
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+          color: CouturePalette.ink,
         ),
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        iconTheme: const IconThemeData(color: CouturePalette.ink),
       ),
       cardTheme: CardThemeData(
-        color: AppColors.surface,
+        color: CouturePalette.card,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.border),
+          side: const BorderSide(color: CouturePalette.line),
         ),
       ),
       inputDecorationTheme: _inputDecorationTheme(
-        fill: AppColors.surface,
-        border: AppColors.border,
-        hint: AppColors.textMuted,
+        fill: CouturePalette.card,
+        border: CouturePalette.line,
+        hint: CouturePalette.inkFaint,
         focus: primary,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -160,27 +172,27 @@ class AppTheme {
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.surfaceAlt,
+        backgroundColor: CouturePalette.quiet,
         labelStyle: GoogleFonts.poppins(
           fontSize: 12.5,
           fontWeight: FontWeight.w500,
-          color: AppColors.textPrimary,
+          color: CouturePalette.ink,
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppColors.border),
+          side: const BorderSide(color: CouturePalette.line),
         ),
         side: BorderSide.none,
       ),
       dividerTheme: const DividerThemeData(
-        color: AppColors.border,
+        color: CouturePalette.line,
         thickness: 1,
         space: 1,
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: AppColors.surface,
+        backgroundColor: CouturePalette.card,
         selectedItemColor: primary,
-        unselectedItemColor: AppColors.textMuted,
+        unselectedItemColor: CouturePalette.inkFaint,
         selectedLabelStyle: GoogleFonts.poppins(
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -196,63 +208,68 @@ class AppTheme {
   }
 
   static ThemeData dark({Color? brand}) {
-    final Color primary = brand ?? AppColors.primaryLight;
+    final Color primary = brand ?? CouturePalette.indigoLight;
     final ColorScheme scheme = ColorScheme.fromSeed(
-      seedColor: brand ?? AppColors.primary,
+      seedColor: brand ?? CouturePalette.indigo,
       brightness: Brightness.dark,
+      primaryContainer: CouturePalette.indigoWashDark,
+      onPrimaryContainer: CouturePalette.indigoLight,
+      secondaryContainer: CouturePalette.indigoWashDark,
+      onSecondaryContainer: CouturePalette.indigoLight,
+      surfaceContainerHighest: CouturePalette.quietDark,
       primary: primary,
-      secondary: AppColors.accent,
-      surface: AppColors.darkSurface,
-      error: AppColors.error,
+      secondary: CouturePalette.terracotta,
+      surface: CouturePalette.cardDark,
+      error: CouturePalette.terracottaDeep,
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme.copyWith(
-        onSurface: AppColors.darkTextPrimary,
+        onSurface: CouturePalette.inkDark,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
         onError: Colors.white,
       ),
       brightness: Brightness.dark,
-      dividerColor: AppColors.darkBorder,
-      scaffoldBackgroundColor: AppColors.darkBackground,
-      iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
-      primaryIconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
+      dividerColor: CouturePalette.lineDark,
+      scaffoldBackgroundColor: CouturePalette.paperDark,
+      iconTheme: const IconThemeData(color: CouturePalette.inkDark),
+      primaryIconTheme: const IconThemeData(color: CouturePalette.inkDark),
       textTheme: _textTheme(Brightness.dark),
       listTileTheme: ListTileThemeData(
-        iconColor: AppColors.darkTextPrimary,
-        textColor: AppColors.darkTextPrimary,
+        iconColor: CouturePalette.inkDark,
+        textColor: CouturePalette.inkDark,
         titleTextStyle: GoogleFonts.poppins(
           fontSize: 15,
           fontWeight: FontWeight.w600,
-          color: AppColors.darkTextPrimary,
+          color: CouturePalette.inkDark,
         ),
         subtitleTextStyle: GoogleFonts.poppins(
           fontSize: 12.5,
           fontWeight: FontWeight.w400,
-          color: AppColors.darkTextSecondary,
+          color: CouturePalette.inkSoftDark,
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: AppColors.darkSurface,
+        backgroundColor: CouturePalette.cardDark,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         titleTextStyle: GoogleFonts.poppins(
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: AppColors.darkTextPrimary,
+          color: CouturePalette.inkDark,
         ),
         contentTextStyle: GoogleFonts.poppins(
           fontSize: 14,
           fontWeight: FontWeight.w400,
-          color: AppColors.darkTextSecondary,
+          color: CouturePalette.inkSoftDark,
         ),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.darkSurfaceAlt,
+        backgroundColor: CouturePalette.quietDark,
         contentTextStyle: GoogleFonts.poppins(
-          color: AppColors.darkTextPrimary,
+          color: CouturePalette.inkDark,
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
@@ -260,31 +277,31 @@ class AppTheme {
         behavior: SnackBarBehavior.floating,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.darkSurface,
-        foregroundColor: AppColors.darkTextPrimary,
+        backgroundColor: CouturePalette.cardDark,
+        foregroundColor: CouturePalette.inkDark,
         elevation: 0,
         centerTitle: false,
         titleTextStyle: GoogleFonts.poppins(
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: AppColors.darkTextPrimary,
+          color: CouturePalette.inkDark,
         ),
-        iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
-        actionsIconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
+        iconTheme: const IconThemeData(color: CouturePalette.inkDark),
+        actionsIconTheme: const IconThemeData(color: CouturePalette.inkDark),
       ),
       cardTheme: CardThemeData(
-        color: AppColors.darkSurface,
+        color: CouturePalette.cardDark,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.darkBorder),
+          side: const BorderSide(color: CouturePalette.lineDark),
         ),
       ),
       inputDecorationTheme: _inputDecorationTheme(
-        fill: AppColors.darkSurface,
-        border: AppColors.darkBorder,
-        hint: AppColors.darkTextSecondary.withValues(alpha: 0.6),
+        fill: CouturePalette.cardDark,
+        border: CouturePalette.lineDark,
+        hint: CouturePalette.inkSoftDark.withValues(alpha: 0.6),
         focus: Colors.white,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -325,22 +342,22 @@ class AppTheme {
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.darkSurfaceAlt,
+        backgroundColor: CouturePalette.quietDark,
         labelStyle: GoogleFonts.poppins(
           fontSize: 12.5,
           fontWeight: FontWeight.w500,
-          color: AppColors.darkTextPrimary,
+          color: CouturePalette.inkDark,
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppColors.darkBorder),
+          side: const BorderSide(color: CouturePalette.lineDark),
         ),
         side: BorderSide.none,
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: AppColors.darkSurface,
+        backgroundColor: CouturePalette.cardDark,
         selectedItemColor: Colors.white,
-        unselectedItemColor: AppColors.darkTextSecondary,
+        unselectedItemColor: CouturePalette.inkSoftDark,
         selectedLabelStyle: GoogleFonts.poppins(
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -353,7 +370,7 @@ class AppTheme {
         elevation: 0,
       ),
       dividerTheme: const DividerThemeData(
-        color: AppColors.darkBorder,
+        color: CouturePalette.lineDark,
         thickness: 1,
         space: 1,
       ),
@@ -364,7 +381,7 @@ class AppTheme {
     required Color fill,
     required Color border,
     required Color hint,
-    Color focus = AppColors.primary,
+    Color focus = CouturePalette.indigo,
   }) {
     OutlineInputBorder buildBorder(Color color, {double width = 1.2}) =>
         OutlineInputBorder(
@@ -389,8 +406,9 @@ class AppTheme {
       border: buildBorder(border),
       enabledBorder: buildBorder(border),
       focusedBorder: buildBorder(focus, width: 1.6),
-      errorBorder: buildBorder(AppColors.error),
-      focusedErrorBorder: buildBorder(AppColors.error, width: 1.6),
+      errorBorder: buildBorder(CouturePalette.terracottaDeep),
+      focusedErrorBorder:
+          buildBorder(CouturePalette.terracottaDeep, width: 1.6),
     );
   }
 }
