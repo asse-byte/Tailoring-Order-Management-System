@@ -46,7 +46,14 @@ services:
     ports:
       # Host port is per-shop (multi-shop on one VPS): set API_PORT in .env
       # (3001, 3002, …). Inside the container the API always listens on 3000.
-      - "${API_PORT:-3000}:3000"
+      #
+      # Bound to 127.0.0.1, NOT 0.0.0.0: nginx runs on the host and proxies to
+      # http://127.0.0.1:<API_PORT> (docs/DEPLOYMENT.md), so nothing outside the
+      # VPS ever needs to reach this port. Publishing it on every interface put
+      # each shop's API one firewall mistake away from being open at
+      # <vps-ip>:3001, 3002… — the same reason backend/docker-compose.yml has
+      # always bound localhost. Do not widen this back.
+      - "127.0.0.1:${API_PORT:-3000}:3000"
     volumes:
       - uploads_data:/app/uploads
 

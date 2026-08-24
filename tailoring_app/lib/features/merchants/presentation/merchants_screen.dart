@@ -509,6 +509,7 @@ class _MerchantsScreenState extends State<MerchantsScreen>
   }
 
   Widget _buildWholesaleCard(WholesaleOrder o) {
+    final CoutureScheme c = CoutureScheme.of(context);
     final isPaid = o.reste <= 0;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -536,6 +537,23 @@ class _MerchantsScreenState extends State<MerchantsScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Divider(),
+                // The real margin on this lot. Nothing recorded what the goods
+                // cost until now, so every bulk sale looked like pure profit.
+                Text(
+                  o.margin != null
+                      ? 'Achat: ${formatFcfa(o.costAmount)} · '
+                          'Bénéfice: ${formatFcfa(o.margin!)}'
+                      : 'Coût d\'achat non renseigné — le bénéfice de cette '
+                          'vente ne peut pas être calculé.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: o.margin != null
+                        ? (o.margin! >= 0 ? c.goodInk : c.urgentText)
+                        : c.inkFaint,
+                  ),
+                ),
+                const SizedBox(height: 8),
                 const Text('Articles distribués:',
                     style:
                         TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -799,10 +817,12 @@ class _MerchantsScreenState extends State<MerchantsScreen>
     int qty = o.items.isNotEmpty ? o.items.first.qty : 1;
     int unitPrice = o.items.isNotEmpty ? o.items.first.unitPrice : 0;
     int advanceAmount = o.advanceAmount;
+    int costAmount = o.costAmount;
 
     final priceCtrl = TextEditingController(text: formatThousands(unitPrice));
     final advanceCtrl =
         TextEditingController(text: formatThousands(advanceAmount));
+    final costCtrl = TextEditingController(text: formatThousands(costAmount));
 
     await showDialog(
       context: context,
@@ -861,6 +881,14 @@ class _MerchantsScreenState extends State<MerchantsScreen>
                   label: 'Acompte reçu (FCFA)',
                   onChanged: (v) => advanceAmount = v ?? 0,
                 ),
+                const SizedBox(height: 8),
+                // Without this the sale reaches Finances as pure profit: the
+                // money the shop paid for these pieces was recorded nowhere.
+                FormattedNumberField(
+                  controller: costCtrl,
+                  label: 'Ce que la marchandise vous a coûté (FCFA)',
+                  onChanged: (v) => costAmount = v ?? 0,
+                ),
               ],
             ),
           ),
@@ -885,6 +913,7 @@ class _MerchantsScreenState extends State<MerchantsScreen>
                   ],
                   totalAmount: total,
                   advanceAmount: advanceAmount,
+                  costAmount: costAmount,
                 );
                 if (!ctx.mounted) return;
                 Navigator.pop(ctx);
@@ -1142,9 +1171,11 @@ class _MerchantsScreenState extends State<MerchantsScreen>
     int qty = 1;
     int unitPrice = 0;
     int advanceAmount = 0;
+    int costAmount = 0;
 
     final priceCtrl = TextEditingController();
     final advanceCtrl = TextEditingController();
+    final costCtrl = TextEditingController();
 
     await showDialog(
       context: context,
@@ -1200,6 +1231,14 @@ class _MerchantsScreenState extends State<MerchantsScreen>
                   label: 'Acompte reçu (FCFA)',
                   onChanged: (v) => advanceAmount = v ?? 0,
                 ),
+                const SizedBox(height: 8),
+                // Without this the sale reaches Finances as pure profit: the
+                // money the shop paid for these pieces was recorded nowhere.
+                FormattedNumberField(
+                  controller: costCtrl,
+                  label: 'Ce que la marchandise vous a coûté (FCFA)',
+                  onChanged: (v) => costAmount = v ?? 0,
+                ),
               ],
             ),
           ),
@@ -1223,6 +1262,7 @@ class _MerchantsScreenState extends State<MerchantsScreen>
                   ],
                   totalAmount: total,
                   advanceAmount: advanceAmount,
+                  costAmount: costAmount,
                 );
                 if (!ctx.mounted) return;
                 Navigator.pop(ctx);

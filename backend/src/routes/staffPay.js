@@ -50,10 +50,17 @@ router.put('/:staffId', asyncH(async (req, res) => {
   // The secretary can never write salary fields — force them to "unchanged".
   const monthlySalary = isManager ? intOrNull(req.body.monthly_salary) : null;
   const salaryDueDay = isManager ? intOrNull(req.body.salary_due_day) : null;
-  const weeklySalary = isManager ? intOrNull(req.body.weekly_salary) : null;
-  const payFrequency = isManager && ['mensuel', 'hebdo'].includes(req.body.pay_frequency)
-    ? req.body.pay_frequency : 'mensuel';
-  if (pieceRate === undefined || monthlySalary === undefined || salaryDueDay === undefined) {
+  // Only the fields the caller actually SENT are written. `weekly_salary` and
+  // `pay_frequency` used to be rebuilt from scratch on every PUT, so a manager
+  // editing a weekly employee's piece rate from a screen that does not know
+  // about the weekly fields silently reset them to NULL / 'mensuel' — and that
+  // employee's wages then vanished from the payroll cost entirely.
+  const weeklySent = isManager && req.body.weekly_salary !== undefined;
+  const weeklySalary = weeklySent ? intOrNull(req.body.weekly_salary) : null;
+  const freqSent = isManager && ['mensuel', 'hebdo'].includes(req.body.pay_frequency);
+  const payFrequency = freqSent ? req.body.pay_frequency : null;
+  if (pieceRate === undefined || monthlySalary === undefined
+      || salaryDueDay === undefined || weeklySalary === undefined) {
     return res.status(400).json({ error: 'Montants invalides (entiers ≥ 0).' });
   }
   const updated = await db.withTransaction(async (tx) => {
@@ -65,13 +72,16 @@ router.put('/:staffId', asyncH(async (req, res) => {
 
     const { rows } = await tx.query(
       `INSERT INTO staff_pay (staff_id, piece_rate, monthly_salary, salary_due_day, weekly_salary, pay_frequency)
-       VALUES ($1, $2, $3, $4, $5, $6)
+       VALUES ($1, $2, $3, $4, COALESCE($5, 0), COALESCE($6, 'mensuel'))
        ON CONFLICT (staff_id) DO UPDATE SET
          piece_rate = EXCLUDED.piece_rate,
          monthly_salary = CASE WHEN $7 THEN EXCLUDED.monthly_salary ELSE staff_pay.monthly_salary END,
          salary_due_day = CASE WHEN $7 THEN EXCLUDED.salary_due_day ELSE staff_pay.salary_due_day END,
-         weekly_salary = CASE WHEN $7 THEN EXCLUDED.weekly_salary ELSE staff_pay.weekly_salary END,
-         pay_frequency = CASE WHEN $7 THEN EXCLUDED.pay_frequency ELSE staff_pay.pay_frequency END
+         -- Untouched unless this request carried the field ($5/$6 non-null).
+         weekly_salary = CASE WHEN $7 AND $5 IS NOT NULL
+           THEN $5 ELSE staff_pay.weekly_salary END,
+         pay_frequency = CASE WHEN $7 AND $6 IS NOT NULL
+           THEN $6 ELSE staff_pay.pay_frequency END
        RETURNING *`,
       [req.params.staffId, pieceRate, monthlySalary, salaryDueDay, weeklySalary, payFrequency, isManager]);
 

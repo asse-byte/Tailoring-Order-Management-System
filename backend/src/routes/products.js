@@ -50,9 +50,10 @@ router.get('/', asyncH(async (req, res) => {
   res.json({ items: rows, limit, offset });
 }));
 
-// Catalog writes are manager-only. Stock is never edited directly by the
-// secretary — it only moves inside the sale transaction (see sales.js).
-// Catalog management is open to both roles, BUT cost_price (which reveals the
+// Catalog management is open to BOTH roles (owner decision 2026-07-19), stock
+// count included — she is the one who receives the delivery. Stock also moves
+// on its own inside the sale transaction (see sales.js).
+// BUT cost_price (which reveals the
 // profit margin) stays manager-only: the secretary can never set or read it.
 router.post('/', asyncH(async (req, res) => {
   const isManager = req.user.role === 'MANAGER';
@@ -151,27 +152,32 @@ router.delete('/:id', asyncH(async (req, res) => {
   res.status(204).end();
 }));
 
+// Lifetime sales + profit for ONE product, manager-only.
+//
+// The cost comes from `sales_effective.cost_total` — the purchase price FROZEN
+// onto each sale row at the moment it was sold (migration 024) — never from
+// `products.cost_price` read live. Multiplying today's cost price by everything
+// ever sold meant that re-pricing an item (which happens on every delivery)
+// silently rewrote the profit of every past sale of it, and made this screen
+// disagree with Finances about the very same sale. Same rule as
+// src/finance/queries.js: never join the live catalogue for a cost.
 router.get('/:id/stats', managerOnly, asyncH(async (req, res) => {
-  const { rows: stats } = await db.query(
-    `SELECT COALESCE(SUM(qty), 0)::int AS total_sold,
-            COALESCE(SUM(total), 0)::int AS total_revenue
-     FROM sales_effective
-     WHERE item_id = $1 AND kind = 'produit' AND voided = false`,
-    [req.params.id]
-  );
-  const { rows: prod } = await db.query('SELECT cost_price FROM products WHERE id = $1', [req.params.id]);
+  const { rows: prod } = await db.query('SELECT id FROM products WHERE id = $1', [req.params.id]);
   if (!prod[0]) return res.status(404).json({ error: 'Produit introuvable.' });
 
-  const totalSold = stats[0].total_sold;
-  const totalRevenue = stats[0].total_revenue;
-  const costPrice = prod[0].cost_price || 0;
-  const totalCost = totalSold * costPrice;
-  const totalProfit = totalRevenue - totalCost;
+  const { rows: stats } = await db.query(
+    `SELECT COALESCE(SUM(qty), 0)::int        AS total_sold,
+            COALESCE(SUM(total), 0)::int      AS total_revenue,
+            COALESCE(SUM(cost_total), 0)::int AS total_cost
+     FROM sales_effective
+     WHERE item_id = $1 AND kind = 'produit' AND NOT voided`,
+    [req.params.id]
+  );
 
   res.json({
-    total_sold: totalSold,
-    total_revenue: totalRevenue,
-    total_profit: totalProfit
+    total_sold: stats[0].total_sold,
+    total_revenue: stats[0].total_revenue,
+    total_profit: stats[0].total_revenue - stats[0].total_cost,
   });
 }));
 

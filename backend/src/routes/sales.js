@@ -250,7 +250,11 @@ router.get('/receipts/:id', asyncH(async (req, res) => {
 // Reads the EFFECTIVE view: latest correction wins, voided sales flagged.
 router.get('/', asyncH(async (req, res) => {
   const { limit, offset } = pagination(req, 50, 200);
-  const { from, to, kind } = req.query;
+  // Validated like every other date filter here: an unparseable ?from= used to
+  // reach PostgreSQL as a cast and come back as a 500 instead of being ignored.
+  const from = dateStr(req.query.from);
+  const to = dateStr(req.query.to);
+  const { kind } = req.query;
   const { rows } = await db.query(
     `SELECT s.*, u.name AS seller_name FROM sales_effective s
      JOIN users u ON u.id = s.created_by
@@ -258,7 +262,7 @@ router.get('/', asyncH(async (req, res) => {
        AND ($2::date IS NULL OR s.sold_at < $2::date + 1)
        AND ($3::text IS NULL OR s.kind = $3)
      ORDER BY s.sold_at DESC LIMIT $4 OFFSET $5`,
-    [from || null, to || null,
+    [from, to,
       ['produit', 'pret_a_porter'].includes(kind) ? kind : null, limit, offset]);
   res.json({ items: withoutCost(rows), limit, offset });
 }));

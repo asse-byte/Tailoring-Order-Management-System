@@ -27,11 +27,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
   FinanceSummary? _summary;
   List<Expense> _expenses = [];
 
-  // Per-category detail rows for the selected period.
-  List<FinanceRow> _orderRows = [];
-  List<FinanceRow> _saleRows = [];
-  List<FinanceRow> _wageRows = [];
-  List<FinanceRow> _expenseRows = [];
+  // Per-category operations for the selected period, each with the subtotal
+  // the SERVER computed over the whole window. The screen must never add these
+  // up itself: the rows are capped for the phone's sake, so a folded subtotal
+  // would silently cover only part of the period.
+  FinanceDetail? _detail;
 
   // Date range state: default to current month
   DateTime _fromDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
@@ -66,19 +66,13 @@ class _FinanceScreenState extends State<FinanceScreen> {
       final results = await Future.wait(<Future<dynamic>>[
         _repo.getSummary(from: fromStr, to: toStr),
         _repo.listExpenses(),
-        _repo.deliveredOrderRows(from: fromStr, to: toStr),
-        _repo.saleRows(from: fromStr, to: toStr),
-        _repo.tailorWageRows(from: fromStr, to: toStr),
-        _repo.expenseRows(from: fromStr, to: toStr),
+        _repo.detail(from: fromStr, to: toStr),
       ]);
 
       setState(() {
         _summary = results[0] as FinanceSummary;
         _expenses = results[1] as List<Expense>;
-        _orderRows = results[2] as List<FinanceRow>;
-        _saleRows = results[3] as List<FinanceRow>;
-        _wageRows = results[4] as List<FinanceRow>;
-        _expenseRows = results[5] as List<FinanceRow>;
+        _detail = results[2] as FinanceDetail;
       });
     } catch (e) {
       _error = e.toString();
@@ -114,10 +108,17 @@ class _FinanceScreenState extends State<FinanceScreen> {
     _loadFinanceData();
   }
 
-  /// An expandable table for one finance category (rows + subtotal).
+  /// An expandable table for one finance category (operations + subtotal).
+  ///
+  /// The subtotal is [FinanceCategory.total] — computed by the server over the
+  /// whole period. It is NOT the sum of [FinanceCategory.rows]: those are
+  /// capped so a phone does not render thousands of lines, and folding them
+  /// here is exactly what used to print a first-page total under a card
+  /// holding the real one.
   Widget _detailSection(
-      String title, List<FinanceRow> rows, IconData icon, Color color) {
-    final int subtotal = rows.fold(0, (s, r) => s + r.amount);
+      String title, FinanceCategory cat, IconData icon, Color color) {
+    final List<FinanceRow> rows = cat.rows;
+    final int subtotal = cat.total;
     final CoutureScheme c = CoutureScheme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: CouturePalette.s2),
@@ -135,7 +136,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
             style: TextStyle(
                 fontWeight: FontWeight.w600, fontSize: 13.5, color: c.ink)),
         subtitle: Text(
-            rows.length == 1 ? '1 opération' : '${rows.length} opérations',
+            cat.truncated
+                ? 'Les ${rows.length} plus récentes (le total compte tout)'
+                : rows.length == 1
+                    ? '1 opération'
+                    : '${rows.length} opérations',
             style: TextStyle(fontSize: 12, color: c.inkFaint)),
         trailing: Text(formatFcfa(subtotal),
             style: TextStyle(fontWeight: FontWeight.w700, color: color)),
@@ -514,14 +519,30 @@ class _FinanceScreenState extends State<FinanceScreen> {
                           style: CouturePalette.sectionLabel
                               .copyWith(color: c.inkFaint)),
                       const SizedBox(height: CouturePalette.s2),
-                      _detailSection('Argent reçu — commandes livrées',
-                          _orderRows, CoutureIcons.clipboardText, c.goodInk),
-                      _detailSection('Argent reçu — ventes en boutique',
-                          _saleRows, CoutureIcons.shoppingBag, c.goodInk),
-                      _detailSection('Argent sorti — paie des couturiers',
-                          _wageRows, CoutureIcons.scissors, c.urgentText),
-                      _detailSection('Argent sorti — autres dépenses',
-                          _expenseRows, CoutureIcons.receipt, c.urgentText),
+                      // "Commandes" lists the money actually COLLECTED, not
+                      // the price of the orders: the card above is cash-basis,
+                      // and listing order totals under it meant a delivered
+                      // order with an unpaid balance looked like money in hand.
+                      _detailSection(
+                          'Argent reçu — commandes des clients',
+                          _detail?.orders ?? FinanceCategory.empty,
+                          CoutureIcons.clipboardText,
+                          c.goodInk),
+                      _detailSection(
+                          'Argent reçu — ventes en boutique',
+                          _detail?.sales ?? FinanceCategory.empty,
+                          CoutureIcons.shoppingBag,
+                          c.goodInk),
+                      _detailSection(
+                          'Argent sorti — paie des couturiers',
+                          _detail?.wages ?? FinanceCategory.empty,
+                          CoutureIcons.scissors,
+                          c.urgentText),
+                      _detailSection(
+                          'Argent sorti — autres dépenses',
+                          _detail?.expenses ?? FinanceCategory.empty,
+                          CoutureIcons.receipt,
+                          c.urgentText),
 
                       const SizedBox(height: 24),
 

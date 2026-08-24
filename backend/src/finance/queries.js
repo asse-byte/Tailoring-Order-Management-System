@@ -53,6 +53,15 @@ const FINANCE_QUERIES = [
   // 6 — salary disbursements actually recorded for the window.
   `SELECT COALESCE(SUM(amount), 0)::bigint AS v FROM salary_payments_effective
     WHERE NOT voided AND paid_at BETWEEN $1::date AND $2::date`,
+
+  // 7 — what the goods sold WHOLESALE cost the shop, frozen on the order
+  //     (migration 028). Query 2 counted the merchant's cash with no cost at
+  //     all against it, so every wholesale lot showed a 100 % margin.
+  //     Dated on the order, matching how the lot is priced and delivered;
+  //     `cost_amount` is 0 for lots bought before this existed, which is why
+  //     no past figure moves.
+  `SELECT COALESCE(SUM(cost_amount), 0)::bigint AS v FROM wholesale_orders
+    WHERE order_date BETWEEN $1::date AND $2::date`,
 ];
 
 /**
@@ -141,8 +150,8 @@ async function financeTotals(db, from, to) {
     ...FINANCE_QUERIES.map((q) => db.query(q, [from, to])),
     db.query(PAYROLL_QUERY),
   ]);
-  const [sales, orders, wholesale, goodsCost, wages, expenses, salaryPaid, payroll] =
-    results.map((r) => r.rows[0]);
+  const [sales, orders, wholesale, goodsCost, wages, expenses, salaryPaid,
+    wholesaleCost, payroll] = results.map((r) => r.rows[0]);
 
   const revenue = {
     sales: Number(sales.v),
@@ -152,7 +161,11 @@ async function financeTotals(db, from, to) {
   revenue.total = revenue.sales + revenue.orders + revenue.wholesale;
 
   const costs = {
-    cost_of_goods_sold: Number(goodsCost.v),
+    // Retail COGS (frozen unit_cost) plus what the wholesale lots cost. Both
+    // are the purchase price of goods that left the shop, so they belong on
+    // the same line — the Finances screen already labels it "Achat de la
+    // marchandise vendue".
+    cost_of_goods_sold: Number(goodsCost.v) + Number(wholesaleCost.v),
     tailor_wages: Number(wages.v),
     salaries: salaryCost(payroll, salaryPaid.v, from, to),
     expenses: Number(expenses.v),
@@ -163,7 +176,118 @@ async function financeTotals(db, from, to) {
   return { revenue, costs, net_profit: revenue.total - costs.total };
 }
 
+// ============================================================================
+// The operation-by-operation breakdown behind each KPI card.
+//
+// The Finances screen lists the operations under every category with a
+// subtotal. Those subtotals used to be added up IN THE APP, by folding the
+// rows of a PAGINATED list endpoint: 20 orders, 50 sales, 50 expenses. On any
+// busy month the app therefore printed a subtotal covering only the first page,
+// directly beneath a KPI card holding the true figure — two different numbers
+// for the same thing, on the same screen.
+//
+// The subtotal is computed HERE now, over the whole window, from the very same
+// effective views financeTotals() reads, so a category's subtotal cannot drift
+// from its card. The row list stays capped (a shop does not scroll 4 000 rows
+// on a phone) and says how many were left out; the TOTAL always covers all of
+// them.
+//
+// Delivered-order rows carry the CASH COLLECTED in the window, not the order's
+// price. The card above them is cash-basis (query 1) — listing order totals
+// there could never reconcile with it, and made a delivered order with an
+// unpaid balance look like money the shop had received.
+// ============================================================================
+
+const DETAIL_ROW_CAP = 300;
+
+const DETAIL_QUERIES = {
+  // Money in — tailoring: one row per payment actually collected.
+  orders: {
+    total: `SELECT COALESCE(SUM(p.amount), 0)::bigint AS v
+              FROM order_payments_effective p
+             WHERE NOT p.voided AND p.paid_at BETWEEN $1::date AND $2::date`,
+    rows: `SELECT COALESCE(c.full_name, o.client_name_snapshot, 'Client') AS title,
+                  p.paid_at::text AS on_date,
+                  COALESCE(NULLIF(p.note, ''), 'Règlement')  AS detail,
+                  p.amount::int AS amount
+             FROM order_payments_effective p
+             JOIN orders o ON o.id = p.order_id
+             LEFT JOIN clients c ON c.id = o.client_id
+            WHERE NOT p.voided AND p.paid_at BETWEEN $1::date AND $2::date
+            ORDER BY p.paid_at DESC, p.created_at DESC
+            LIMIT ${DETAIL_ROW_CAP}`,
+  },
+  // Money in — the counter.
+  sales: {
+    total: `SELECT COALESCE(SUM(total), 0)::bigint AS v FROM sales_effective
+             WHERE NOT voided AND sold_at >= $1::date AND sold_at < $2::date + 1`,
+    rows: `SELECT item_name AS title,
+                  sold_at::date::text AS on_date,
+                  ('×' || qty) AS detail,
+                  total::int AS amount
+             FROM sales_effective
+            WHERE NOT voided AND sold_at >= $1::date AND sold_at < $2::date + 1
+            ORDER BY sold_at DESC
+            LIMIT ${DETAIL_ROW_CAP}`,
+  },
+  // Money out — piece-work wages.
+  wages: {
+    total: `SELECT COALESCE(SUM(amount), 0)::bigint AS v
+              FROM tailor_entries_effective
+             WHERE entry_date BETWEEN $1::date AND $2::date`,
+    rows: `SELECT COALESCE(s.full_name, e.tailor_name_snapshot, 'Couturier') AS title,
+                  e.entry_date::text AS on_date,
+                  (COALESCE(NULLIF(e.garment_type, ''), 'Pièces')
+                    || ' · ' || e.pieces_count || ' pc') AS detail,
+                  e.amount::int AS amount
+             FROM tailor_entries_effective e
+             LEFT JOIN staff s ON s.id = e.tailor_id
+            WHERE e.entry_date BETWEEN $1::date AND $2::date AND NOT e.voided
+            ORDER BY e.entry_date DESC, e.created_at DESC
+            LIMIT ${DETAIL_ROW_CAP}`,
+  },
+  // Money out — manual expenses.
+  expenses: {
+    total: `SELECT COALESCE(SUM(amount), 0)::bigint AS v FROM expenses_effective
+             WHERE NOT voided AND spent_at >= $1::date AND spent_at < $2::date + 1`,
+    rows: `SELECT reason AS title,
+                  spent_at::date::text AS on_date,
+                  'Dépense' AS detail,
+                  amount::int AS amount
+             FROM expenses_effective
+            WHERE NOT voided AND spent_at >= $1::date AND spent_at < $2::date + 1
+            ORDER BY spent_at DESC, created_at DESC
+            LIMIT ${DETAIL_ROW_CAP}`,
+  },
+};
+
+/**
+ * Rows + an authoritative subtotal for each finance category in [from, to].
+ * `truncated` says the list was capped; `total` never is.
+ */
+async function financeDetail(db, from, to) {
+  const keys = Object.keys(DETAIL_QUERIES);
+  const results = await Promise.all(keys.flatMap((k) => [
+    db.query(DETAIL_QUERIES[k].total, [from, to]),
+    db.query(DETAIL_QUERIES[k].rows, [from, to]),
+  ]));
+
+  const out = {};
+  keys.forEach((key, i) => {
+    const total = Number(results[i * 2].rows[0].v);
+    const rows = results[i * 2 + 1].rows.map((r) => ({
+      title: r.title,
+      on_date: r.on_date,
+      detail: r.detail,
+      amount: Number(r.amount),
+    }));
+    out[key] = { total, rows, truncated: rows.length >= DETAIL_ROW_CAP };
+  });
+  return out;
+}
+
 module.exports = {
-  FINANCE_QUERIES, PAYROLL_QUERY, financeTotals,
+  FINANCE_QUERIES, PAYROLL_QUERY, DETAIL_QUERIES, DETAIL_ROW_CAP,
+  financeTotals, financeDetail,
   monthsTouched, daysInWindow, salaryMonthsFactor, salaryCost,
 };

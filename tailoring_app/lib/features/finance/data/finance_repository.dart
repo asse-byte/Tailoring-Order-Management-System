@@ -124,6 +124,72 @@ class FinanceRow {
     required this.subtitle,
     required this.amount,
   });
+
+  factory FinanceRow.fromJson(Map<String, dynamic> json) {
+    final String date = (json['on_date'] as String?) ?? '';
+    final String detail = (json['detail'] as String?) ?? '';
+    return FinanceRow(
+      title: (json['title'] as String?) ?? '—',
+      subtitle: detail.isEmpty ? date : '$date · $detail',
+      amount: (json['amount'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// The operations behind one KPI card, with the subtotal the SERVER computed.
+///
+/// The screen used to add these up itself by folding the rows of a paginated
+/// list endpoint — 20 orders, 50 sales, 50 expenses. On a busy month it printed
+/// a subtotal covering only the first page, right under a card holding the true
+/// figure: two different numbers for the same thing on one screen. [total] now
+/// always covers the whole period, whatever [rows] happens to hold.
+class FinanceCategory {
+  final int total;
+  final List<FinanceRow> rows;
+  final bool truncated;
+
+  const FinanceCategory({
+    required this.total,
+    required this.rows,
+    required this.truncated,
+  });
+
+  static const FinanceCategory empty =
+      FinanceCategory(total: 0, rows: <FinanceRow>[], truncated: false);
+
+  factory FinanceCategory.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return empty;
+    return FinanceCategory(
+      total: (json['total'] as num?)?.toInt() ?? 0,
+      rows: ((json['rows'] as List?) ?? <dynamic>[])
+          .map((e) => FinanceRow.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      truncated: (json['truncated'] as bool?) ?? false,
+    );
+  }
+}
+
+/// The four detail tables of the Finances screen, in one call.
+class FinanceDetail {
+  final FinanceCategory orders;
+  final FinanceCategory sales;
+  final FinanceCategory wages;
+  final FinanceCategory expenses;
+
+  const FinanceDetail({
+    required this.orders,
+    required this.sales,
+    required this.wages,
+    required this.expenses,
+  });
+
+  factory FinanceDetail.fromJson(Map<String, dynamic> json) => FinanceDetail(
+        orders: FinanceCategory.fromJson(json['orders'] as Map<String, dynamic>?),
+        sales: FinanceCategory.fromJson(json['sales'] as Map<String, dynamic>?),
+        wages: FinanceCategory.fromJson(json['wages'] as Map<String, dynamic>?),
+        expenses:
+            FinanceCategory.fromJson(json['expenses'] as Map<String, dynamic>?),
+      );
 }
 
 class FinanceRepository {
@@ -141,69 +207,16 @@ class FinanceRepository {
   }
 
   // ---- period-filtered detail rows (each finance category) ----------------
-
-  Future<List<FinanceRow>> expenseRows(
+  //
+  // ONE call, and the subtotal comes back with the rows. The four separate
+  // fetchers this replaced each hit a paginated list endpoint and left the
+  // screen to fold the rows into a subtotal, which therefore covered only the
+  // first page — 20 orders, 50 sales, 50 expenses. See FinanceCategory.
+  Future<FinanceDetail> detail(
       {required String from, required String to}) async {
     final dynamic res =
-        await _api.get('/api/expenses', query: {'from': from, 'to': to});
-    return (res['items'] as List)
-        .map((e) => e as Map<String, dynamic>)
-        .where((e) => (e['voided'] as bool? ?? false) == false)
-        .map((e) => FinanceRow(
-              title: (e['reason'] as String?) ?? '—',
-              subtitle: (e['spent_at'] as String?) ?? '',
-              amount: (e['amount'] as num?)?.toInt() ?? 0,
-            ))
-        .toList();
-  }
-
-  Future<List<FinanceRow>> saleRows(
-      {required String from, required String to}) async {
-    final dynamic res =
-        await _api.get('/api/sales', query: {'from': from, 'to': to});
-    return (res['items'] as List)
-        .map((e) => e as Map<String, dynamic>)
-        .where((e) => (e['voided'] as bool? ?? false) == false)
-        .map((e) => FinanceRow(
-              title: '${e['item_name'] ?? ''} ×${e['qty'] ?? 1}',
-              subtitle: ((e['sold_at'] as String?) ?? '').split('T').first,
-              amount: (e['total'] as num?)?.toInt() ?? 0,
-            ))
-        .toList();
-  }
-
-  Future<List<FinanceRow>> tailorWageRows(
-      {required String from, required String to}) async {
-    final dynamic res =
-        await _api.get('/api/tailor-entries', query: {'from': from, 'to': to});
-    return (res['items'] as List)
-        .map((e) => e as Map<String, dynamic>)
-        .map((e) {
-      final garment = (e['garment_type'] as String?) ?? '';
-      final name = (e['tailor_name'] as String?) ?? '';
-      return FinanceRow(
-        title: garment.isEmpty ? name : '$name — $garment',
-        subtitle: '${e['entry_date'] ?? ''} · ${e['pieces_count'] ?? 0} pc',
-        amount: (e['amount'] as num?)?.toInt() ?? 0,
-      );
-    }).toList();
-  }
-
-  Future<List<FinanceRow>> deliveredOrderRows(
-      {required String from, required String to}) async {
-    final dynamic res = await _api
-        .get('/api/orders', query: {'status': 'livre', 'from': from, 'to': to});
-    return (res['items'] as List)
-        .map((e) => e as Map<String, dynamic>)
-        .map((e) {
-      return FinanceRow(
-        title: (e['client_name'] as String?) ?? 'Client',
-        subtitle:
-            'Livré ${((e['delivered_date'] as String?) ?? '').split('T').first}',
-        amount:
-            (e['total'] as num?)?.toInt() ?? (e['price'] as num?)?.toInt() ?? 0,
-      );
-    }).toList();
+        await _api.get('/api/finance/detail', query: {'from': from, 'to': to});
+    return FinanceDetail.fromJson(res as Map<String, dynamic>);
   }
 
   Future<List<Expense>> listExpenses() async {
