@@ -27,4 +27,52 @@ async function login(app, { username, password }) {
   return res.body.token;
 }
 
-module.exports = { MANAGER, SECRETARY, seedUsers, login };
+/**
+ * Tables that must survive a reset: the migration ledger, the shop identity,
+ * and the product types every product row has a foreign key to. Everything
+ * else is fixture data.
+ */
+const KEEP_TABLES = new Set(['schema_migrations', 'migrations', 'settings',
+  'product_categories']);
+
+/**
+ * Give the calling suite an EMPTY database, then re-seed the two accounts.
+ *
+ * Almost every suite here works in baseline→delta, because they all share one
+ * PostgreSQL and Jest runs them `--runInBand` one after another. A suite that
+ * asserts an ABSOLUTE total — "the whole day came to 167 000 exactly" — cannot
+ * do that: whatever the previous suite left behind lands in the same sum. This
+ * wipes the slate so those absolute numbers mean what they say.
+ *
+ * TRUNCATE is what makes it possible at all. The financial tables are
+ * append-only through row-level BEFORE UPDATE OR DELETE triggers, and row-level
+ * triggers do not fire on TRUNCATE — so this resets the fixtures without
+ * disabling a single protection, which is the one thing the delete path must
+ * never do (see the Antigravity review in CLAUDE.md).
+ *
+ * Suites that run afterwards are unaffected: each builds its own fixtures in
+ * its own `beforeAll`, and an empty database is the cleanest start they can get.
+ *
+ * Call it at the top of a `describe`. Returns nothing; it registers its own
+ * `beforeAll`.
+ */
+function withFreshDb() {
+  beforeAll(async () => {
+    const { rows } = await db.query(
+      `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`);
+    const targets = rows
+      .map((r) => r.tablename)
+      .filter((t) => !KEEP_TABLES.has(t));
+
+    if (targets.length) {
+      // One statement: the tables reference each other, so they have to be
+      // emptied together. CASCADE covers anything not named explicitly.
+      await db.query(
+        `TRUNCATE TABLE ${targets.map((t) => `"${t}"`).join(', ')} `
+        + 'RESTART IDENTITY CASCADE');
+    }
+    await seedUsers();
+  });
+}
+
+module.exports = { MANAGER, SECRETARY, seedUsers, login, withFreshDb };

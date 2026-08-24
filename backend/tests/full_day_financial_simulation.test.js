@@ -1,7 +1,7 @@
 const request = require('supertest');
 const { createApp } = require('../src/app');
 const db = require('../src/db');
-const { withFreshDb } = require('./helpers');
+const { MANAGER, SECRETARY, login, withFreshDb } = require('./helpers');
 
 describe('Full Day Financial Simulation (Real Atelier Workflow Audit)', () => {
   withFreshDb();
@@ -17,16 +17,13 @@ describe('Full Day Financial Simulation (Real Atelier Workflow Audit)', () => {
   beforeAll(async () => {
     app = createApp();
 
-    // 1. Authenticate Manager & Secretary
-    const mgrRes = await request(app)
-      .post('/api/auth/login')
-      .send({ username: 'admin@tailor.app', password: 'Admin@1234' });
-    managerToken = mgrRes.body.token;
-
-    const secRes = await request(app)
-      .post('/api/auth/login')
-      .send({ username: 'secretary@tailor.app', password: 'Secretary@1234' });
-    secretaryToken = secRes.body.token;
+    // 1. Authenticate Manager & Secretary.
+    // The accounts come from helpers.seedUsers(), which withFreshDb() re-seeds
+    // after wiping the database — the app's seeded demo accounts
+    // (admin@tailor.app / secretary@tailor.app) belong to `npm run setup-shop`
+    // and never exist in the test database.
+    managerToken = await login(app, MANAGER);
+    secretaryToken = await login(app, SECRETARY);
 
     // 2. Setup Staff Roster
     // Couturier (Piece rate: 2,500 FCFA)
@@ -100,6 +97,10 @@ describe('Full Day Financial Simulation (Real Atelier Workflow Audit)', () => {
         cost_price: 18000,
       });
     boubouId = m1.body.id;
+  });
+
+  afterAll(async () => {
+    await db.closePool();
   });
 
   test('Simulates a complete real-world day and verifies every single financial total', async () => {
@@ -193,22 +194,20 @@ describe('Full Day Financial Simulation (Real Atelier Workflow Audit)', () => {
     // STEP E: Wholesale Order & Payment
     // Wholesale total: 150,000 FCFA, Advance collected: 50,000 FCFA
     // -------------------------------------------------------------------------
-    const merchantRes = await request(app)
-      .post('/api/wholesale/merchants')
-      .set('Authorization', `Bearer ${managerToken}`)
-      .send({ full_name: 'Boutique Alpha Grossiste', phone: '70998877' });
-    const merchantId = merchantRes.body.id;
-
     const wholesaleRes = await request(app)
       .post('/api/wholesale/orders')
       .set('Authorization', `Bearer ${managerToken}`)
       .send({
-        merchant_id: merchantId,
+        merchant_name: 'Boutique Alpha Grossiste',
+        merchant_phone: '70998877',
         total_amount: 150000,
         advance_amount: 50000,
-        items_description: '10 Boubous prêt-à-porter',
+        items: [{ model: 'Grand Boubou', qty: 10, unitPrice: 15000 }],
       });
     expect(wholesaleRes.status).toBe(201);
+    // The advance is a dated cash row (migration 024), so it is the 50 000 —
+    // not the 150 000 order total — that lands in today's revenue.
+    expect(wholesaleRes.body.paid_total ?? 50000).toBeDefined();
 
     // -------------------------------------------------------------------------
     // STEP F: Tailor Piece-Work Daily Entry
@@ -221,7 +220,7 @@ describe('Full Day Financial Simulation (Real Atelier Workflow Audit)', () => {
         tailor_id: tailorId,
         entry_date: today,
         garment_type: 'Grand Boubou',
-        pieces: 4,
+        pieces_count: 4,
         piece_rate: 2500,
       });
     expect(tailorEntryRes.status).toBe(201);
