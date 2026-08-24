@@ -133,6 +133,10 @@ class WholesaleOrder {
   final List<WholesaleOrderItem> items;
   final int totalAmount;
   final int advanceAmount;
+  /// What this lot cost the shop. 0 = never recorded (every order created
+  /// before migration 028). Without it a bulk sale reached Finances as pure
+  /// profit, because nothing anywhere held the purchase price of the goods.
+  final int costAmount;
   final int paidTotal;
   final int reste;
   final String status; // 'en_cours' | 'livre'
@@ -147,6 +151,7 @@ class WholesaleOrder {
     required this.items,
     required this.totalAmount,
     required this.advanceAmount,
+    this.costAmount = 0,
     required this.paidTotal,
     required this.reste,
     required this.status,
@@ -164,6 +169,7 @@ class WholesaleOrder {
             .toList(),
         totalAmount: (json['total_amount'] as num?)?.toInt() ?? 0,
         advanceAmount: (json['advance_amount'] as num?)?.toInt() ?? 0,
+        costAmount: (json['cost_amount'] as num?)?.toInt() ?? 0,
         paidTotal: (json['paid_total'] as num?)?.toInt() ?? 0,
         reste: (json['reste'] as num?)?.toInt() ?? 0,
         status: json['status'] as String? ?? 'en_cours',
@@ -171,6 +177,10 @@ class WholesaleOrder {
         deliveredDate: json['delivered_date'] as String?,
         notes: json['notes'] as String?,
       );
+
+  /// Selling price minus what the lot cost. Null while no cost was recorded —
+  /// showing "margin = the whole price" would be a lie, not a zero.
+  int? get margin => costAmount > 0 ? totalAmount - costAmount : null;
 }
 
 class WholesalePayment {

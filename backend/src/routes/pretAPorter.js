@@ -101,27 +101,26 @@ router.delete('/:id', asyncH(async (req, res) => {
   res.status(204).end();
 }));
 
+// Lifetime sales + profit for ONE model, manager-only. Reads the cost FROZEN
+// onto each sale row, never the live catalogue — see products.js for why.
 router.get('/:id/stats', managerOnly, asyncH(async (req, res) => {
-  const { rows: stats } = await db.query(
-    `SELECT COALESCE(SUM(qty), 0)::int AS total_sold,
-            COALESCE(SUM(total), 0)::int AS total_revenue
-     FROM sales_effective
-     WHERE item_id = $1 AND kind = 'pret_a_porter' AND voided = false`,
-    [req.params.id]
-  );
-  const { rows: model } = await db.query('SELECT cost_price FROM pret_a_porter_models WHERE id = $1', [req.params.id]);
+  const { rows: model } = await db.query(
+    'SELECT id FROM pret_a_porter_models WHERE id = $1', [req.params.id]);
   if (!model[0]) return res.status(404).json({ error: 'Modèle introuvable.' });
 
-  const totalSold = stats[0].total_sold;
-  const totalRevenue = stats[0].total_revenue;
-  const costPrice = model[0].cost_price || 0;
-  const totalCost = totalSold * costPrice;
-  const totalProfit = totalRevenue - totalCost;
+  const { rows: stats } = await db.query(
+    `SELECT COALESCE(SUM(qty), 0)::int        AS total_sold,
+            COALESCE(SUM(total), 0)::int      AS total_revenue,
+            COALESCE(SUM(cost_total), 0)::int AS total_cost
+     FROM sales_effective
+     WHERE item_id = $1 AND kind = 'pret_a_porter' AND NOT voided`,
+    [req.params.id]
+  );
 
   res.json({
-    total_sold: totalSold,
-    total_revenue: totalRevenue,
-    total_profit: totalProfit
+    total_sold: stats[0].total_sold,
+    total_revenue: stats[0].total_revenue,
+    total_profit: stats[0].total_revenue - stats[0].total_cost,
   });
 }));
 

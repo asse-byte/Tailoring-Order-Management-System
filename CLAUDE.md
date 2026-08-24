@@ -531,6 +531,77 @@ the window, and the accrual uses the CURRENT roster. A historical report
 therefore reflects today's staff list. That is a known limitation, not an
 oversight — versioning the roster is a bigger change than this audit.
 
+## Verification audit (2026-08-24) — four more money bugs, same three families
+
+A second full pass over the money code after the 2026-08-23 audit. Every route
+file was read line by line, the 45-endpoint secretary matrix was swept
+automatically (no leak, no wrong block, everything 401 without a token), and
+each finding below was reproduced against a real database before being fixed.
+All of them are pinned in `backend/tests/audit_2026_08_24.test.js`, and every
+test there was checked to FAIL when its fix is reverted.
+
+1. **Per-item profit re-read the LIVE cost price.** `GET /api/products/:id/stats`
+   and `/api/pret-a-porter/:id/stats` computed `total_sold × products.cost_price`,
+   so re-pricing an item — which happens on every delivery — silently rewrote
+   the profit of every past sale of it, and made the Produits screen contradict
+   Finances about the very same sale (16 000 became 4 000 in the repro). This is
+   the bug migration 024 fixed for COGS, surviving in `/stats` because the
+   2026-08-23 audit only touched `financeTotals`. Both now read
+   `SUM(sales_effective.cost_total)` — the cost FROZEN on the sale row.
+   **Never join the live catalogue for a cost, anywhere, including `/stats`.**
+2. **Raising an order's advance AFTER delivery invented cash.** The 2026-08-23
+   audit fixed the LOWERING direction (`correctCollectedBy` reduces BY a
+   difference, never DOWN TO a figure); the raising direction still inserted the
+   whole difference as a new payment with no regard for what was still owed. On
+   a settled 100 000 order, correcting a 20 000 advance to 30 000 recorded
+   110 000 collected — 10 000 of revenue the shop never took, and an order
+   showing as overpaid. A raise is now capped at the outstanding balance
+   (`outstanding()`), so before delivery it behaves exactly as it always did and
+   after delivery it adds nothing. **Both edges are closed; do not reopen either.**
+3. **Wholesale sales had no cost side at all.** `wholesale_payments` reached
+   revenue (migration 024) but nothing anywhere held what the lot cost, so every
+   bulk sale showed a 100 % margin: a lot bought at 1 000 000 and sold at
+   1 300 000 added 1 300 000 to net profit instead of 300 000. Migration 028
+   adds `wholesale_orders.cost_amount`, frozen on the order exactly like a
+   sale's `unit_cost`, defaulting to 0 so no past figure moves — it simply stops
+   being blind. `financeTotals` adds it to `cost_of_goods_sold`.
+   **`supplier_purchases` / `supplier_payments` are deliberately NOT a cost
+   line.** They record what the shop owes its suppliers; the same money reaches
+   the P&L through `cost_price` → `sales.unit_cost` → COGS when the goods are
+   sold. Counting both would charge every retail purchase twice. Suppliers are a
+   debt ledger, not a P&L input — pinned by a test, do not "fix" it.
+4. **The Finances detail subtotals were folded from a PAGE.**
+   `finance_screen.dart` added the four category subtotals up itself from
+   paginated list endpoints — 20 orders, 50 sales, 50 expenses — so any busy
+   month printed a subtotal covering only the first page directly beneath a KPI
+   card holding the true figure. Two different numbers for the same thing on one
+   screen, which is the likeliest source of the owner's original "Rapport et
+   statistique ne correspond pas" complaint. New manager-only
+   `GET /api/finance/detail` returns rows AND an authoritative subtotal computed
+   over the whole window, from the same effective views `financeTotals` reads;
+   the rows stay capped (`DETAIL_ROW_CAP`) and say so. **The app must never sum
+   these rows itself.** The delivered-order table also listed order TOTALS under
+   a cash-basis card, so a delivered order with an unpaid balance looked like
+   money in hand — it lists the cash actually collected now.
+
+Smaller things fixed in the same batch: an invalid `advance` on `POST /api/orders`
+collapsed to 0 instead of being refused (`?? 0` made the check on the next line
+dead code); `PUT /api/staff-pay/:id` rebuilt every field, so a request that did
+not carry `weekly_salary` / `pay_frequency` reset them and that employee's wages
+vanished from payroll; `GET /api/sales` passed `?from=` to PostgreSQL unvalidated
+(500 instead of ignoring it); `salary_payments (paid_at)` had no index though
+every period total filters on it; the root `docker-compose.yml` published the API
+on `0.0.0.0` while `backend/docker-compose.yml` bound `127.0.0.1` — nginx runs on
+the host and proxies to localhost, so the port is bound to localhost now.
+
+Verified and found CORRECT, so a future session need not re-derive them:
+cancelling a sale restores stock exactly and removes its revenue exactly once;
+editing a sale neither double-counts nor loses the difference; a multi-line
+receipt's total equals its lines and reaches revenue once (finance sums
+`sales_effective`, never receipt headers); COGS is frozen; wages read the
+effective view; salary proration; the dashboard counters, the debtor count and
+the outstanding-debt total; the tailor all-time summary; stock.
+
 ## Known accepted risks (audit 2026-08-13)
 
 Reviewed and deliberately left as-is. Documented so a future reader does not

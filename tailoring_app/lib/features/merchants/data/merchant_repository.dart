@@ -162,6 +162,9 @@ class MerchantRepository {
     required List<WholesaleOrderItem> items,
     required int totalAmount,
     required int advanceAmount,
+    // What this lot cost the shop. Without it a bulk sale reaches Finances as
+    // pure profit — the money paid for the goods was counted nowhere at all.
+    int costAmount = 0,
     String? orderDate,
     String? notes,
   }) async {
@@ -171,6 +174,7 @@ class MerchantRepository {
       'items': items.map((i) => i.toJson()).toList(),
       'total_amount': totalAmount,
       'advance_amount': advanceAmount,
+      'cost_amount': costAmount,
       if (orderDate != null) 'order_date': orderDate,
       if (notes != null) 'notes': notes,
     });
@@ -184,6 +188,7 @@ class MerchantRepository {
     List<WholesaleOrderItem>? items,
     int? totalAmount,
     int? advanceAmount,
+    int? costAmount,
     String? orderDate,
     String? status,
     String? notes,
@@ -194,6 +199,7 @@ class MerchantRepository {
       if (items != null) 'items': items.map((i) => i.toJson()).toList(),
       if (totalAmount != null) 'total_amount': totalAmount,
       if (advanceAmount != null) 'advance_amount': advanceAmount,
+      if (costAmount != null) 'cost_amount': costAmount,
       if (orderDate != null) 'order_date': orderDate,
       if (status != null) 'status': status,
       if (notes != null) 'notes': notes,

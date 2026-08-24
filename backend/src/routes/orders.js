@@ -72,6 +72,30 @@ async function correctCollectedBy(tx, orderId, delta, userId, reason) {
   }
 }
 
+/**
+ * What is still owed on an order right now: the derived total of its effective
+ * line items minus the cash effectively collected against it. Both sides read
+ * the append-only views, so corrections and voids are respected.
+ */
+async function outstanding(tx, orderId) {
+  const { rows } = await tx.query(
+    `SELECT COALESCE(it.total, 0)::int  AS total,
+            COALESCE(pay.paid, 0)::int  AS paid
+     FROM orders o
+     LEFT JOIN LATERAL (
+       SELECT SUM(line_total)::int AS total FROM order_items_effective
+       WHERE order_id = o.id
+     ) it ON true
+     LEFT JOIN LATERAL (
+       SELECT SUM(amount)::int AS paid FROM order_payments_effective
+       WHERE order_id = o.id AND NOT voided
+     ) pay ON true
+     WHERE o.id = $1`, [orderId]);
+  const total = rows[0]?.total || 0;
+  const paid = rows[0]?.paid || 0;
+  return { total, paid, reste: total - paid };
+}
+
 /** Validate an items array from the request → [{garment_type, quantity, unit_price}]. */
 function parseItems(raw) {
   if (!Array.isArray(raw) || raw.length === 0) return null;
@@ -122,7 +146,13 @@ router.get('/', asyncH(async (req, res) => {
 router.post('/', asyncH(async (req, res) => {
   const clientId = str(req.body.client_id);
   const items = parseItems(req.body.items);
-  const advance = intOrNull(req.body.advance) ?? 0;
+  // `?? 0` only fills in a MISSING advance. An invalid one (text, a negative,
+  // a decimal) stays `undefined` and is refused below — it used to collapse to
+  // 0 here, which made the check on the next line dead code and silently
+  // recorded "no advance" for a client who had just handed money over.
+  const rawAdvance = req.body.advance;
+  const advance = rawAdvance === undefined || rawAdvance === null || rawAdvance === ''
+    ? 0 : intOrNull(rawAdvance);
   const tailorId = str(req.body.tailor_id);
   const status = req.body.status;
   if (!clientId || !items) {
@@ -130,7 +160,7 @@ router.post('/', asyncH(async (req, res) => {
       error: 'client_id et au moins un article (garment_type, quantity ≥ 1, unit_price) requis.',
     });
   }
-  if (advance === undefined) return res.status(400).json({ error: 'Avance invalide.' });
+  if (advance == null) return res.status(400).json({ error: 'Avance invalide (entier ≥ 0).' });
   if (status !== undefined && !STATUSES.includes(status)) {
     return res.status(400).json({ error: `status doit être: ${STATUSES.join(', ')}.` });
   }
@@ -240,10 +270,22 @@ router.put('/:id', asyncH(async (req, res) => {
     if (advance !== null && advance !== oldAdvance) {
       const diff = advance - oldAdvance;
       if (diff > 0) {
-        await tx.query(
-          `INSERT INTO order_payments (order_id, amount, paid_at, note)
-           VALUES ($1, $2, CURRENT_DATE, 'Règlement / Acompte')`,
-          [orderId, diff]);
+        // Never bank more than the order is still owed. Before delivery the
+        // balance is wide open and the whole difference lands, as it always
+        // did. AFTER delivery the balance is already 0, and the old code still
+        // inserted the difference: correcting a 20 000 advance to 30 000 on a
+        // settled 100 000 order recorded 110 000 collected — 10 000 of revenue
+        // the shop never took, and an order showing as overpaid. This is the
+        // mirror of the bug correctCollectedBy() fixed in the other direction
+        // (audit 2026-08-23); both edges are now closed.
+        const { reste } = await outstanding(tx, orderId);
+        const collectable = Math.min(diff, Math.max(reste, 0));
+        if (collectable > 0) {
+          await tx.query(
+            `INSERT INTO order_payments (order_id, amount, paid_at, note)
+             VALUES ($1, $2, CURRENT_DATE, 'Règlement / Acompte')`,
+            [orderId, collectable]);
+        }
       } else {
         await correctCollectedBy(tx, orderId, oldAdvance - advance, req.user.id,
           'Acompte corrigé à la baisse depuis la fiche commande.');
@@ -255,20 +297,7 @@ router.put('/:id', asyncH(async (req, res) => {
     // paid in full at hand-over: the money was collected but no payment row
     // existed, so tailoring revenue stayed at 0 for shops that take no advance.
     if (status === 'livre' && cur[0].status !== 'livre') {
-      const { rows: bal } = await tx.query(
-        `SELECT COALESCE(it.total, 0)::int AS total,
-                COALESCE(pay.paid, 0)::int AS paid
-         FROM orders o
-         LEFT JOIN LATERAL (
-           SELECT SUM(line_total)::int AS total FROM order_items_effective
-           WHERE order_id = o.id
-         ) it ON true
-         LEFT JOIN LATERAL (
-           SELECT SUM(amount)::int AS paid FROM order_payments_effective
-           WHERE order_id = o.id AND NOT voided
-         ) pay ON true
-         WHERE o.id = $1`, [orderId]);
-      const reste = (bal[0]?.total || 0) - (bal[0]?.paid || 0);
+      const { reste } = await outstanding(tx, orderId);
       if (reste > 0) {
         await tx.query(
           `INSERT INTO order_payments (order_id, amount, paid_at, note)

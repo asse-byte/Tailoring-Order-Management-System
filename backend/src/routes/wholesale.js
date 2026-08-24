@@ -32,9 +32,15 @@ router.post('/orders', asyncH(async (req, res) => {
   const merchantName = str(req.body.merchant_name);
   const totalAmount = intOrNull(req.body.total_amount);
   const advanceAmount = intOrNull(req.body.advance_amount) ?? 0;
+  // What this lot cost the shop (migration 028). Optional — 0 means "not
+  // recorded", the state every order created before this existed is in.
+  const costAmount = intOrNull(req.body.cost_amount) ?? 0;
   const items = req.body.items || [];
   if (!merchantName || totalAmount == null || totalAmount < 0) {
     return res.status(400).json({ error: 'Nom du commerçant et total_amount (≥ 0) requis.' });
+  }
+  if (advanceAmount === undefined || costAmount === undefined) {
+    return res.status(400).json({ error: 'Montants invalides (entiers ≥ 0).' });
   }
 
   // The advance is REAL CASH: it gets a dated payment row like every other
@@ -44,10 +50,12 @@ router.post('/orders', asyncH(async (req, res) => {
   const created = await db.withTransaction(async (tx) => {
     const { rows } = await tx.query(
       `INSERT INTO wholesale_orders
-         (merchant_name, merchant_phone, items, total_amount, advance_amount, status, order_date, notes, created_by)
-       VALUES ($1, $2, $3, $4, $5, 'en_cours', COALESCE($6::date, CURRENT_DATE), $7, $8) RETURNING *`,
+         (merchant_name, merchant_phone, items, total_amount, advance_amount,
+          cost_amount, status, order_date, notes, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, 'en_cours', COALESCE($7::date, CURRENT_DATE), $8, $9) RETURNING *`,
       [merchantName, str(req.body.merchant_phone) || '', JSON.stringify(items),
-        totalAmount, advanceAmount, dateStr(req.body.order_date), str(req.body.notes), req.user.id]);
+        totalAmount, advanceAmount, costAmount, dateStr(req.body.order_date),
+        str(req.body.notes), req.user.id]);
     if (advanceAmount > 0) {
       await tx.query(
         `INSERT INTO wholesale_payments (order_id, amount, paid_at, note, created_by)
@@ -72,6 +80,12 @@ router.put('/orders/:id', asyncH(async (req, res) => {
     return res.status(400).json({ error: 'status invalide (en_cours|livre).' });
   }
   const totalAmount = req.body.total_amount === undefined ? null : intOrNull(req.body.total_amount);
+  // The lot's purchase price is plain master data (the order itself is Type A),
+  // so it is editable here; only the CASH stays append-only.
+  const costAmount = req.body.cost_amount === undefined ? null : intOrNull(req.body.cost_amount);
+  if (totalAmount === undefined || costAmount === undefined) {
+    return res.status(400).json({ error: 'Montants invalides (entiers ≥ 0).' });
+  }
   const items = req.body.items ? JSON.stringify(req.body.items) : null;
   // `advance_amount` is deliberately NOT editable here: since migration 024 the
   // advance is an ordinary dated payment row, and cash rows are append-only.
@@ -86,14 +100,16 @@ router.put('/orders/:id', asyncH(async (req, res) => {
        status         = COALESCE($4, status),
        items          = COALESCE($5::jsonb, items),
        total_amount   = COALESCE($6, total_amount),
-       order_date     = COALESCE($7::date, order_date),
+       cost_amount    = COALESCE($7, cost_amount),
+       order_date     = COALESCE($8::date, order_date),
        delivered_date = CASE
          WHEN $4 = 'livre' AND status <> 'livre' THEN CURRENT_DATE
          WHEN $4 IS NOT NULL AND $4 <> 'livre' THEN NULL
          ELSE delivered_date END
-     WHERE id = $8 RETURNING *`,
+     WHERE id = $9 RETURNING *`,
     [str(req.body.merchant_name), str(req.body.merchant_phone), str(req.body.notes),
-     status || null, items, totalAmount, dateStr(req.body.order_date), req.params.id]);
+     status || null, items, totalAmount, costAmount,
+     dateStr(req.body.order_date), req.params.id]);
   if (!rows[0]) return res.status(404).json({ error: 'Commande introuvable.' });
   res.json(rows[0]);
 }));
