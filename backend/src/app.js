@@ -84,12 +84,12 @@ function createApp() {
 
   // -- daily operations: both roles ------------------------------------------
   app.use('/api/clients', staffOnly, clientsRouter);
-  app.use('/api/orders', staffOnly, ordersRouter);            // DELETE: manager (in router)
+  app.use('/api/orders', staffOnly, ordersRouter);            // incl. DELETE = cancel (owner decision 2026-08-23)
   app.use('/api/appointments', staffOnly, appointmentsRouter);
   app.use('/api/products', staffOnly, productsRouter);        // CRUD both; cost_price + /stats manager-only
   app.use('/api/product-categories', staffOnly, productCategoriesRouter); // read both; writes manager (in router)
   app.use('/api/pret-a-porter', staffOnly, pretAPorterRouter); // CRUD both; cost_price + /stats manager-only
-  app.use('/api/sales', staffOnly, salesRouter);              // GET: manager (in router)
+  app.use('/api/sales', staffOnly, salesRouter);              // read + correct both; unit_cost stripped for her
   app.use('/api/staff', staffOnly, staffRouter);              // CRUD both (roster; pay stays manager-only)
   app.use('/api/upload', staffOnly, uploadRouter);
   app.use('/api/whatsapp', staffOnly, whatsappRouter);

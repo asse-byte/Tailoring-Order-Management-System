@@ -2,7 +2,9 @@ const express = require('express');
 const db = require('../db');
 const { asyncH, intOrNull, dateStr, isoWeekId, str } = require('../util');
 
-// Mounted manager-only in app.js. The tables behind this router are
+// Mounted for BOTH roles in app.js (owner decision 2026-07-20: piece prices
+// vary per garment, so the secretary sets them while assigning the work).
+// The tables behind this router are
 // APPEND-ONLY at the database level: there is no update/delete route here,
 // and even direct SQL raises an exception (trigger). Mistakes are fixed by
 // POSTing a correction with a mandatory reason — the audit trail is total.

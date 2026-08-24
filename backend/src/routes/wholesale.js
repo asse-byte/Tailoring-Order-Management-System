@@ -6,7 +6,9 @@ const { asyncH, pagination, intOrNull, dateStr, str } = require('../util');
 const router = express.Router();
 const STATUSES = ['en_cours', 'livre'];
 
-// Read wholesale orders: Both roles can read, but secretary gets 403 on financial summaries.
+// Mounted manager-only in app.js: wholesale carries totals, amounts paid and
+// outstanding balances, so it is a money module like every other one and the
+// secretary gets 403 on every route here (owner decision 2026-08-03).
 router.get('/orders', asyncH(async (req, res) => {
   const { limit, offset } = pagination(req);
   const status = STATUSES.includes(req.query.status) ? req.query.status : null;

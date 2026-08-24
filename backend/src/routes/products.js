@@ -50,9 +50,10 @@ router.get('/', asyncH(async (req, res) => {
   res.json({ items: rows, limit, offset });
 }));
 
-// Catalog writes are manager-only. Stock is never edited directly by the
-// secretary — it only moves inside the sale transaction (see sales.js).
-// Catalog management is open to both roles, BUT cost_price (which reveals the
+// Catalog management is open to BOTH roles (owner decision 2026-07-19), stock
+// count included — she is the one who receives the delivery. Stock also moves
+// on its own inside the sale transaction (see sales.js).
+// BUT cost_price (which reveals the
 // profit margin) stays manager-only: the secretary can never set or read it.
 router.post('/', asyncH(async (req, res) => {
   const isManager = req.user.role === 'MANAGER';
