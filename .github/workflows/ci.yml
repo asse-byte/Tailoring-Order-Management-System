@@ -1,0 +1,112 @@
+# =============================================================================
+# CI — the safety net this project did not have.
+# =============================================================================
+# Until now nothing ran the test suite automatically. The only thing standing
+# between a broken money formula and six live shops was somebody remembering to
+# type `npm test`, and the history says that is not enough: a batch of 24
+# commits once shipped four rule violations that a manual review caught weeks
+# later, and a test file sat in tests/ for a whole day without executing at all
+# (it called a helper that did not exist, so Jest counted 19 suites against 20
+# files and nobody noticed the gap).
+#
+# Both of those are exactly what this catches, on every push and every pull
+# request, before anything reaches a shop.
+#
+# The suite needs a REAL PostgreSQL — the append-only triggers, the *_effective
+# views and every money query are SQL, so there is nothing meaningful to test
+# against a mock. Locally that comes from `embedded-postgres`; here it is a
+# service container, which tests/globalSetup.js already supports through
+# TEST_DATABASE_URL (it migrates that database and skips the embedded server).
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push makes an in-flight run pointless — cancel it rather than pay for
+# both. Never cancel a run on main: its result is the record for that commit.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend — API, money math, role isolation
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: couture_test
+        ports:
+          - 5432:5432
+        # Without this the job races the database and fails on connection
+        # refused rather than on anything real.
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22' # matches backend/Dockerfile
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run the suite
+        working-directory: backend
+        env:
+          # globalSetup migrates this database and skips embedded-postgres.
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/couture_test
+          NODE_ENV: test
+        run: npm test
+
+  flutter:
+    name: App — analyzer and widget tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Pinned, not `stable`: the app tracks a specific SDK (intl 0.20.2
+          # needs flutter_localizations from 3.29+, and the vendored Phosphor
+          # icons exist because IconData became a final class). A silent SDK
+          # bump under CI would fail for reasons that have nothing to do with
+          # the commit being tested.
+          flutter-version: '3.44.9'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        working-directory: tailoring_app
+        run: flutter pub get
+
+      # Fails on anything the analyzer reports, which for this project means
+      # errors and the lint rules in analysis_options.yaml.
+      - name: Analyze
+        working-directory: tailoring_app
+        run: flutter analyze
+
+      - name: Test
+        working-directory: tailoring_app
+        run: flutter test
